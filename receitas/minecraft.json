@@ -1,0 +1,224 @@
+{
+  "formato": 1,
+  "id": "minecraft",
+  "nome": "Minecraft",
+  "edicao": "Java Edition",
+  "icone": "MC",
+  "versao": "1.0.0",
+  "descricao": "O servidor oficial da Mojang, com o Java que cada versão pede.",
+  "variantes": {
+    "vanilla": {
+      "nome": "Vanilla",
+      "descricao": "Minecraft puro, sem mods. Você escolhe só a versão."
+    },
+    "com-mods": {
+      "nome": "Com mods",
+      "descricao": "Um modpack do Modrinth define a versão, o loader e os mods.",
+      "disponivel": false,
+      "porque": "Com mods chega na próxima versão."
+    }
+  },
+  "versoes": {
+    "fonte": "mojang",
+    "manifesto": "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
+    "tipos": ["release"],
+    "quantas": 24
+  },
+  "artefatos": [
+    {
+      "id": "servidor",
+      "fonte": "mojang-servidor",
+      "destino": "server.jar"
+    },
+    {
+      "id": "java",
+      "fonte": "adoptium",
+      "destino": "java",
+      "consulta": "https://api.adoptium.net/v3/assets/latest/{major}/hotspot?image_type=jre&vendor=eclipse",
+      "majorPadrao": 8,
+      "plataformas": [
+        { "plataforma": "windows-x64", "os": "windows", "arquitetura": "x64", "raiz": "{release}-jre" },
+        { "plataforma": "mac-aarch64", "os": "mac", "arquitetura": "aarch64", "raiz": "{release}-jre/Contents/Home", "senaoHouver": "mac-x64" },
+        { "plataforma": "mac-x64", "os": "mac", "arquitetura": "x64", "raiz": "{release}-jre/Contents/Home" },
+        { "plataforma": "linux-x64", "os": "linux", "arquitetura": "x64", "raiz": "{release}-jre" },
+        { "plataforma": "linux-aarch64", "os": "linux", "arquitetura": "aarch64", "raiz": "{release}-jre" }
+      ]
+    }
+  ],
+  "origens": [
+    "piston-data.mojang.com",
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com"
+  ],
+  "dominiosDoJogo": [
+    "sessionserver.mojang.com",
+    "api.minecraftservices.com",
+    "api.mojang.com"
+  ],
+  "rodar": {
+    "comando": "java/bin/java",
+    "argumentos": ["-Xms1G", "-Xmx2G", "-jar", "server.jar", "nogui"]
+  },
+  "rede": {
+    "protocolo": "tcp",
+    "portaPadrao": 25565
+  },
+  "disco": {
+    "mundoMaximo": 8589934592
+  },
+  "termos": [
+    {
+      "id": "eula",
+      "titulo": "EULA do Minecraft (Mojang)",
+      "url": "https://aka.ms/MinecraftEULA",
+      "arquivo": "eula.txt",
+      "conteudo": "eula=true\n"
+    }
+  ],
+  "configuracao": {
+    "arquivo": "server.properties",
+    "formato": "properties",
+    "campos": [
+      {
+        "chave": "nome",
+        "aba": "geral",
+        "forma": "campo",
+        "rotulo": "Nome que aparece na lista do jogo",
+        "padrao": "Servidor do SEELE",
+        "obrigatorio": true,
+        "tamanhoMaximo": 59
+      },
+      {
+        "chave": "cor",
+        "aba": "geral",
+        "forma": "escolha",
+        "rotulo": "Cor do nome",
+        "padrao": "b",
+        "opcoes": [
+          { "valor": "f", "rotulo": "Branco", "amostra": "#FFFFFF" },
+          { "valor": "7", "rotulo": "Cinza", "amostra": "#AAAAAA" },
+          { "valor": "8", "rotulo": "Cinza-escuro", "amostra": "#555555" },
+          { "valor": "0", "rotulo": "Preto", "amostra": "#000000" },
+          { "valor": "e", "rotulo": "Amarelo", "amostra": "#FFFF55" },
+          { "valor": "6", "rotulo": "Dourado", "amostra": "#FFAA00" },
+          { "valor": "c", "rotulo": "Vermelho", "amostra": "#FF5555" },
+          { "valor": "4", "rotulo": "Vermelho-escuro", "amostra": "#AA0000" },
+          { "valor": "d", "rotulo": "Rosa", "amostra": "#FF55FF" },
+          { "valor": "5", "rotulo": "Roxo", "amostra": "#AA00AA" },
+          { "valor": "9", "rotulo": "Azul", "amostra": "#5555FF" },
+          { "valor": "1", "rotulo": "Azul-escuro", "amostra": "#0000AA" },
+          { "valor": "b", "rotulo": "Ciano", "amostra": "#55FFFF" },
+          { "valor": "3", "rotulo": "Ciano-escuro", "amostra": "#00AAAA" },
+          { "valor": "a", "rotulo": "Verde", "amostra": "#55FF55" },
+          { "valor": "2", "rotulo": "Verde-escuro", "amostra": "#00AA00" }
+        ]
+      },
+      {
+        "chave": "maximo",
+        "aba": "geral",
+        "grupo": "regras",
+        "forma": "numero",
+        "rotulo": "Máx. jogadores",
+        "padrao": 10,
+        "minimo": 1,
+        "maximo": 100
+      },
+      {
+        "chave": "dificuldade",
+        "aba": "geral",
+        "grupo": "regras",
+        "forma": "escolha",
+        "rotulo": "Dificuldade",
+        "padrao": "normal",
+        "opcoes": [
+          { "valor": "peaceful", "rotulo": "Pacífica" },
+          { "valor": "easy", "rotulo": "Fácil" },
+          { "valor": "normal", "rotulo": "Normal" },
+          { "valor": "hard", "rotulo": "Difícil" }
+        ]
+      },
+      {
+        "chave": "modo",
+        "aba": "geral",
+        "grupo": "regras",
+        "forma": "escolha",
+        "rotulo": "Modo",
+        "padrao": "survival",
+        "opcoes": [
+          { "valor": "survival", "rotulo": "Sobrevivência" },
+          { "valor": "creative", "rotulo": "Criativo" },
+          { "valor": "adventure", "rotulo": "Aventura" },
+          { "valor": "spectator", "rotulo": "Espectador" }
+        ]
+      },
+      {
+        "chave": "pvp",
+        "aba": "geral",
+        "forma": "interruptor",
+        "rotulo": "PvP",
+        "padrao": true
+      },
+      {
+        "chave": "hardcore",
+        "aba": "jogadores",
+        "forma": "interruptor",
+        "rotulo": "Hardcore",
+        "ajuda": "Quem morre vira espectador até o mundo acabar.",
+        "padrao": false
+      },
+      {
+        "chave": "protecao",
+        "aba": "jogadores",
+        "grupo": "convivio",
+        "forma": "numero",
+        "rotulo": "Proteção em volta do nascimento",
+        "ajuda": "Em blocos. Só quem é operador constrói ali.",
+        "padrao": 16,
+        "minimo": 0,
+        "maximo": 64
+      },
+      {
+        "chave": "inativo",
+        "aba": "jogadores",
+        "grupo": "convivio",
+        "forma": "numero",
+        "rotulo": "Tirar quem fica parado",
+        "ajuda": "Em minutos. Zero é nunca.",
+        "padrao": 0,
+        "minimo": 0,
+        "maximo": 120
+      }
+    ],
+    "propriedades": {
+      "motd": "§{cor}{nome}",
+      "max-players": "{maximo}",
+      "difficulty": "{dificuldade}",
+      "gamemode": "{modo}",
+      "pvp": "{pvp}",
+      "hardcore": "{hardcore}",
+      "spawn-protection": "{protecao}",
+      "player-idle-timeout": "{inativo}",
+      "server-ip": "127.0.0.1",
+      "server-port": "{porta}",
+      "online-mode": "true",
+      "enable-rcon": "false",
+      "enable-query": "false"
+    }
+  },
+  "mundo": {
+    "pasta": "world",
+    "salvar": [
+      { "console": "save-off" },
+      { "console": "save-all flush", "esperar": "\\]: Saved the game", "prazo": 60 },
+      { "copiar": "world" },
+      { "console": "save-on" }
+    ]
+  },
+  "saida": {
+    "pronto": "\\]: Done \\(",
+    "entrou": "\\]: ([A-Za-z0-9_]{1,16}) joined the game$",
+    "saiu": "\\]: ([A-Za-z0-9_]{1,16}) left the game$",
+    "parar": { "console": "stop", "esperar": "\\]: Stopping the server", "prazo": 60 }
+  }
+}
