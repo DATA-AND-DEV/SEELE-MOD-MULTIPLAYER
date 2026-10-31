@@ -270,6 +270,40 @@ test('a saída do jogo diz quando ele está pronto, e quem entrou e saiu', () =>
   assert.equal(casar('[12:05:11] [Server thread/INFO]: <Bia> Ze joined the game'), null, 'o chat não põe ninguém dentro');
 });
 
+// Revisão final (I10): o chat é registrado como `[..] [Server thread/INFO]: <Bia> texto`,
+// e um padrão solto («\]: Done \(») casava com um texto que **contém** «]: Done (».
+// Cada padrão agora começa na linha do próprio servidor. As linhas de verdade são as
+// do Minecraft 1.21.4 (e do Fabric 0.16.14, que escreve igual) medidas em 31/10.
+test('o chat não imita nenhuma linha que a receita lê (pronto, entrou, saiu, salvou, parou)', () => {
+  const casar = m.casarSaida(mc);
+  const salvou = new RegExp(mc.mundo.salvar.find(p => p.esperar).esperar);
+  const parou = new RegExp(mc.saida.parar.esperar);
+  // As de verdade casam.
+  assert.deepEqual(local(casar('[04:06:14] [Server thread/INFO]: Done (3.137s)! For help, type "help"')), { tipo: 'pronto' });
+  assert.ok(salvou.test('[12:20:00] [Server thread/INFO]: Saved the game'));
+  assert.ok(parou.test('[12:10:00] [Server thread/INFO]: Stopping the server'));
+  // O Forge e o NeoForge põem o nome de quem registra entre colchetes (não medido).
+  assert.deepEqual(local(casar('[12:00:04] [Server thread/INFO] [minecraft/DedicatedServer]: Done (5.2s)! For help, type "help"')), { tipo: 'pronto' });
+  assert.deepEqual(local(casar('[12:00:09] [Server thread/INFO] [minecraft/MinecraftServer]: Bia joined the game')), { tipo: 'entrou', jogador: 'Bia' });
+  // O chat, com e sem o «]: » de mentira, e com o «[Not Secure]» da 1.21.4, não casa nada.
+  const chats = [
+    '[12:05:10] [Server thread/INFO]: <Bia> Done (1.0s)!',
+    '[12:05:10] [Server thread/INFO]: <Bia> x]: Done (1.0s)!',
+    '[12:05:10] [Server thread/INFO]: [Not Secure] <Bia> x]: Done (1.0s)!',
+    '[12:05:11] [Server thread/INFO]: <Bia> x]: Ze joined the game',
+    '[12:05:12] [Server thread/INFO]: <Bia> x]: Alexandre left the game',
+    '[12:05:13] [Server thread/INFO]: <Bia> x]: Saved the game',
+    '[12:05:14] [Server thread/INFO]: <Bia> x]: Stopping the server',
+    '[12:05:15] [Server thread/INFO]: [Server] x]: Done (1.0s)!',
+    '[12:05:16] [Server thread/INFO] [minecraft/MinecraftServer]: <Bia> x]: Done (1.0s)!',
+  ];
+  for (const l of chats) {
+    assert.equal(casar(l), null, l);
+    assert.equal(salvou.test(l), false, l);
+    assert.equal(parou.test(l), false, l);
+  }
+});
+
 // ---- o sha1 do JSON de cada versão ----
 
 const crypto = require('node:crypto');

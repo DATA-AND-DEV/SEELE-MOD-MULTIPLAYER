@@ -107,3 +107,7 @@ Uma linha por decisão, com o custo se estiver errada.
 - **As ações de salvar vão ao rodapé fixo do modal** (`acoes` com `fixas: true`): LIGAR/DESLIGAR, APAGAR e SALVAR, SALVAR por último, à vista em qualquer ponto da rolagem. Isso substitui a caixa laranja do canvas (Config-mods): o rodapé é o do produto, e o contrato do modal pede que salvar não suma no fim da rolagem. Se errada: volta-se à caixa laranja dentro do corpo, que rola junto.
 - **O seletor não repete «Multiplayer»**: o título é o do cabeçalho do modal.
 
+
+## Revisão final (31/10)
+
+- **I10 — cada padrão da saída começa na linha do próprio servidor** (`^[hora] [Server thread/INFO]( [quem registra])?: `, em `pronto`, `entrou`, `saiu`, no «Saved the game» do salvamento seguro e no «Stopping the server» da parada). O chat sai na mesma linha do servidor, mas como `<Bia> texto`: um padrão solto (`\]: Done \(`) casava com um texto que *contém* «]: Done (», e quem joga reabria o túnel, cancelava a cópia agendada, encurtava o salvamento seguro e mexia na lista de quem joga. O teste de antes («o chat não liga o servidor») passava com o defeito, porque o chat dele não trazia o «]: ». O grupo opcional entre colchetes é o do Forge e do NeoForge (não medido; o Vanilla 1.21.4 e o Fabric 0.16.14, medidos em 31/10, escrevem sem ele). Se errada: um loader que escreva a linha de outro jeito nunca fica «pronto» — a metade espera o «Done» e não serve o túnel, e a falha é a do prazo de ligar.
