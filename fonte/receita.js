@@ -162,6 +162,21 @@ function resolverVersao(receita, versao, buscar) {
 /** O teto de uma oferta: 64 GiB (`MAX_DISCO`, seele-proto/src/maquina.rs). */
 const DISCO_MAXIMO_DA_OFERTA = 64 * 1024 * 1024 * 1024;
 
+// ---------------------------------------------------------------- a cópia do mundo (parte 7)
+
+/** Quanto a porta da cópia fica acima da do jogo: longe das portas que dois servidores de jogo na mesma máquina tomam. */
+const DESVIO_DA_PORTA_DA_COPIA = 10000;
+
+/** A porta em que a dona oferece a cópia do mundo, na máquina dela. */
+function portaDaCopia(porta) {
+  return porta + DESVIO_DA_PORTA_DA_COPIA;
+}
+
+/** O túnel da cópia: o nome do servidor de jogo com `-copia`, ou `-c` quando não cabe nos 32 de um túnel. */
+function tunelDaCopia(servidor) {
+  return servidor.length + 6 <= 32 ? `${servidor}-copia` : `${servidor}-c`;
+}
+
 /**
  * A oferta que a pessoa da máquina vê e aceita, com os nomes de campo de
  * `OfertaDeMaquina` (seele-proto/src/maquina.rs).
@@ -186,16 +201,23 @@ function montarOferta(receita, { servidor, versao, porta }, resolvido) {
     };
   });
   // O disco: o que se baixa, o Java desempacotado (cerca de três vezes o
-  // pacote) e o mundo que a receita admite.
+  // pacote), o mundo que a receita admite e, para a reserva (parte 7), mais
+  // duas vezes ele: o pacote da cópia e o parcial que chega.
   const baixado = resolvido.artefatos.reduce((soma, a) => soma + a.tamanho, 0);
   const maiorPacote = resolvido.artefatos.reduce((maior, a) => (a.desempacotar ? Math.max(maior, a.tamanho) : maior), 0);
-  const disco = Math.min(DISCO_MAXIMO_DA_OFERTA, baixado + 3 * maiorPacote + receita.disco.mundoMaximo);
+  const disco = Math.min(DISCO_MAXIMO_DA_OFERTA, baixado + 3 * maiorPacote + 3 * receita.disco.mundoMaximo);
   return {
     titulo: cortar(`${receita.nome} ${versao} · ${servidor}`, 64),
     receita: receita.id,
     versao_da_receita: receita.versao,
     versao_do_jogo: versao,
-    tuneis: [{ nome: servidor, protocolo: receita.rede.protocolo, porta }],
+    // O jogo, e a cópia do mundo para a reserva (parte 7): a cópia anda pelo
+    // túnel, e só a dona o serve. Sempre na oferta, para escolher uma reserva
+    // depois não pedir à principal um aceite novo.
+    tuneis: [
+      { nome: servidor, protocolo: receita.rede.protocolo, porta },
+      { nome: tunelDaCopia(servidor), protocolo: 'tcp', porta: portaDaCopia(porta) },
+    ],
     artefatos,
     pack: null,
     origens: [...receita.origens],

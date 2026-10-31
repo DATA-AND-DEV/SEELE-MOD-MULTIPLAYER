@@ -4,7 +4,7 @@ Servidores de jogo multiplayer nas máquinas de quem está no servidor SEELE, se
 
 Requer a **API de MOD 8** (contrato em `api/v8.json` do SEELE; cópia em `test/contrato/api-v8.json`) e só roda no **app de computador** (`"plataformas": ["app"]`): o navegador não abre porta local.
 
-Esta é a parte 6 do desenho `docs/superpowers/specs/2026-10-29-api-8-e-mod-multiplayer-design.md`: o MOD com a receita do **Minecraft**, **Vanilla** e **com mods** (o `.mrpack` do Modrinth, pelo link ou pelo arquivo). A máquina reserva é a parte 7.
+Esta é a parte 7 do desenho `docs/superpowers/specs/2026-10-29-api-8-e-mod-multiplayer-design.md`: o MOD com a receita do **Minecraft**, **Vanilla** e **com mods** (o `.mrpack` do Modrinth, pelo link ou pelo arquivo), e a **máquina reserva**.
 
 ## O que tem
 
@@ -13,6 +13,7 @@ Esta é a parte 6 do desenho `docs/superpowers/specs/2026-10-29-api-8-e-mod-mult
 - **Com mods**: o pack define a versão, o loader (Fabric, Quilt, Forge ou NeoForge) e os mods. A máquina traz o pack (ou o baixa do CDN do Modrinth pelo link), confere cada arquivo pelo `sha512` e só de `cdn.modrinth.com`, `github.com`, `raw.githubusercontent.com` e `gitlab.com`, aplica os `overrides` e os `server-overrides`, e roda o instalador do loader (o segundo comando que a tela do aceite mostra). Quem joga baixa o mesmo pack pelo cartão (**BAIXAR O PACK**, pelo diálogo de salvar do sistema) para importar no app do Modrinth.
 - **Mais de um servidor de jogo ao mesmo tempo** (até 8), cada um com a sua porta; dois na mesma máquina ganham portas diferentes.
 - **Uma máquina por vez**: trocar a máquina ou a versão pede o servidor desligado e um aceite novo; uma máquina que fala sem ser a dona é mandada parar.
+- **A reserva** (aba MÁQUINA): uma segunda máquina, de outra pessoa, que aceita na máquina dela e fica pronta. A dona copia o mundo para ela pelo túnel, de 5 em 5 minutos (configurável), sempre depois do salvamento seguro (`save-off`, `save-all flush` até «Saved the game», a cópia, `save-on`). **PASSAR À RESERVA** para o jogo, manda a cópia final e liga na reserva: nada se perde. Numa queda de surpresa de mais de 60 s, a reserva assume com a última cópia, e o cartão de todos diz quanto tempo de jogo se perdeu. A máquina que volta não liga sozinha: se o jogo dela ainda estava de pé sem a posse, ela o desliga, e isso é contado na tela. Sem quem hospeda o SEELE, nada muda de dona.
 - **Nada calado**: download que falhou, hash que não bateu, Java que não existe para a máquina, túnel que não abriu, jogo que caiu ou não parou, recusa do aceite, recusa de permissão — tudo aparece na tela, com o nome e os dados, e no log.
 
 ## Quem pode o quê

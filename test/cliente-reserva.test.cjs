@@ -1,0 +1,55 @@
+// A reserva na tela (parte 7): a aba MÁQUINA escolhe a reserva, mostra o
+// aceite dela e quem é a dona agora, e o cartão de quem joga diz quanto tempo
+// de jogo se perdeu quando a reserva assumiu numa queda.
+'use strict';
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { criarAnfitriao } = require('./anfitriao.cjs');
+const { criarJanela } = require('./janela.cjs');
+
+async function aberta(a) {
+  const j = criarJanela(a, {});
+  await j.abrir();
+  assert.deepEqual(j.erros, [], 'a janela anotou erros ao abrir');
+  return j;
+}
+
+test('a aba MÁQUINA escolhe a reserva, mostra o aceite dela e quem é a dona agora', async () => {
+  const a = criarAnfitriao();
+  const j = await aberta(a);
+  await j.apertar('criar:minecraft');
+  await j.mudar('escolha', 'versao', '1.21.4');
+  await j.mudar('aba', 'aba', 'aba-maquina');
+  await j.mudar('escolha', 'quem', '2');
+  await j.mudar('escolha', 'reserva', '3');
+  await j.apertar('salvar');
+  const pedidos = a.pedidosDeMaquina.map(p => [p.papel, p.quem]);
+  assert.deepEqual(pedidos, [['principal', '2'], ['reserva', '3']]);
+  assert.match(j.texto('chip-aceite-reserva'), /ESPERANDO O ACEITE/);
+  const id = a.pedidosDeMaquina[0].servidor;
+  a.aceitar(id, 'principal');
+  a.aceitar(id, 'reserva');
+  await j.avisoDoServidor({ revisao: 99 });
+  assert.match(j.texto('chip-aceite-reserva'), /ACEITO/);
+  assert.match(j.texto('reserva'), /A DONA AGORA/);
+  assert.match(j.texto('reserva'), /Nenhuma cópia ainda/);
+  assert.ok(j.no('passar'), 'sem o botão de passar à reserva');
+  assert.equal(j.no('intervaloDaCopia').valor, 5);
+});
+
+test('o cartão diz a todos quanto tempo de jogo se perdeu quando a reserva assumiu', async () => {
+  const a = criarAnfitriao();
+  const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
+  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', reserva: '3' });
+  a.aceitar(id, 'principal');
+  a.aceitar(id, 'reserva');
+  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
+  a.daMaquina(2, id, { op: 'copia-pronta', codigo: 'k', sha256: 'c'.repeat(64), tamanho: 9 });
+  a.daMaquina(3, id, { op: 'copia-recebida', sha256: 'c'.repeat(64) });
+  a.passar(4 * 60);
+  a.parar(id, 'saiu', 'principal');
+  a.passar(60);
+  a.sumir(id, 'principal', 2, 60);
+  const j = await aberta(a);
+  assert.match(j.texto('cartao:' + id), /A reserva assumiu às .*: perderam-se 4 min de jogo, desde a última cópia/);
+});

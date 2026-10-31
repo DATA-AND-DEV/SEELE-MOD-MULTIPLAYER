@@ -286,6 +286,21 @@ function resolverVersao(receita, versao, buscar) {
 /** O teto de uma oferta: 64 GiB (`MAX_DISCO`, seele-proto/src/maquina.rs). */
 const DISCO_MAXIMO_DA_OFERTA = 64 * 1024 * 1024 * 1024;
 
+// ---------------------------------------------------------------- a cópia do mundo (parte 7)
+
+/** Quanto a porta da cópia fica acima da do jogo: longe das portas que dois servidores de jogo na mesma máquina tomam. */
+const DESVIO_DA_PORTA_DA_COPIA = 10000;
+
+/** A porta em que a dona oferece a cópia do mundo, na máquina dela. */
+function portaDaCopia(porta) {
+  return porta + DESVIO_DA_PORTA_DA_COPIA;
+}
+
+/** O túnel da cópia: o nome do servidor de jogo com `-copia`, ou `-c` quando não cabe nos 32 de um túnel. */
+function tunelDaCopia(servidor) {
+  return servidor.length + 6 <= 32 ? `${servidor}-copia` : `${servidor}-c`;
+}
+
 /**
  * A oferta que a pessoa da máquina vê e aceita, com os nomes de campo de
  * `OfertaDeMaquina` (seele-proto/src/maquina.rs).
@@ -310,16 +325,23 @@ function montarOferta(receita, { servidor, versao, porta }, resolvido) {
     };
   });
   // O disco: o que se baixa, o Java desempacotado (cerca de três vezes o
-  // pacote) e o mundo que a receita admite.
+  // pacote), o mundo que a receita admite e, para a reserva (parte 7), mais
+  // duas vezes ele: o pacote da cópia e o parcial que chega.
   const baixado = resolvido.artefatos.reduce((soma, a) => soma + a.tamanho, 0);
   const maiorPacote = resolvido.artefatos.reduce((maior, a) => (a.desempacotar ? Math.max(maior, a.tamanho) : maior), 0);
-  const disco = Math.min(DISCO_MAXIMO_DA_OFERTA, baixado + 3 * maiorPacote + receita.disco.mundoMaximo);
+  const disco = Math.min(DISCO_MAXIMO_DA_OFERTA, baixado + 3 * maiorPacote + 3 * receita.disco.mundoMaximo);
   return {
     titulo: cortar(`${receita.nome} ${versao} · ${servidor}`, 64),
     receita: receita.id,
     versao_da_receita: receita.versao,
     versao_do_jogo: versao,
-    tuneis: [{ nome: servidor, protocolo: receita.rede.protocolo, porta }],
+    // O jogo, e a cópia do mundo para a reserva (parte 7): a cópia anda pelo
+    // túnel, e só a dona o serve. Sempre na oferta, para escolher uma reserva
+    // depois não pedir à principal um aceite novo.
+    tuneis: [
+      { nome: servidor, protocolo: receita.rede.protocolo, porta },
+      { nome: tunelDaCopia(servidor), protocolo: 'tcp', porta: portaDaCopia(porta) },
+    ],
     artefatos,
     pack: null,
     origens: [...receita.origens],
@@ -763,7 +785,10 @@ async function carregarVersoes(receita) {
 }
 
 function rascunhoDe(s) {
-  return { versao: s.versao, quem: s.quem, config: JSON.parse(JSON.stringify(s.config ?? {})), variante: s.variante ?? 'vanilla' };
+  return {
+    versao: s.versao, quem: s.quem, config: JSON.parse(JSON.stringify(s.config ?? {})), variante: s.variante ?? 'vanilla',
+    reserva: s.reserva?.quem ?? null, intervaloDaCopia: s.intervaloDaCopia ?? 5,
+  };
 }
 
 async function abrirConfig(id) {
@@ -883,6 +908,7 @@ async function salvar() {
   if (!s || !estado.rascunho) return;
   const r = await agir('configurar-servidor-de-jogo', {
     op: 'configurar', id: s.id, variante: estado.rascunho.variante, versao: estado.rascunho.versao, quem: estado.rascunho.quem, config: estado.rascunho.config,
+    reserva: estado.rascunho.reserva ?? null, intervaloDaCopia: estado.rascunho.intervaloDaCopia ?? 5,
   });
   if (r?.ok === false && r.erro === 'config-invalida') {
     estado.erros = r.erros ?? {};
@@ -937,6 +963,10 @@ async function tratarBotao(chave) {
     }
   } else if (chave === 'pack:link') {
     await usarLink();
+  } else if (chave === 'passar') {
+    // A passagem avisada à outra máquina (parte 7).
+    const r = await agir('ligar-desligar-servidor-de-jogo', { op: 'passar', id: estado.atual });
+    await aposAcao(r, 'passar');
   } else if (chave === 'console:enviar') {
     const r = await agir('configurar-servidor-de-jogo', { op: 'console', id: estado.atual, comando: estado.consoleTexto });
     if (await aposAcao(r, 'console')) estado.consoleTexto = '';
@@ -980,6 +1010,8 @@ function tratarCampo(evento) {
   if (!estado.rascunho) return false;
   if (chave === 'versao') estado.rascunho.versao = valor || null;
   else if (chave === 'quem') estado.rascunho.quem = valor ? String(valor) : null;
+  else if (chave === 'reserva') estado.rascunho.reserva = valor ? String(valor) : null;
+  else if (chave === 'intervaloDaCopia') estado.rascunho.intervaloDaCopia = Number(valor);
   else if (chave.startsWith('cfg:')) {
     // `cfg:nome` é um campo; `cfg:nome:2:texto` é o texto da palavra 3 de uma lista;
     // `cfg:nome:cor` é a cor da palavra escolhida.
@@ -1002,7 +1034,7 @@ function tratarCampo(evento) {
     // Repinta a amostra da cor e tira a recusa; o resto o produto já mostra.
     return parte === 'cor' || tinhaErro;
   } else return false;
-  return chave === 'quem';
+  return chave === 'quem' || chave === 'reserva';
 }
 
 async function tratar(evento) {
@@ -1166,6 +1198,44 @@ function rodaEm(s) {
   ])], { chave: 'roda-em' });
 }
 
+// ---- a reserva (parte 7) ----
+
+/** O tempo de jogo perdido numa queda de surpresa, em palavras. */
+function tempoPerdido(segundos) {
+  const n = Math.max(0, Number(segundos) || 0);
+  return n < 60 ? `${n} s` : `${Math.round(n / 60)} min`;
+}
+
+/** A frase que todos veem quando a reserva assumiu numa queda. */
+function fraseDaQueda(s) {
+  if (!s.perdido) return null;
+  return `A ${s.perdido.para === 'reserva' ? 'reserva' : 'principal'} assumiu às ${hora(s.perdido.quando)}: perderam-se ${tempoPerdido(s.perdido.segundos)} de jogo, desde a última cópia (${hora(s.perdido.copiaDe)}).`;
+}
+
+function rotuloDaReserva(r) {
+  return rotuloDoAceite({ quem: r.quem, aceite: r.aceite, motivo: r.motivo });
+}
+
+/** A reserva na aba MÁQUINA: escolher, o aceite, quem é a dona agora, a última cópia, e passar. */
+function blocoDaReserva(s, opcoes) {
+  const reserva = estado.rascunho?.reserva ?? '';
+  const dona = s.quemEADona ? `Máquina de ${apelidoDe(s.quemEADona)}` : 'ninguém';
+  const ultima = s.copia ? `Última cópia: ${hora(s.copia.quando)}, ${(s.copia.tamanho / 1048576).toFixed(1).replace('.', ',')} MiB${s.copiaRecebida?.sha256 === s.copia.sha256 ? ', já na outra máquina' : ', ainda não chegou à outra máquina'}.` : 'Nenhuma cópia ainda.';
+  return bloco('A reserva', [
+    { forma: 'escolha', chave: 'reserva', rotulo: 'Quem assume se esta máquina sair', valor: reserva, inicial: s.reserva?.quem ?? '', opcoes: opcoes.map(o => (o.valor ? { ...o } : { valor: '', dentro: 'Sem reserva' })), desligado: !pode('configurar-servidor-de-jogo') },
+    s.reserva ? linhaH([tx(`Máquina de ${apelidoDe(s.reserva.quem)}`), chip(rotuloDaReserva(s.reserva), 'chip-aceite-reserva')]) : null,
+    linhaH([lb('A dona agora'), tx(dona)]),
+    { forma: 'numero', chave: 'intervaloDaCopia', rotulo: 'Copiar o mundo a cada (minutos)', valor: estado.rascunho?.intervaloDaCopia ?? 5, inicial: s.intervaloDaCopia ?? 5, minimo: 1, maximo: 60, inteiro: true, desligado: !pode('configurar-servidor-de-jogo') },
+    apagado(ultima),
+    fraseDaQueda(s) ? tx(fraseDaQueda(s), { cor: COR.erro, corpo: 14 }) : null,
+    s.voltouRodando ? apagado(`A máquina que voltou com o jogo de pé sem ser a dona foi desligada ${s.voltouRodando} vez(es).`) : null,
+    s.reserva && pode('ligar-desligar-servidor-de-jogo')
+      ? linhaH([botao('passar', s.dona === 'reserva' ? 'PASSAR À PRINCIPAL' : 'PASSAR À RESERVA', { classe: 'vazado', desligado: Boolean(s.passando) })])
+      : null,
+    apagado('Só uma máquina roda por vez. A dona copia o mundo para a outra depois de salvar; numa queda de mais de 60 s a outra assume com a última cópia, e a tela diz quanto se perdeu.'),
+  ], { chave: 'reserva' });
+}
+
 function situacao(s) {
   const linhas = [];
   if (estado.situacao) linhas.push(estado.situacao);
@@ -1311,6 +1381,7 @@ function abaMaquina(receita, s) {
       apagado('A pessoa aceita no SEELE dela antes de qualquer coisa ser baixada, e pode desligar a qualquer momento. Uma máquina por vez: trocar pede o servidor desligado.'),
     ]),
     rodaEm(s),
+    blocoDaReserva(s, opcoes),
     bloco('O que roda', [
       mono(`${receita.rodar.comando} ${receita.rodar.argumentos.join(' ')}`),
       apagado(`Baixa ${receita.artefatos.map(a => a.destino === 'server.jar' ? 'o server.jar oficial' : a.fonte === 'adoptium' ? 'o Java da Adoptium para o sistema da máquina' : a.destino).join(' e ')}, cada um conferido pelo hash, só de: ${receita.origens.join(', ')}.`),
@@ -1392,6 +1463,7 @@ function cartao(s) {
       ]),
       apagado(`${receita?.nome ?? s.receita} ${s.versao ?? '(sem versão)'} · ${s.quem ? 'na máquina de ' + apelidoDe(s.quem) : 'sem máquina'}`),
       tx(`${(s.jogadores ?? []).length} de ${s.maximo ?? '?'} jogando`, { corpo: 14 }),
+      fraseDaQueda(s) ? tx(fraseDaQueda(s), { cor: COR.erro, corpo: 14 }) : null,
       porta ? pilha([
         tx(`localhost:${porta}`, { familia: 'mono', corpo: 20, cor: COR.acento }),
         apagado(`No ${receita?.nome ?? 'jogo'}: Multijogador, Conexão direta, e este endereço.${porta !== s.porta && s.porta ? ' A porta é outra porque a do jogo estava ocupada neste computador.' : ''}`),

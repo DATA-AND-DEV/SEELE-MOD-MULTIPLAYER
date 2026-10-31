@@ -34,6 +34,14 @@ function packLido(bytes) {
   return { ok: true, bytes: bytes.length, sha512: crypto.createHash('sha512').update(bytes).digest('hex'), indice: indice.dados.toString('utf8') };
 }
 const servidorValido = s => typeof s === 'string' && s.length <= 32 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s);
+/** O papel de um pedido ou de um aviso (API 8 parte 7): principal sem a chave. */
+function papelDoPedido(papel) {
+  if (papel === undefined || papel === null) return 'principal';
+  if (!['principal', 'reserva'].includes(papel)) throw new Error('papel-invalido');
+  return papel;
+}
+/** A chave do livro: o servidor de jogo e o papel. */
+const lugar = (servidor, papel = 'principal') => (papel === 'reserva' ? servidor + '#reserva' : servidor);
 
 /**
  * @param {object} opcoes
@@ -54,8 +62,11 @@ function criarAnfitriao(opcoes = {}) {
   const avisosAJanelas = [];
   const avisosAMaquinas = [];
   const pedidosDeMaquina = [];
-  /** O livro do produto: servidor de jogo -> { quem, oferta, aceito }. */
+  const mudancasDePosse = [];
+  /** O livro do produto: lugar (servidor de jogo, e `#reserva` na reserva) -> { quem, oferta, aceito, papel }. */
   const livro = new Map();
+  /** A posse: servidor de jogo -> papel. Ausente é a principal. */
+  const donas = new Map();
   const conectados = new Set(opcoes.conectados ?? ['1', '2', '3']);
 
   // A cada chamada, o que ela declarou; só sai se ela terminar.
@@ -97,15 +108,25 @@ function criarAnfitriao(opcoes = {}) {
         for (const c of [oferta.rodar, oferta.instalar]) {
           if (c && (typeof c.comando !== 'string' || !Array.isArray(c.argumentos) || Object.keys(c).some(k => !['comando', 'argumentos'].includes(k)))) throw new Error('oferta-invalida:comando');
         }
-        declarado.maquinas = declarado.maquinas.filter(p => p.servidor !== pedido.servidor);
-        declarado.maquinas.push(JSON.parse(JSON.stringify({ quem: String(pedido.quem), servidor: pedido.servidor, oferta })));
+        const papel = papelDoPedido(pedido.papel);
+        // A tela do aceite mostra os túneis: cada nome tem de caber num túnel.
+        for (const t of oferta.tuneis) if (!servidorValido(t.nome)) throw new Error('oferta-invalida:tuneis');
+        declarado.maquinas = declarado.maquinas.filter(p => !(p.servidor === pedido.servidor && p.papel === papel));
+        declarado.maquinas.push(JSON.parse(JSON.stringify({ quem: String(pedido.quem), servidor: pedido.servidor, papel, oferta })));
       },
       avisar: aviso => {
         if (!servidorValido(aviso?.servidor)) throw new Error('servidor-invalido');
         if (aviso.carga === undefined) throw new Error('aviso-invalido');
         assert.ok(Buffer.byteLength(JSON.stringify(aviso.carga)) <= 1024, 'aviso-grande-demais');
-        declarado.avisos = declarado.avisos.filter(a => a.servidor !== aviso.servidor);
-        declarado.avisos.push(JSON.parse(JSON.stringify(aviso)));
+        const papel = papelDoPedido(aviso.papel);
+        declarado.avisos = declarado.avisos.filter(a => !(a.servidor === aviso.servidor && a.papel === papel));
+        declarado.avisos.push({ ...JSON.parse(JSON.stringify(aviso)), papel });
+      },
+      // A posse (API 8 parte 7): só a dona serve.
+      dona: pedido => {
+        if (!servidorValido(pedido?.servidor)) throw new Error('servidor-invalido');
+        if (!['principal', 'reserva'].includes(pedido.papel)) throw new Error('papel-invalido');
+        declarado.donas.push({ servidor: pedido.servidor, papel: pedido.papel });
       },
     },
   };
@@ -142,7 +163,7 @@ function criarAnfitriao(opcoes = {}) {
 
   /** Uma chamada, transacional como a do produto. */
   function chamar(fn) {
-    declarado = { janelas: [], maquinas: [], avisos: [] };
+    declarado = { janelas: [], maquinas: [], avisos: [], donas: [] };
     const antes = JSON.stringify(dados);
     contexto.dados = Object.assign(Object.create(null), dados);
     let resultado;
@@ -158,23 +179,34 @@ function criarAnfitriao(opcoes = {}) {
     assert.ok(uso <= 256 * 1024, 'quintal-cheio: ' + uso);
     dados = { ...contexto.dados };
     avisosAJanelas.push(...declarado.janelas);
+    // A posse antes dos pedidos e dos avisos, como o despejo do produto.
+    for (const d of declarado.donas) {
+      const antes = donas.get(d.servidor) ?? 'principal';
+      donas.set(d.servidor, d.papel);
+      if (antes !== d.papel) mudancasDePosse.push({ servidor: d.servidor, de: antes, para: d.papel });
+    }
     for (const p of declarado.maquinas) {
       pedidosDeMaquina.push(p);
       if (!conectados.has(p.quem)) {
-        momentoInterno('MaquinaRecusou', { servidor: p.servidor, pessoa: p.quem, motivo: 'nao-esta-aqui' });
+        momentoInterno('MaquinaRecusou', { servidor: p.servidor, papel: p.papel, pessoa: p.quem, motivo: 'nao-esta-aqui' });
         continue;
       }
-      // Um pedido a outra pessoa dispensa a máquina de antes.
-      const antes = livro.get(p.servidor);
-      livro.set(p.servidor, { quem: p.quem, oferta: p.oferta, aceito: false });
+      const outro = livro.get(lugar(p.servidor, p.papel === 'reserva' ? 'principal' : 'reserva'));
+      if (outro && outro.quem === p.quem) {
+        momentoInterno('MaquinaRecusou', { servidor: p.servidor, papel: p.papel, pessoa: p.quem, motivo: 'mesma-pessoa-nas-duas' });
+        continue;
+      }
+      // Um pedido a outra pessoa dispensa a máquina de antes daquele papel.
+      const antes = livro.get(lugar(p.servidor, p.papel));
+      livro.set(lugar(p.servidor, p.papel), { quem: p.quem, oferta: p.oferta, aceito: false, papel: p.papel });
       if (antes && antes.quem !== p.quem && antes.aceito) {
-        momentoInterno('MaquinaParou', { servidor: p.servidor, pessoa: antes.quem, motivo: 'outro-pedido' });
+        momentoInterno('MaquinaParou', { servidor: p.servidor, papel: p.papel, pessoa: antes.quem, motivo: 'outro-pedido' });
       }
     }
     for (const a of declarado.avisos) {
-      const maquina = livro.get(a.servidor);
+      const maquina = livro.get(lugar(a.servidor, a.papel));
       if (maquina?.aceito) avisosAMaquinas.push({ ...a, para: maquina.quem });
-      else registro.push('sem-maquina: ' + a.servidor);
+      else registro.push('sem-maquina: ' + a.servidor + ' ' + a.papel);
     }
     declarado = null;
     return resultado;
@@ -193,7 +225,9 @@ function criarAnfitriao(opcoes = {}) {
 
   return {
     get dados() { return dados; },
-    registro, avisosAJanelas, avisosAMaquinas, pedidosDeMaquina, livro, conectados, concessoes, esperas, volumes,
+    registro, avisosAJanelas, avisosAMaquinas, pedidosDeMaquina, livro, donas, mudancasDePosse, conectados, concessoes, esperas, volumes,
+    /** Quem é a dona agora de um servidor de jogo, para o produto. */
+    dona: servidor => donas.get(servidor) ?? 'principal',
 
     /**
      * O fluxo de volume (`SeeleUI.enviar`): o produto consome a espera e confere
@@ -234,35 +268,48 @@ function criarAnfitriao(opcoes = {}) {
       return JSON.parse(r);
     },
 
-    /** Um `PedidoDaMaquina`: só a máquina aceita daquele servidor de jogo chega ao MOD. */
+    /** Um `PedidoDaMaquina`: só uma máquina aceita daquele servidor de jogo chega ao MOD, com o papel e a posse. */
     daMaquina(pessoa, servidor, valor) {
-      const maquina = livro.get(servidor);
-      if (!maquina || !maquina.aceito || maquina.quem !== String(pessoa)) return { dispensada: 'sem-aceite' };
-      const ctx = { person: String(pessoa), channel: null, admin: false, write: true, sala: null, acao: null, permissoes: [], maquina: { servidor } };
+      const maquina = [livro.get(lugar(servidor, 'principal')), livro.get(lugar(servidor, 'reserva'))]
+        .find(m => m && m.aceito && m.quem === String(pessoa));
+      if (!maquina) return { dispensada: 'sem-aceite' };
+      const dona = (donas.get(servidor) ?? 'principal') === maquina.papel;
+      const ctx = { person: String(pessoa), channel: null, admin: false, write: true, sala: null, acao: null, permissoes: [], maquina: { servidor, papel: maquina.papel, dona } };
       const r = chamar(() => contexto.aoPedir(JSON.stringify(ctx), JSON.stringify(valor)));
       escoar();
       return JSON.parse(r);
     },
 
     /** A pessoa da máquina aceita, na tela do produto. */
-    aceitar(servidor) {
-      const maquina = livro.get(servidor);
-      assert.ok(maquina, 'ninguém foi chamado a rodar ' + servidor);
+    aceitar(servidor, papel = 'principal') {
+      const maquina = livro.get(lugar(servidor, papel));
+      assert.ok(maquina, `ninguém foi chamado a rodar ${servidor} (${papel})`);
       maquina.aceito = true;
-      momentoInterno('MaquinaAceitou', { servidor, pessoa: maquina.quem });
+      momentoInterno('MaquinaAceitou', { servidor, papel, pessoa: maquina.quem });
       escoar();
     },
-    recusar(servidor, motivo = 'pelo-dono') {
-      const maquina = livro.get(servidor);
-      livro.delete(servidor);
-      momentoInterno('MaquinaRecusou', { servidor, pessoa: maquina.quem, motivo });
+    recusar(servidor, motivo = 'pelo-dono', papel = 'principal') {
+      const maquina = livro.get(lugar(servidor, papel));
+      livro.delete(lugar(servidor, papel));
+      momentoInterno('MaquinaRecusou', { servidor, papel, pessoa: maquina.quem, motivo });
       escoar();
     },
     /** O botão do produto que desliga, ou a pessoa que sai. */
-    parar(servidor, motivo = 'pelo-dono') {
-      const maquina = livro.get(servidor);
-      livro.delete(servidor);
-      momentoInterno('MaquinaParou', { servidor, pessoa: maquina.quem, motivo });
+    parar(servidor, motivo = 'pelo-dono', papel = 'principal') {
+      const maquina = livro.get(lugar(servidor, papel));
+      livro.delete(lugar(servidor, papel));
+      momentoInterno('MaquinaParou', { servidor, papel, pessoa: maquina.quem, motivo });
+      escoar();
+      return maquina;
+    },
+    /** O prazo do produto venceu com o lugar vazio (MaquinaSumiu). */
+    sumir(servidor, papel = 'principal', pessoa, segundos = 60, motivo = 'saiu') {
+      momentoInterno('MaquinaSumiu', { servidor, papel, pessoa: String(pessoa), motivo, segundos });
+      escoar();
+    },
+    /** Quem operava caiu e voltou (MaquinaVoltou). */
+    voltar(servidor, papel = 'principal', pessoa) {
+      momentoInterno('MaquinaVoltou', { servidor, papel, pessoa: String(pessoa) });
       escoar();
     },
   };

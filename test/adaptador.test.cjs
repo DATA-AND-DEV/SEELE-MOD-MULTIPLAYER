@@ -34,6 +34,9 @@ function maquinaFalsa() {
       desempacotar: anota('programa.desempacotar', { arquivos: 3 }),
       rodar: (...a) => { chamadas.push(['programa.rodar', ...local(a)]); return Promise.resolve(proc); },
       recusas: anota('programa.recusas', { 'diferente-do-aceito': 2 }),
+      empacotar: anota('programa.empacotar', { sha256: 'c'.repeat(64) }),
+      oferecerCopia: anota('programa.oferecerCopia', { codigo: 'k' }),
+      receberCopia: anota('programa.receberCopia', { caminho: 'direto' }),
     },
     porta: { servir: anota('porta.servir'), parar: anota('porta.parar'), quedas: anota('porta.quedas') },
     pedir: (...a) => { chamadas.push(['pedir', ...local(a)]); return Promise.resolve('{"ok":true,"plano":{}}'); },
@@ -59,7 +62,10 @@ test('cada chamada do adaptador vira a chamada da API 8 que o SEELE entregou', a
   await ad.escrever('eula.txt', 'eula=true\n');
   assert.deepEqual(local(await ad.pedir({ op: 'plano' })), { ok: true, plano: {} }, 'a resposta da metade de servidor vem lida');
   assert.deepEqual(local(await ad.recusas()), { 'diferente-do-aceito': 2 });
-  assert.equal(ad.copiar, null, 'o programa não tem cópia de arquivo: é da reserva');
+  // A cópia do mundo (parte 7).
+  await ad.empacotar('world', 'copias/mundo.tar.gz');
+  await ad.oferecerCopia('copias/mundo.tar.gz', 35565);
+  await ad.receberCopia({ tunel: 'minecraft-1-copia', codigo: 'k', sha256: 'c', tamanho: 9, destino: 'copias/recebida.tar.gz' });
   assert.deepEqual(chamadas, [
     ['programa.baixar', { url: 'https://x/y.jar', sha1: 'ab', tamanho: 3, destino: 'server.jar' }],
     ['programa.desempacotar', { arquivo: 'pacotes/j.tar.gz', destino: 'java', raiz: 'jdk/Contents/Home' }],
@@ -71,6 +77,9 @@ test('cada chamada do adaptador vira a chamada da API 8 que o SEELE entregou', a
     ['programa.escrever', { destino: 'eula.txt', texto: 'eula=true\n' }],
     ['pedir', { op: 'plano' }],
     ['programa.recusas'],
+    ['programa.empacotar', { origem: 'world', arquivo: 'copias/mundo.tar.gz' }],
+    ['programa.oferecerCopia', { arquivo: 'copias/mundo.tar.gz', porta: 35565 }],
+    ['programa.receberCopia', { tunel: 'minecraft-1-copia', codigo: 'k', sha256: 'c', tamanho: 9, destino: 'copias/recebida.tar.gz' }],
   ]);
 
   // O aviso chega em texto, e sai lido, com o servidor desta metade.

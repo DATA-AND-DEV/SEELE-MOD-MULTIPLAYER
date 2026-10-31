@@ -84,7 +84,8 @@ test('escolher a versão e a máquina chama a pessoa com a oferta, e espera o ac
   assert.equal(p.quem, '2');
   assert.equal(p.servidor, id);
   assert.equal(p.oferta.versao_do_jogo, '1.21.4');
-  assert.deepEqual(p.oferta.tuneis, [{ nome: id, protocolo: 'tcp', porta: 25565 }]);
+  assert.deepEqual(p.oferta.tuneis, [{ nome: id, protocolo: 'tcp', porta: 25565 }, { nome: id + '-copia', protocolo: 'tcp', porta: 35565 }]);
+  assert.equal(p.papel, 'principal');
   const s = servidor(a, id);
   assert.equal(s.aceite, 'esperando');
   assert.equal(s.quem, '2');
@@ -154,7 +155,7 @@ test('ligar e desligar pedem a ação, e vão só à máquina aceita', () => {
   assert.deepEqual(a.acao(3, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id }), { ok: false, recusa: 'sem-permissao' });
   assert.deepEqual(a.pedir(1, { op: 'ligar', id }), { ok: false, erro: 'pede-a-acao', acao: 'ligar-desligar-servidor-de-jogo' });
   assert.equal(a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id }).ok, true);
-  assert.deepEqual(a.avisosAMaquinas.at(-1), { servidor: id, carga: { op: 'ligar' }, para: '2' });
+  assert.deepEqual(a.avisosAMaquinas.at(-1), { servidor: id, papel: 'principal', carga: { op: 'ligar' }, para: '2' });
   assert.equal(a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'desligar', id }).ok, true);
   assert.deepEqual(a.avisosAMaquinas.at(-1).carga, { op: 'desligar' });
 });
@@ -214,7 +215,7 @@ test('a falha da máquina fica na tela com os dados, e as mais velhas saem', () 
   for (let i = 0; i < 9; i++) a.daMaquina(2, id, { op: 'falha', etapa: 'baixar', erro: 'hash-diferente', dados: { arquivo: 'server.jar', vez: i } });
   const s = servidor(a, id);
   assert.equal(s.falhas.length, 6);
-  assert.deepEqual(s.falhas.at(-1), { quando: 1_000_000, onde: 'maquina', etapa: 'baixar', erro: 'hash-diferente', dados: { arquivo: 'server.jar', vez: 8 } });
+  assert.deepEqual(s.falhas.at(-1), { quando: 1_000_000, onde: 'maquina', etapa: 'baixar', papel: 'principal', erro: 'hash-diferente', dados: { arquivo: 'server.jar', vez: 8 } });
   assert.ok(a.registro.some(l => l.includes('hash-diferente')), 'a falha não foi ao log');
 });
 
