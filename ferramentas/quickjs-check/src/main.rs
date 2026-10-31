@@ -236,8 +236,12 @@ fn assentar_maquina(maq: &Context, falas: &Falas, srv: &Context, id: &str, fita:
                 // marca do loader não existe ainda (a recusa do núcleo, `disco`).
                 "programa-ler" => {
                     fita.lidos.push(m.clone());
+                    let escrito = fita.escritos.iter().rev().find(|e| e["destino"] == m["arquivo"]).map(|e| e["texto"].clone());
                     if m["arquivo"] == "pack/modrinth.index.json" {
                         Value::String(include_str!("../../../test/fixtures/fabric-prova.index.json").to_owned())
+                    } else if let Some(texto) = escrito {
+                        // O que a metade escreveu (o server.properties, que ela relê no «Done»).
+                        texto
                     } else {
                         responder(maq, &json!({ "n": m["n"], "ok": false, "erro": "disco", "frase": "o disco recusou: No such file" }).to_string())?;
                         continue;

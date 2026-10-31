@@ -228,6 +228,20 @@ test('o «Done (» serve o túnel e diz ligado; quem entra e sai vai à tela', a
   assert.ok(doServidor(a, id).linhas.some(l => l.includes('Alexandre left the game')));
 });
 
+test('uma linha com as cores do terminal é lida e mostrada sem elas (o NeoForge as escreve mesmo sem terminal)', async () => {
+  const ctx = await montado();
+  const { a, f, id } = ctx;
+  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
+  await entregar(a, f, 2);
+  const p = f.processos[0];
+  // A de verdade (NeoForge 21.1.265, 31/10), e o «Done» do mesmo jogo pintado do mesmo jeito.
+  p.dizer('\u001b[m\u001b[32m[13:53:27.398] [main/INFO] [Launcher/MODLAUNCHER]: ModLauncher running');
+  p.dizer('\u001b[m\u001b[32m[13:53:32] [Server thread/INFO] [minecraft/DedicatedServer]: Done (0.559s)! For help, type "help"\u001b[m');
+  await assentarTudo();
+  assert.deepEqual(f.portas, [{ nome: id, protocolo: 'tcp', porta: 25565 }]);
+  assert.ok(!doServidor(a, id).linhas.some(l => l.includes('\u001b')), JSON.stringify(doServidor(a, id).linhas));
+});
+
 test('um túnel que não abre fica na tela, com o motivo', async () => {
   const ctx = await montado({ servirPorta: async () => { throw Object.assign(new Error('fora-do-aceite'), { erro: 'fora-do-aceite' }); } });
   const { a, f, id } = ctx;

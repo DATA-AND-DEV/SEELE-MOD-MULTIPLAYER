@@ -366,7 +366,81 @@ function escreverPropriedades(receita, config, porta) {
   return linhas.join('\n') + '\n';
 }
 
+/**
+ * **Um `.properties` lido como o Java o lê** (o bastante para o
+ * `server.properties`): `#` e `!` comentam, a chave vai até o primeiro `=`,
+ * `:` ou espaço sem escape, e `\uXXXX`, `\t`, `\n`, `\r` e `\x` voltam ao
+ * caractere. O Minecraft reescreve o arquivo ao subir, em UTF-8 e sem os
+ * escapes que o MOD escreve: comparar o texto diria «mudou» de tudo.
+ */
+function lerPropriedades(texto) {
+  const lidas = new Map();
+  const desfazer = s => s.replace(/\\(u[0-9a-fA-F]{4}|.)/g, (_, e) => {
+    if (e.length === 5) return String.fromCharCode(parseInt(e.slice(1), 16));
+    return { t: '\t', n: '\n', r: '\r', f: '\f' }[e] ?? e;
+  });
+  for (const cru of String(texto).split(/\r?\n/)) {
+    const linha = cru.replace(/^[ \t\f]+/, '');
+    if (!linha || linha[0] === '#' || linha[0] === '!') continue;
+    let k = 0;
+    while (k < linha.length && !'=: \t\f'.includes(linha[k])) k += linha[k] === '\\' ? 2 : 1;
+    const chave = desfazer(linha.slice(0, k));
+    const resto = linha.slice(k).replace(/^[ \t\f]*[=:]?[ \t\f]*/, '');
+    lidas.set(chave, desfazer(resto));
+  }
+  return lidas;
+}
+
+/**
+ * **As chaves do MOD num `.properties` de outro** (o `default-server.properties`
+ * que um pack traz): cada linha do outro fica, a de uma chave do MOD é
+ * trocada pela dele, e as que faltam vão ao fim. Assim o que o pack quer
+ * (o tipo do mundo de um skyblock) e o que a tela promete (a porta, o
+ * `127.0.0.1`, o nome) valem os dois.
+ */
+function mesclarPropriedades(deles, nossas) {
+  const chaveDe = l => [...lerPropriedades(l).keys()][0];
+  const linhasMinhas = new Map();
+  for (const l of String(nossas).split('\n')) {
+    const chave = chaveDe(l);
+    if (chave !== undefined) linhasMinhas.set(chave, l);
+  }
+  const vistas = new Set();
+  const saida = [];
+  for (const l of String(deles).split(/\r?\n/)) {
+    const chave = chaveDe(l);
+    if (chave !== undefined && linhasMinhas.has(chave)) {
+      if (!vistas.has(chave)) saida.push(linhasMinhas.get(chave));
+      vistas.add(chave);
+    } else saida.push(l);
+  }
+  while (saida.length && saida.at(-1) === '') saida.pop();
+  const faltam = [...linhasMinhas].filter(([chave]) => !vistas.has(chave)).map(([, l]) => l);
+  if (faltam.length) saida.push('# Do MOD de multiplayer do SEELE: o que a tela promete vale também aqui.', ...faltam);
+  return saida.join('\n') + '\n';
+}
+
+/**
+ * O que o jogo **está usando** difere do que o MOD escreveu? Cada chave do
+ * MOD, com o valor esperado e o lido (`null` quando sumiu).
+ */
+function propriedadesTrocadas(escritas, lidasTexto) {
+  const esperadas = lerPropriedades(escritas);
+  const lidas = lerPropriedades(lidasTexto);
+  const trocadas = [];
+  for (const [chave, esperado] of esperadas) {
+    const lido = lidas.has(chave) ? lidas.get(chave) : null;
+    if (lido !== esperado) trocadas.push({ chave, esperado, lido });
+  }
+  return trocadas;
+}
+
 // ---------------------------------------------------------------- saída
+
+/** Uma linha da saída sem as sequências de cor do terminal (`ESC [ … m`). */
+function semCores(linha) {
+  return String(linha).replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
+}
 
 /** Uma função que lê uma linha da saída do jogo e diz o que ela quer dizer. */
 function casarSaida(receita) {

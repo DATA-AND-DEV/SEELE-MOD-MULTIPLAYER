@@ -76,9 +76,9 @@ function adaptadorComDisco(a, pessoa, opcoes = {}) {
       const p = processoFalso();
       f.processos.push(p);
       // O instalador sai sozinho, com o código que o teste pedir.
-      if (pedido.argumentos.includes('fabric-installer.jar')) {
+      if (pedido.argumentos.some(x => /-installer\.jar$/.test(x))) {
         setImmediate(() => {
-          p.linhas?.('Installing Fabric Server: 0.16.14');
+          p.linhas?.(pedido.argumentos.includes('fabric-installer.jar') ? 'Installing Fabric Server: 0.16.14' : 'Installing server: ' + pedido.argumentos.join(' '));
           p.sair?.({ codigo: opcoes.codigoDoInstalador ?? 0 });
         });
       }
@@ -251,6 +251,78 @@ test('um jar em overrides/mods entra (é o que o termo do pack diz que roda)', a
   const { a, f, id } = await comMods({ pack: packCom([['overrides/mods/proprio.jar', 'um mod do pack', false]]) });
   assert.equal(f.disco.get('mods/proprio.jar')?.toString(), 'um mod do pack');
   assert.equal(doServidor(a, id).estado, 'pronto', JSON.stringify(doServidor(a, id).falhas));
+});
+
+// ---- O Forge e o NeoForge de verdade (medidos em 31/10, um Mac ARM) ----
+
+test('o pack de prova do Forge: o instalador com --installServer e o jogo pelo unix_args.txt do Forge 1.20.1-47.4.28', async () => {
+  const { packDeProva: pack } = require('../ferramentas/pack-de-prova.cjs');
+  const { a, f, id } = await comMods({ pack: pack('forge') });
+  assert.equal(doServidor(a, id).estado, 'pronto', JSON.stringify(doServidor(a, id).falhas));
+  assert.deepEqual(f.rodados[0], { comando: 'java/bin/java', argumentos: ['-jar', 'forge-installer.jar', '--installServer'], pasta: '' });
+  assert.equal(f.disco.get('.seele-loader').toString(), 'forge@47.4.28@1.20.1\n');
+  assert.ok(f.baixados.some(b => b.destino === 'forge-installer.jar' && b.hash.algoritmo === 'sha256' && b.tamanho === 8859760));
+  assert.ok(f.baixados.some(b => /OpenJDK17U-jre_aarch64_mac/.test(b.url)), 'o Java do 1.20.1 é o 17');
+  assert.ok(!f.baixados.some(b => /embeddium/.test(b.url)), 'o mod só do cliente foi baixado');
+  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
+  await entregar(a, f);
+  assert.deepEqual(f.rodados[1].argumentos, ['-Xms1G', '-Xmx2G', '@libraries/net/minecraftforge/forge/1.20.1-47.4.28/unix_args.txt', 'nogui']);
+});
+
+test('o pack de prova do NeoForge: --install-server, o Java 21 e o unix_args.txt do NeoForge 21.1.265', async () => {
+  const { packDeProva: pack } = require('../ferramentas/pack-de-prova.cjs');
+  const { a, f, id } = await comMods({ pack: pack('neoforge') });
+  assert.equal(doServidor(a, id).estado, 'pronto', JSON.stringify(doServidor(a, id).falhas));
+  assert.deepEqual(f.rodados[0].argumentos, ['-jar', 'neoforge-installer.jar', '--install-server']);
+  assert.ok(f.baixados.some(b => /OpenJDK21U-jre_aarch64_mac/.test(b.url)), 'o Java do 1.21.1 é o 21');
+  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
+  await entregar(a, f);
+  assert.deepEqual(f.rodados[1].argumentos, ['-Xms1G', '-Xmx2G', '@libraries/net/neoforged/neoforge/21.1.265/unix_args.txt', 'nogui']);
+});
+
+// O Create Live 5 (Forge 1.20.1, Modrinth) traz o mod Default Server
+// Properties e um `default-server.properties`: na primeira subida, o mod troca
+// o `server.properties` inteiro por ele. Medido: o jogo subiu em `*:25565`,
+// com «A Minecraft Server» e 20 vagas, e o túnel abriu mesmo assim.
+const { fixture: doDisco } = require('./carregar.cjs');
+const DEFAULT_DO_PACK = doDisco('createlive5-default-server.properties');
+const TROCADO_PELO_MOD = doDisco('forge-createlive5-server.properties');
+
+/** O jogo sobe com o que o Default Server Properties deixaria, e diz o «Done» do Forge. */
+async function subirComDsp(opcoes) {
+  const ctx = await comMods({ pack: packCom([['overrides/default-server.properties', DEFAULT_DO_PACK, false]]) });
+  const { a, f, id } = ctx;
+  f.servidos = [];
+  f.ad.servirPorta = async pedido => { f.servidos.push(pedido); return { fechar: () => {} }; };
+  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
+  await entregar(a, f);
+  const jogo = f.processos.at(-1);
+  // O mod, na subida: o arquivo que o jogo usa passa a ser o do pack.
+  f.disco.set('server.properties', opcoes.oQueOJogoUsa(f));
+  jogo.linhas('[13:48:46] [Server thread/INFO] [minecraft/DedicatedServer]: Done (11.812s)! For help, type "help"');
+  await assentarTudo();
+  return { ...ctx, jogo };
+}
+
+test('o default-server.properties do pack recebe o que a tela promete, e o resto do pack fica (Create Live 5)', async () => {
+  const { a, f, id } = await subirComDsp({ oQueOJogoUsa: f => f.disco.get('default-server.properties') });
+  const escrito = f.disco.get('default-server.properties').toString();
+  assert.match(escrito, /^level-type=skyblockbuilder\\:skyblock$/m, 'o tipo de mundo do pack sumiu');
+  assert.match(escrito, /^server-ip=127\.0\.0\.1$/m);
+  assert.match(escrito, /^motd=/m);
+  assert.deepEqual(f.servidos.map(p => p.nome), ['minecraft-1'], JSON.stringify(doServidor(a, id).falhas));
+  assert.equal(doServidor(a, id).estado, 'ligado');
+});
+
+test('um mod que troca o server.properties: o túnel não abre, o jogo para, e a tela diz cada chave', async () => {
+  const { a, f, id, jogo } = await subirComDsp({ oQueOJogoUsa: () => Buffer.from(TROCADO_PELO_MOD) });
+  assert.deepEqual(f.servidos, [], 'o túnel abriu com o jogo em *:25565');
+  const falha = doServidor(a, id).falhas.at(-1);
+  assert.deepEqual([falha?.etapa, falha?.erro, falha?.dados.arquivo], ['config', 'config-trocada', 'server.properties'], JSON.stringify(doServidor(a, id).falhas));
+  const ip = falha.dados.trocadas.find(t => t.chave === 'server-ip');
+  assert.deepEqual(ip, { chave: 'server-ip', esperado: '127.0.0.1', lido: '' });
+  assert.ok(falha.dados.trocadas.some(t => t.chave === 'motd' && t.lido === 'A Minecraft Server'));
+  assert.ok(jogo.entrada.includes('stop\n'), 'o jogo não recebeu o stop');
 });
 
 // O adaptador do teste acima precisa do disco antes de existir: um atalho.

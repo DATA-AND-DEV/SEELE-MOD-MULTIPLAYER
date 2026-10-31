@@ -9,6 +9,7 @@ const { carregar, receitaDoDisco, buscarDasFixtures, fixture } = require('./carr
 const m = carregar('servidor', [
   'listarVersoes', 'resolverVersao', 'montarOferta', 'validarConfig', 'configPadrao',
   'escreverPropriedades', 'casarSaida', 'sha1Hex', 'escaparPropriedade', 'nomeEmTexto',
+  'lerPropriedades', 'mesclarPropriedades', 'propriedadesTrocadas', 'semCores',
 ]);
 const local = v => JSON.parse(JSON.stringify(v));
 const mc = receitaDoDisco('minecraft');
@@ -302,6 +303,78 @@ test('o chat não imita nenhuma linha que a receita lê (pronto, entrou, saiu, s
     assert.equal(salvou.test(l), false, l);
     assert.equal(parou.test(l), false, l);
   }
+});
+
+// ---- O Forge e o NeoForge de verdade (31/10, um Mac ARM, saída por pipe como o `programa`) ----
+// Forge 1.20.1-47.4.28 e NeoForge 1.21.1 21.1.265, cada um com FerriteCore e
+// Clumps; o cliente headless (modo offline, só para a medida) entrou como Bia.
+const DO_FORGE = [
+  '[13:53:24] [Server thread/INFO] [minecraft/DedicatedServer]: Done (1.652s)! For help, type "help"',
+  '[14:00:21] [Server thread/INFO] [minecraft/MinecraftServer]: Bia joined the game',
+  '[14:00:24] [Server thread/INFO] [minecraft/MinecraftServer]: Bia left the game',
+  '[13:53:25] [Server thread/INFO] [minecraft/MinecraftServer]: Saved the game',
+  '[13:53:25] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping the server',
+];
+const DO_NEOFORGE = [
+  '[13:53:32] [Server thread/INFO] [minecraft/DedicatedServer]: Done (0.559s)! For help, type "help"',
+  '[14:04:30] [Server thread/INFO] [minecraft/MinecraftServer]: Bia joined the game',
+  '[14:04:33] [Server thread/INFO] [minecraft/MinecraftServer]: Bia left the game',
+  '[13:53:32] [Server thread/INFO] [minecraft/MinecraftServer]: Saved the game',
+  '[13:53:32] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping the server',
+];
+
+test('as linhas de verdade do Forge 1.20.1 e do NeoForge 1.21.1 casam com cada padrão da receita', () => {
+  const casar = m.casarSaida(mc);
+  const salvou = new RegExp(mc.mundo.salvar.find(p => p.esperar).esperar);
+  const parou = new RegExp(mc.saida.parar.esperar);
+  for (const [pronto, entrou, saiu, salvo, parada] of [DO_FORGE, DO_NEOFORGE]) {
+    assert.deepEqual(local(casar(pronto)), { tipo: 'pronto' }, pronto);
+    assert.deepEqual(local(casar(entrou)), { tipo: 'entrou', jogador: 'Bia' }, entrou);
+    assert.deepEqual(local(casar(saiu)), { tipo: 'saiu', jogador: 'Bia' }, saiu);
+    assert.ok(salvou.test(salvo), salvo);
+    assert.ok(parou.test(parada), parada);
+  }
+});
+
+test('as cores do terminal saem antes do padrão (o NeoForge as escreve mesmo sem terminal)', () => {
+  // Medida: 28 das 74 linhas do NeoForge 21.1.265 (as do `main/`) vinham assim.
+  const real = '\u001b[m\u001b[32m[13:53:27.399] [main/INFO] [Launcher/MODLAUNCHER]: JVM identified as Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.13+9-LTS ';
+  assert.equal(m.semCores(real), '[13:53:27.399] [main/INFO] [Launcher/MODLAUNCHER]: JVM identified as Eclipse Adoptium OpenJDK 64-Bit Server VM 21.0.13+9-LTS ');
+  const casar = m.casarSaida(mc);
+  const pintado = '\u001b[m\u001b[32m' + DO_NEOFORGE[0] + '\u001b[m';
+  assert.equal(casar(pintado), null, 'sem tirar as cores, o «Done» pintado não casa');
+  assert.deepEqual(local(casar(m.semCores(pintado))), { tipo: 'pronto' });
+});
+
+test('o server.properties que o Forge reescreve (UTF-8, sem escapes) é o que o MOD escreveu', () => {
+  const escrito = m.escreverPropriedades(mc, { nome: [{ texto: 'Casa', cor: 'aqua' }, { texto: 'com mods', cor: 'gold' }], maximo: 4 }, 25565);
+  // O arquivo da pasta depois da prova A do Forge (o jogo o reescreve ao subir).
+  assert.deepEqual(local(m.propriedadesTrocadas(escrito, fixture('forge-prova-server.properties'))), []);
+  assert.equal(m.lerPropriedades(fixture('forge-prova-server.properties')).get('motd'), '§bCasa §6com mods');
+  // O do Create Live 5, trocado pelo Default Server Properties na primeira subida.
+  const trocadas = local(m.propriedadesTrocadas(escrito, fixture('forge-createlive5-server.properties')));
+  const por = Object.fromEntries(trocadas.map(t => [t.chave, [t.esperado, t.lido]]));
+  assert.deepEqual(por['server-ip'], ['127.0.0.1', '']);
+  assert.deepEqual(por.motd, ['§bCasa §6com mods', 'A Minecraft Server']);
+  assert.deepEqual(por['max-players'], ['4', '20']);
+  assert.equal(por['server-port'], undefined, 'a porta era a mesma');
+});
+
+test('as chaves do MOD entram no default-server.properties do pack, e as do pack ficam', () => {
+  const escrito = m.escreverPropriedades(mc, { maximo: 4 }, 25570);
+  const deles = fixture('createlive5-default-server.properties');
+  const mesclado = m.mesclarPropriedades(deles, escrito);
+  const lido = m.lerPropriedades(mesclado);
+  assert.equal(lido.get('level-type'), 'skyblockbuilder:skyblock');
+  assert.equal(lido.get('allow-flight'), 'true');
+  assert.deepEqual(local(m.propriedadesTrocadas(escrito, mesclado)), []);
+  assert.equal(lido.get('server-port'), '25570');
+  // Uma chave do MOD que o pack também traz é trocada no lugar, uma vez só.
+  const comIp = m.mesclarPropriedades('server-ip=0.0.0.0\nlevel-type=flat\nserver-ip=1.2.3.4\n', escrito);
+  assert.equal((comIp.match(/^server-ip=/gm) || []).length, 1);
+  assert.equal(m.lerPropriedades(comIp).get('server-ip'), '127.0.0.1');
+  // Escrever de novo sobre o já mesclado não cresce.
+  assert.equal(m.mesclarPropriedades(mesclado, escrito), mesclado);
 });
 
 // ---- o sha1 do JSON de cada versão ----

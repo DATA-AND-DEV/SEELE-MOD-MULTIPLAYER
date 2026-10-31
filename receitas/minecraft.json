@@ -205,6 +205,7 @@
     "pagina": "https://modrinth.com/modpack/",
     "cdn": "cdn.modrinth.com",
     "dominios": ["cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com"],
+    "configuracoesDoPack": ["default-server.properties"],
     "loaders": {
       "fabric-loader": {
         "nome": "Fabric",

@@ -288,13 +288,51 @@ function criarMaquina(ad) {
     // recebe: o EULA foi aceito por quem é dono desta máquina, na tela do produto.
     for (const t of plano.termos) await ad.escrever(t.arquivo, t.conteudo);
     await ad.escrever(plano.arquivoDeConfig, plano.propriedades);
+    // **O que um mod copia por cima da configuração** (medido no Create Live 5,
+    // Forge 1.20.1: o Default Server Properties troca o `server.properties`
+    // inteiro pelo `default-server.properties` do pack na primeira subida, e o
+    // jogo subia em `*:25565`, com o nome e o máximo do pack): a máquina
+    // escreve nele as chaves que a tela promete, e o resto do pack fica.
+    if (plano.modpack) {
+      for (const arquivo of i.receita?.modpack?.configuracoesDoPack ?? []) {
+        let deles;
+        try { deles = await ad.ler(arquivo); } catch { continue; }
+        await ad.escrever(arquivo, mesclarPropriedades(deles, plano.propriedades));
+      }
+    }
+  }
+
+  /**
+   * **O jogo usa o que a tela promete?** Lido de volta no «pronto», antes do
+   * túnel: o jogo reescreve o arquivo com o que carregou, e um mod pode ter
+   * trocado o que o MOD escreveu (o endereço, a porta, o modo online, o
+   * nome). Trocado, o túnel não abre e o jogo para — dito, com cada chave.
+   */
+  async function configuracaoTrocada(i) {
+    if (i.receita?.configuracao?.formato !== 'properties') return null;
+    const plano = i.plano;
+    let lido;
+    try {
+      lido = await ad.ler(plano.arquivoDeConfig);
+    } catch (erro) {
+      return { arquivo: plano.arquivoDeConfig, ilegivel: fraseDoErro(erro) };
+    }
+    const trocadas = propriedadesTrocadas(plano.propriedades, lido);
+    const curto = v => (v === null ? null : cortar(v, 60));
+    return trocadas.length
+      ? { arquivo: plano.arquivoDeConfig, trocadas: trocadas.slice(0, 8).map(t => ({ chave: t.chave, esperado: curto(t.esperado), lido: curto(t.lido) })) }
+      : null;
   }
 
   function lembrar(i, linha) {
     i.linhas = [...i.linhas, cortar(linha, 160)].slice(-LINHAS_GUARDADAS);
   }
 
-  function aoLinha(i, linha) {
+  function aoLinha(i, cru) {
+    // As cores do terminal fora (medido no NeoForge 1.21.1: as linhas do
+    // `main/` chegam com `\x1b[32m` mesmo sem terminal): os padrões começam
+    // em `^[`, e a tela mostra as últimas linhas de um jogo que caiu.
+    const linha = semCores(cru);
     lembrar(i, linha);
     for (const e of [...i.esperas]) {
       if (e.re.test(linha)) {
@@ -316,6 +354,12 @@ function criarMaquina(ad) {
 
   async function abrirTunel(i) {
     const t = i.plano.tunel;
+    const trocada = await configuracaoTrocada(i);
+    if (trocada) {
+      await falha(i, 'config', trocada.ilegivel ? 'config-ilegivel' : 'config-trocada', trocada);
+      await desligar(i);
+      return;
+    }
     try {
       i.tunel = await ad.servirPorta({ nome: t.nome, protocolo: t.protocolo, porta: t.porta });
     } catch (erro) {
