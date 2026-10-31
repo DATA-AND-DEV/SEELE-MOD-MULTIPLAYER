@@ -93,7 +93,7 @@ function criarMaquina(ad) {
   async function preparar(i) {
     const plano = await lerPlano(i);
     if (!plano) return false;
-    const chave = JSON.stringify(plano.artefatos);
+    const chave = JSON.stringify([plano.artefatos, plano.modpack?.sha512 ?? null]);
     if (i.preparado === chave) return true;
 
     const plataforma = ad.plataforma();
@@ -128,8 +128,117 @@ function criarMaquina(ad) {
       }
       i.progresso = { feitos: i.progresso.feitos + 1, total: baixar.length };
     }
+    if (plano.modpack && !(await prepararModpack(i, plano))) {
+      await contar(i, 'desligado');
+      return false;
+    }
     i.preparado = chave;
     await contar(i, 'pronto');
+    return true;
+  }
+
+  // ---- o modpack (parte 6) ----
+
+  /** Um passo do modpack que falhou: a falha vai à tela com a etapa e os dados. */
+  async function falhaDoPack(i, etapa, erro, dados = {}) {
+    await falha(i, etapa, erro, { ...dados, ...dadosDoErro(erro) });
+    return false;
+  }
+
+  /**
+   * **O pack aceito, aberto e aplicado**, na ordem da spec: o pack (trazido da
+   * metade de servidor pelo volume, ou baixado do CDN do Modrinth pelo link),
+   * o índice lido e conferido pelas mesmas regras da metade de servidor, cada
+   * arquivo do servidor baixado com o `sha512`, os `overrides` e depois os
+   * `server-overrides` por cima, e o instalador do loader que o pack pede.
+   */
+  async function prepararModpack(i, plano) {
+    const mp = plano.modpack;
+    if (mp.origem === 'enviado') {
+      try {
+        await ad.trazer({ pedido: mp.pedido, destino: mp.destino });
+      } catch (erro) {
+        return falhaDoPack(i, 'trazer-pack', erro, { destino: mp.destino, sha512: mp.sha512 });
+      }
+    }
+    try {
+      await ad.desempacotar({ arquivo: mp.destino, destino: 'pack', raiz: '' });
+    } catch (erro) {
+      return falhaDoPack(i, 'abrir-pack', erro, { arquivo: mp.destino });
+    }
+    let texto;
+    try {
+      texto = await ad.ler('pack/modrinth.index.json');
+    } catch (erro) {
+      return falhaDoPack(i, 'ler-indice', erro, {});
+    }
+    // As regras de novo, aqui: o índice que vale é o dos bytes aceitos.
+    const lido = lerIndice(texto, i.receita);
+    if (!lido.ok) return falhaDoPack(i, 'indice', lido.erro, lido);
+    const indice = lido.indice;
+    const loaderIgual = JSON.stringify(indice.loader) === JSON.stringify(mp.loader);
+    if (indice.mc !== mp.mc || !loaderIgual) {
+      return falhaDoPack(i, 'indice', 'pack-nao-confere', { mc: indice.mc, mcDoPlano: mp.mc, loader: indice.loader, loaderDoPlano: mp.loader });
+    }
+    const sistemas = mp.loader ? i.receita.modpack.loaders[mp.loader.id]?.sistemas : null;
+    if (sistemas && !sistemas.includes(ad.plataforma())) {
+      return falhaDoPack(i, 'loader', 'loader-sem-este-sistema', { loader: mp.loader.id, plataforma: ad.plataforma(), sistemas });
+    }
+    const feitos = i.progresso?.feitos ?? 0;
+    i.progresso = { feitos, total: feitos + indice.arquivos.length };
+    await contar(i, 'baixando', { excluidos: indice.excluidos });
+    for (const a of indice.arquivos) {
+      try {
+        await ad.baixar({ url: a.url, hash: { algoritmo: 'sha512', hex: a.sha512 }, tamanho: a.tamanho, destino: a.path });
+      } catch (erro) {
+        return falhaDoPack(i, 'baixar-do-pack', erro, { path: a.path, url: a.url, tamanho: a.tamanho });
+      }
+      i.progresso = { feitos: i.progresso.feitos + 1, total: i.progresso.total };
+    }
+    for (const raiz of ['overrides', 'server-overrides']) {
+      try {
+        await ad.desempacotar({ arquivo: mp.destino, destino: '', raiz, mesclar: true });
+      } catch (erro) {
+        // Um pack sem a pasta não tem o que aplicar: não é falha.
+        if (erro?.erro === 'nada-sob-a-raiz') continue;
+        return falhaDoPack(i, 'aplicar-' + raiz, erro, { raiz });
+      }
+    }
+    if (mp.loader && mp.instalar && !(await instalarLoader(i, mp))) return false;
+    return true;
+  }
+
+  /**
+   * **O instalador do loader roda uma vez** (o segundo comando aceito): a
+   * marca `.seele-loader` diz que este loader, nesta versão, já foi
+   * instalado. Um instalador que sai com erro para tudo, com o código e as
+   * últimas linhas.
+   */
+  async function instalarLoader(i, mp) {
+    const marca = `${mp.loader.id}@${mp.loader.versao}@${mp.mc}\n`;
+    let feita = null;
+    try { feita = await ad.ler('.seele-loader'); } catch { feita = null; }
+    if (feita === marca) return true;
+    await contar(i, 'instalando');
+    const linhas = [];
+    let proc;
+    try {
+      proc = await ad.rodar({ comando: mp.instalar.comando, argumentos: mp.instalar.argumentos, pasta: '' });
+    } catch (erro) {
+      return falhaDoPack(i, 'instalar', erro, { comando: mp.instalar.comando, loader: mp.loader });
+    }
+    const saida = await new Promise(resolver => {
+      proc.aoLinha(linha => { linhas.push(cortar(String(linha), 160)); if (linhas.length > LINHAS_GUARDADAS) linhas.shift(); });
+      proc.aoSair(resolver);
+    });
+    if (saida?.codigo !== 0) {
+      return falhaDoPack(i, 'instalar', 'instalador-falhou', { codigo: saida?.codigo ?? null, sinal: saida?.sinal ?? null, linhas, loader: mp.loader });
+    }
+    try {
+      await ad.escrever('.seele-loader', marca);
+    } catch (erro) {
+      return falhaDoPack(i, 'instalar', erro, {});
+    }
     return true;
   }
 

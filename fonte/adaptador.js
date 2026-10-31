@@ -10,7 +10,9 @@
 //   maquina.porta.servir({ nome, protocolo, porta }) / parar(nome) / quedas(nome)
 //   maquina.programa.baixar({ url, sha1|sha256|sha512, tamanho, destino, aoProgresso })
 //   maquina.programa.escrever({ destino, texto })
-//   maquina.programa.desempacotar({ arquivo, destino, raiz })
+//   maquina.programa.desempacotar({ arquivo, destino, raiz, mesclar })
+//   maquina.programa.trazer({ pedido, destino }) -> { destino, tamanho, hash, jaEstava }
+//   maquina.programa.ler({ arquivo }) -> texto
 //   maquina.programa.rodar({ comando, argumentos, pasta }) -> processo
 //     processo.aoLinha(fn(linha, fluxo)) / aoSair(fn(fim)) / fim / escrever(texto) / matar()
 //   maquina.programa.recusas() -> Promise<{ nome: vezes }>
@@ -24,7 +26,9 @@
 //   servidor                                        -> o servidor de jogo desta metade
 //   plataforma()                                    -> 'mac-aarch64' | 'windows-x64' | ...
 //   baixar({ url, hash, tamanho, destino, aoProgresso })  -> Promise
-//   desempacotar({ arquivo, destino, raiz })        -> Promise
+//   desempacotar({ arquivo, destino, raiz, mesclar }) -> Promise
+//   trazer({ pedido, destino })                     -> Promise<{ jaEstava, ... }>: o pack da metade de servidor
+//   ler(arquivo)                                    -> Promise<texto>
 //   rodar({ comando, argumentos, pasta })           -> Promise<{ aoLinha, aoSair, escrever, encerrar }>
 //   servirPorta({ nome, protocolo, porta })         -> Promise<{ fechar }>
 //   escrever(caminho, texto)                        -> Promise
@@ -66,7 +70,14 @@ function criarAdaptador(g = globalThis) {
       url, [hash.algoritmo]: hash.hex, tamanho, destino, ...(aoProgresso ? { aoProgresso } : {}),
     })),
 
-    desempacotar: ({ arquivo, destino, raiz }) => promessa(() => m.programa.desempacotar({ arquivo, destino, raiz })),
+    desempacotar: ({ arquivo, destino, raiz, mesclar }) => promessa(() => m.programa.desempacotar({
+      arquivo, destino, raiz, ...(mesclar ? { mesclar: true } : {}),
+    })),
+
+    // O pack que a metade de servidor guardou (parte 6): o produto o traz pelo
+    // volume e só o grava com o hash do aceite.
+    trazer: ({ pedido, destino }) => promessa(() => m.programa.trazer({ pedido, destino })),
+    ler: arquivo => promessa(() => m.programa.ler({ arquivo })),
 
     rodar: ({ comando, argumentos, pasta }) => promessa(() => m.programa.rodar({ comando, argumentos, pasta }))
       .then(proc => ({

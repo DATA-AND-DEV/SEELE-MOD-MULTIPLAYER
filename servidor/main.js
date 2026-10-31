@@ -1,8 +1,8 @@
 /* Gerado por ferramentas/build.mjs a partir de fonte/ e receitas/. API 8. Não edite aqui. */
 (() => {
 "use strict";
-const RECEITAS = [{"formato":1,"id":"minecraft","nome":"Minecraft","edicao":"Java Edition","icone":"MC","versao":"1.0.0","descricao":"O servidor oficial da Mojang, com o Java que cada versão pede.","variantes":{"vanilla":{"nome":"Vanilla","descricao":"Minecraft puro, sem mods. Você escolhe só a versão."},"com-mods":{"nome":"Com mods","descricao":"Um modpack do Modrinth define a versão, o loader e os mods.","disponivel":false,"porque":"Com mods chega na próxima versão."}},"versoes":{"fonte":"mojang","manifesto":"https://piston-meta.mojang.com/mc/game/version_manifest_v2.json","tipos":["release"],"quantas":24},"artefatos":[{"id":"servidor","fonte":"mojang-servidor","destino":"server.jar"},{"id":"java","fonte":"adoptium","destino":"java","consulta":"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?image_type=jre&vendor=eclipse","majorPadrao":8,"plataformas":[{"plataforma":"windows-x64","os":"windows","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"mac-aarch64","os":"mac","arquitetura":"aarch64","raiz":"{release}-jre/Contents/Home","senaoHouver":"mac-x64"},{"plataforma":"mac-x64","os":"mac","arquitetura":"x64","raiz":"{release}-jre/Contents/Home"},{"plataforma":"linux-x64","os":"linux","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"linux-aarch64","os":"linux","arquitetura":"aarch64","raiz":"{release}-jre"}]}],"origens":["piston-data.mojang.com","github.com","objects.githubusercontent.com","release-assets.githubusercontent.com"],"dominiosDoJogo":["sessionserver.mojang.com","api.minecraftservices.com","api.mojang.com"],"rodar":{"comando":"java/bin/java","argumentos":["-Xms1G","-Xmx2G","-jar","server.jar","nogui"]},"rede":{"protocolo":"tcp","portaPadrao":25565},"disco":{"mundoMaximo":8589934592},"termos":[{"id":"eula","titulo":"EULA do Minecraft (Mojang)","url":"https://aka.ms/MinecraftEULA","arquivo":"eula.txt","conteudo":"eula=true\n"}],"configuracao":{"arquivo":"server.properties","formato":"properties","campos":[{"chave":"nome","aba":"geral","forma":"segmentos","rotulo":"Nome que aparece na lista do jogo","ajuda":"Cada palavra tem a sua cor, entre as 16 do Minecraft.","padrao":[{"texto":"Servidor do SEELE","cor":"aqua"}],"tamanhoMaximo":59,"maximoSegmentos":6,"opcoes":[{"valor":"white","rotulo":"Branco","amostra":"#FFFFFF","codigo":"f"},{"valor":"gray","rotulo":"Cinza","amostra":"#AAAAAA","codigo":"7"},{"valor":"dark_gray","rotulo":"Cinza-escuro","amostra":"#555555","codigo":"8"},{"valor":"black","rotulo":"Preto","amostra":"#000000","codigo":"0"},{"valor":"yellow","rotulo":"Amarelo","amostra":"#FFFF55","codigo":"e"},{"valor":"gold","rotulo":"Dourado","amostra":"#FFAA00","codigo":"6"},{"valor":"red","rotulo":"Vermelho","amostra":"#FF5555","codigo":"c"},{"valor":"dark_red","rotulo":"Vermelho-escuro","amostra":"#AA0000","codigo":"4"},{"valor":"light_purple","rotulo":"Rosa","amostra":"#FF55FF","codigo":"d"},{"valor":"dark_purple","rotulo":"Roxo","amostra":"#AA00AA","codigo":"5"},{"valor":"blue","rotulo":"Azul","amostra":"#5555FF","codigo":"9"},{"valor":"dark_blue","rotulo":"Azul-escuro","amostra":"#0000AA","codigo":"1"},{"valor":"aqua","rotulo":"Ciano","amostra":"#55FFFF","codigo":"b"},{"valor":"dark_aqua","rotulo":"Ciano-escuro","amostra":"#00AAAA","codigo":"3"},{"valor":"green","rotulo":"Verde","amostra":"#55FF55","codigo":"a"},{"valor":"dark_green","rotulo":"Verde-escuro","amostra":"#00AA00","codigo":"2"}]},{"chave":"maximo","aba":"geral","grupo":"regras","forma":"numero","rotulo":"Máx. jogadores","padrao":10,"minimo":1,"maximo":100},{"chave":"dificuldade","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Dificuldade","padrao":"normal","opcoes":[{"valor":"peaceful","rotulo":"Pacífica"},{"valor":"easy","rotulo":"Fácil"},{"valor":"normal","rotulo":"Normal"},{"valor":"hard","rotulo":"Difícil"}]},{"chave":"modo","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Modo","padrao":"survival","opcoes":[{"valor":"survival","rotulo":"Sobrevivência"},{"valor":"creative","rotulo":"Criativo"},{"valor":"adventure","rotulo":"Aventura"},{"valor":"spectator","rotulo":"Espectador"}]},{"chave":"pvp","aba":"geral","forma":"interruptor","rotulo":"PvP","padrao":true},{"chave":"hardcore","aba":"jogadores","forma":"interruptor","rotulo":"Hardcore","ajuda":"Quem morre vira espectador até o mundo acabar.","padrao":false},{"chave":"protecao","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Proteção em volta do nascimento","ajuda":"Em blocos. Só quem é operador constrói ali.","padrao":16,"minimo":0,"maximo":64},{"chave":"inativo","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Tirar quem fica parado","ajuda":"Em minutos. Zero é nunca.","padrao":0,"minimo":0,"maximo":120}],"propriedades":{"motd":"{nome}","max-players":"{maximo}","difficulty":"{dificuldade}","gamemode":"{modo}","pvp":"{pvp}","hardcore":"{hardcore}","spawn-protection":"{protecao}","player-idle-timeout":"{inativo}","server-ip":"127.0.0.1","server-port":"{porta}","online-mode":"true","enable-rcon":"false","enable-query":"false"}},"mundo":{"pasta":"world","salvar":[{"console":"save-off"},{"console":"save-all flush","esperar":"\\]: Saved the game","prazo":60},{"copiar":"world"},{"console":"save-on"}]},"saida":{"pronto":"\\]: Done \\(","entrou":"\\]: ([A-Za-z0-9_]{1,16}) joined the game$","saiu":"\\]: ([A-Za-z0-9_]{1,16}) left the game$","parar":{"console":"stop","esperar":"\\]: Stopping the server","prazo":60}}}];
-const ESQUEMA_DA_RECEITA = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://github.com/DATA-AND-DEV/SEELE-MOD-MULTIPLAYER/receitas/esquema.json","title":"Receita de jogo do MOD de multiplayer do SEELE","description":"Uma receita diz como um jogo é hospedado: o que baixar, o que rodar, a configuração e como ela vira o arquivo do jogo, os termos, como salvar o mundo com segurança e o que a saída do jogo quer dizer. É dado, e não código. Toda chave desconhecida é recusada pelo nome (additionalProperties: false em todo objeto).","type":"object","additionalProperties":false,"required":["formato","id","nome","icone","versao","descricao","variantes","versoes","artefatos","origens","dominiosDoJogo","rodar","rede","disco","termos","configuracao","mundo","saida"],"properties":{"formato":{"description":"A versão deste formato. Hoje, 1.","const":1},"id":{"description":"O nome da receita: vira o começo do nome de cada servidor de jogo (minecraft-1) e do túnel.","type":"string","pattern":"^[a-z0-9]+(-[a-z0-9]+)*$","maxLength":24},"nome":{"type":"string","minLength":1,"maxLength":40},"edicao":{"type":"string","minLength":1,"maxLength":40},"icone":{"description":"Um ou dois caracteres que a tela mostra no cartão do jogo.","type":"string","minLength":1,"maxLength":8},"versao":{"description":"A versão da receita: vai na oferta que a pessoa da máquina aceita.","type":"string","pattern":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},"descricao":{"type":"string","minLength":1,"maxLength":200},"variantes":{"type":"object","additionalProperties":false,"required":["vanilla"],"properties":{"vanilla":{"$ref":"#/$defs/variante"},"com-mods":{"$ref":"#/$defs/variante"}}},"versoes":{"description":"De onde vem a lista de versões do jogo. mojang: o version_manifest_v2.json. fixo: a lista escrita aqui.","type":"object","additionalProperties":false,"required":["fonte"],"properties":{"fonte":{"enum":["mojang","fixo"]},"manifesto":{"$ref":"#/$defs/url"},"tipos":{"type":"array","minItems":1,"uniqueItems":true,"items":{"enum":["release","snapshot","old_beta","old_alpha"]}},"quantas":{"type":"integer","minimum":1,"maximum":40},"lista":{"type":"array","minItems":1,"maxItems":40,"items":{"$ref":"#/$defs/versaoFixa"}}}},"artefatos":{"description":"O que a máquina baixa. mojang-servidor: o downloads.server da versão (sha1). adoptium: o Java que a versão pede (javaVersion.majorVersion), um por plataforma (sha256). fixo: url, hash e tamanho por versão, escritos aqui.","type":"array","minItems":1,"maxItems":4,"items":{"$ref":"#/$defs/artefato"}},"origens":{"description":"Os domínios de onde a máquina pode baixar. Toda URL de artefato tem de cair num deles.","type":"array","minItems":1,"maxItems":16,"uniqueItems":true,"items":{"$ref":"#/$defs/host"}},"dominiosDoJogo":{"description":"Os domínios com que o jogo fala por conta própria, sem o SEELE conferir. O aceite os mostra.","type":"array","maxItems":16,"uniqueItems":true,"items":{"$ref":"#/$defs/host"}},"rodar":{"type":"object","additionalProperties":false,"required":["comando","argumentos"],"properties":{"comando":{"$ref":"#/$defs/caminho"},"argumentos":{"type":"array","maxItems":64,"items":{"type":"string","maxLength":256}}}},"rede":{"type":"object","additionalProperties":false,"required":["protocolo","portaPadrao"],"properties":{"protocolo":{"enum":["tcp","udp"]},"portaPadrao":{"type":"integer","minimum":1024,"maximum":65535}}},"disco":{"type":"object","additionalProperties":false,"required":["mundoMaximo"],"properties":{"mundoMaximo":{"description":"Quanto o mundo pode ocupar, em bytes, além do que se baixa.","type":"integer","minimum":1,"maximum":34359738368}}},"termos":{"type":"array","maxItems":4,"items":{"$ref":"#/$defs/termo"}},"configuracao":{"type":"object","additionalProperties":false,"required":["arquivo","formato","campos","propriedades"],"properties":{"arquivo":{"$ref":"#/$defs/caminho"},"formato":{"enum":["properties"]},"campos":{"type":"array","minItems":1,"maxItems":24,"items":{"$ref":"#/$defs/campo"}},"propriedades":{"description":"Cada propriedade do arquivo do jogo e o modelo do valor. {chave} é o valor de um campo; {porta} é a porta que o MOD escolheu.","type":"object","additionalProperties":{"type":"string","maxLength":256}}}},"mundo":{"type":"object","additionalProperties":false,"required":["pasta","salvar"],"properties":{"pasta":{"$ref":"#/$defs/caminho"},"salvar":{"description":"O salvamento seguro, passo a passo. Obrigatório: é o que torna a reserva possível.","type":"array","minItems":1,"maxItems":8,"items":{"$ref":"#/$defs/passo"}}}},"saida":{"description":"Expressões regulares sobre cada linha da saída do jogo. entrou e saiu têm um grupo de captura: o nome de quem joga.","type":"object","additionalProperties":false,"required":["pronto","entrou","saiu","parar"],"properties":{"pronto":{"type":"string","minLength":1,"maxLength":200},"entrou":{"type":"string","minLength":1,"maxLength":200},"saiu":{"type":"string","minLength":1,"maxLength":200},"parar":{"$ref":"#/$defs/passo"}}}},"$defs":{"variante":{"type":"object","additionalProperties":false,"required":["nome","descricao"],"properties":{"nome":{"type":"string","minLength":1,"maxLength":24},"descricao":{"type":"string","minLength":1,"maxLength":120},"disponivel":{"type":"boolean"},"porque":{"type":"string","minLength":1,"maxLength":120}}},"url":{"type":"string","pattern":"^https://[^\\s]+$","maxLength":512},"host":{"type":"string","pattern":"^(\\*\\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$","maxLength":253},"caminho":{"description":"Relativo à pasta do servidor de jogo, sem .. e sem começar por /.","type":"string","pattern":"^(?!/)(?!.*(^|/)\\.\\.(/|$))[A-Za-z0-9._/-]+$","maxLength":200},"hex":{"type":"string","pattern":"^[0-9a-f]+$"},"hash":{"type":"object","additionalProperties":false,"required":["algoritmo","hex"],"properties":{"algoritmo":{"enum":["sha1","sha256","sha512"]},"hex":{"$ref":"#/$defs/hex"}}},"baixavel":{"type":"object","additionalProperties":false,"required":["url","hash","tamanho"],"properties":{"url":{"$ref":"#/$defs/url"},"hash":{"$ref":"#/$defs/hash"},"tamanho":{"type":"integer","minimum":1}}},"versaoFixa":{"type":"object","additionalProperties":false,"required":["id"],"properties":{"id":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"}}},"plataforma":{"type":"object","additionalProperties":false,"required":["plataforma","os","arquitetura","raiz"],"properties":{"plataforma":{"enum":["windows-x64","windows-aarch64","mac-aarch64","mac-x64","linux-x64","linux-aarch64"]},"os":{"type":"string","pattern":"^[a-z-]+$"},"arquitetura":{"type":"string","pattern":"^[a-z0-9_]+$"},"raiz":{"description":"A pasta do pacote que vira o destino; {release} é o release_name da Adoptium.","type":"string","minLength":1,"maxLength":120},"senaoHouver":{"description":"A plataforma cujo Java serve quando a Adoptium não publica para esta.","enum":["windows-x64","windows-aarch64","mac-aarch64","mac-x64","linux-x64","linux-aarch64"]}}},"artefato":{"type":"object","additionalProperties":false,"required":["id","fonte","destino"],"properties":{"id":{"type":"string","pattern":"^[a-z0-9-]{1,24}$"},"fonte":{"enum":["mojang-servidor","adoptium","fixo"]},"destino":{"$ref":"#/$defs/caminho"},"consulta":{"$ref":"#/$defs/url"},"majorPadrao":{"type":"integer","minimum":8,"maximum":99},"plataformas":{"type":"array","minItems":1,"maxItems":6,"items":{"$ref":"#/$defs/plataforma"}},"porVersao":{"type":"object","additionalProperties":{"$ref":"#/$defs/baixavel"}}}},"termo":{"type":"object","additionalProperties":false,"required":["id","titulo","url"],"properties":{"id":{"type":"string","pattern":"^[a-z0-9-]{1,24}$"},"titulo":{"type":"string","minLength":1,"maxLength":120},"url":{"$ref":"#/$defs/url"},"arquivo":{"$ref":"#/$defs/caminho"},"conteudo":{"description":"O que se escreve no arquivo, e só depois do aceite.","type":"string","maxLength":256}}},"opcao":{"type":"object","additionalProperties":false,"required":["valor","rotulo"],"properties":{"valor":{"type":"string","minLength":1,"maxLength":64},"rotulo":{"type":"string","minLength":1,"maxLength":40},"amostra":{"description":"Uma cor #rrggbb que a tela mostra ao lado.","type":"string","pattern":"^#[0-9a-fA-F]{6}$"},"codigo":{"description":"O caractere depois do § no jogo (as 16 cores do Minecraft: 0-9 e a-f).","type":"string","pattern":"^[0-9a-f]$"}}},"segmento":{"type":"object","additionalProperties":false,"required":["texto","cor"],"properties":{"texto":{"type":"string","minLength":1,"maxLength":64},"cor":{"type":"string","minLength":1,"maxLength":64}}},"campo":{"type":"object","additionalProperties":false,"required":["chave","aba","forma","rotulo","padrao"],"properties":{"chave":{"type":"string","pattern":"^[a-z][a-zA-Z0-9]{0,23}$"},"aba":{"enum":["geral","jogadores"]},"grupo":{"description":"Campos com o mesmo grupo ficam lado a lado.","type":"string","pattern":"^[a-z0-9-]{1,24}$"},"forma":{"enum":["campo","numero","escolha","interruptor","segmentos"]},"rotulo":{"type":"string","minLength":1,"maxLength":80},"ajuda":{"type":"string","minLength":1,"maxLength":160},"padrao":{"description":"Uma lista de palavras ({texto, cor}) é o padrão de uma forma «segmentos».","type":["string","integer","boolean","array"],"items":{"$ref":"#/$defs/segmento"}},"obrigatorio":{"type":"boolean"},"tamanhoMaximo":{"description":"Em caracteres; numa lista de palavras, o nome todo com um espaço entre as palavras.","type":"integer","minimum":1,"maximum":256},"maximoSegmentos":{"description":"O teto de palavras de uma forma «segmentos».","type":"integer","minimum":1,"maximum":16},"minimo":{"type":"integer"},"maximo":{"type":"integer"},"opcoes":{"type":"array","minItems":1,"maxItems":24,"items":{"$ref":"#/$defs/opcao"}}}},"passo":{"description":"Um passo: mandar uma linha ao console (e, se quiser, esperar uma linha na saída, com prazo em segundos), ou copiar uma pasta do servidor de jogo.","type":"object","additionalProperties":false,"properties":{"console":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[^\\n\\r]+$"},"esperar":{"type":"string","minLength":1,"maxLength":200},"prazo":{"type":"integer","minimum":1,"maximum":600},"copiar":{"$ref":"#/$defs/caminho"}}}}};
+const RECEITAS = [{"formato":1,"id":"minecraft","nome":"Minecraft","edicao":"Java Edition","icone":"MC","versao":"1.0.0","descricao":"O servidor oficial da Mojang, com o Java que cada versão pede.","variantes":{"vanilla":{"nome":"Vanilla","descricao":"Minecraft puro, sem mods. Você escolhe só a versão."},"com-mods":{"nome":"Com mods","descricao":"Um modpack do Modrinth define a versão, o loader e os mods."}},"versoes":{"fonte":"mojang","manifesto":"https://piston-meta.mojang.com/mc/game/version_manifest_v2.json","tipos":["release"],"quantas":24},"artefatos":[{"id":"servidor","fonte":"mojang-servidor","destino":"server.jar"},{"id":"java","fonte":"adoptium","destino":"java","consulta":"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?image_type=jre&vendor=eclipse","majorPadrao":8,"plataformas":[{"plataforma":"windows-x64","os":"windows","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"mac-aarch64","os":"mac","arquitetura":"aarch64","raiz":"{release}-jre/Contents/Home","senaoHouver":"mac-x64"},{"plataforma":"mac-x64","os":"mac","arquitetura":"x64","raiz":"{release}-jre/Contents/Home"},{"plataforma":"linux-x64","os":"linux","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"linux-aarch64","os":"linux","arquitetura":"aarch64","raiz":"{release}-jre"}]}],"origens":["piston-data.mojang.com","github.com","objects.githubusercontent.com","release-assets.githubusercontent.com"],"dominiosDoJogo":["sessionserver.mojang.com","api.minecraftservices.com","api.mojang.com"],"rodar":{"comando":"java/bin/java","argumentos":["-Xms1G","-Xmx2G","-jar","server.jar","nogui"]},"rede":{"protocolo":"tcp","portaPadrao":25565},"disco":{"mundoMaximo":8589934592},"termos":[{"id":"eula","titulo":"EULA do Minecraft (Mojang)","url":"https://aka.ms/MinecraftEULA","arquivo":"eula.txt","conteudo":"eula=true\n"}],"configuracao":{"arquivo":"server.properties","formato":"properties","campos":[{"chave":"nome","aba":"geral","forma":"segmentos","rotulo":"Nome que aparece na lista do jogo","ajuda":"Cada palavra tem a sua cor, entre as 16 do Minecraft.","padrao":[{"texto":"Servidor do SEELE","cor":"aqua"}],"tamanhoMaximo":59,"maximoSegmentos":6,"opcoes":[{"valor":"white","rotulo":"Branco","amostra":"#FFFFFF","codigo":"f"},{"valor":"gray","rotulo":"Cinza","amostra":"#AAAAAA","codigo":"7"},{"valor":"dark_gray","rotulo":"Cinza-escuro","amostra":"#555555","codigo":"8"},{"valor":"black","rotulo":"Preto","amostra":"#000000","codigo":"0"},{"valor":"yellow","rotulo":"Amarelo","amostra":"#FFFF55","codigo":"e"},{"valor":"gold","rotulo":"Dourado","amostra":"#FFAA00","codigo":"6"},{"valor":"red","rotulo":"Vermelho","amostra":"#FF5555","codigo":"c"},{"valor":"dark_red","rotulo":"Vermelho-escuro","amostra":"#AA0000","codigo":"4"},{"valor":"light_purple","rotulo":"Rosa","amostra":"#FF55FF","codigo":"d"},{"valor":"dark_purple","rotulo":"Roxo","amostra":"#AA00AA","codigo":"5"},{"valor":"blue","rotulo":"Azul","amostra":"#5555FF","codigo":"9"},{"valor":"dark_blue","rotulo":"Azul-escuro","amostra":"#0000AA","codigo":"1"},{"valor":"aqua","rotulo":"Ciano","amostra":"#55FFFF","codigo":"b"},{"valor":"dark_aqua","rotulo":"Ciano-escuro","amostra":"#00AAAA","codigo":"3"},{"valor":"green","rotulo":"Verde","amostra":"#55FF55","codigo":"a"},{"valor":"dark_green","rotulo":"Verde-escuro","amostra":"#00AA00","codigo":"2"}]},{"chave":"maximo","aba":"geral","grupo":"regras","forma":"numero","rotulo":"Máx. jogadores","padrao":10,"minimo":1,"maximo":100},{"chave":"dificuldade","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Dificuldade","padrao":"normal","opcoes":[{"valor":"peaceful","rotulo":"Pacífica"},{"valor":"easy","rotulo":"Fácil"},{"valor":"normal","rotulo":"Normal"},{"valor":"hard","rotulo":"Difícil"}]},{"chave":"modo","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Modo","padrao":"survival","opcoes":[{"valor":"survival","rotulo":"Sobrevivência"},{"valor":"creative","rotulo":"Criativo"},{"valor":"adventure","rotulo":"Aventura"},{"valor":"spectator","rotulo":"Espectador"}]},{"chave":"pvp","aba":"geral","forma":"interruptor","rotulo":"PvP","padrao":true},{"chave":"hardcore","aba":"jogadores","forma":"interruptor","rotulo":"Hardcore","ajuda":"Quem morre vira espectador até o mundo acabar.","padrao":false},{"chave":"protecao","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Proteção em volta do nascimento","ajuda":"Em blocos. Só quem é operador constrói ali.","padrao":16,"minimo":0,"maximo":64},{"chave":"inativo","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Tirar quem fica parado","ajuda":"Em minutos. Zero é nunca.","padrao":0,"minimo":0,"maximo":120}],"propriedades":{"motd":"{nome}","max-players":"{maximo}","difficulty":"{dificuldade}","gamemode":"{modo}","pvp":"{pvp}","hardcore":"{hardcore}","spawn-protection":"{protecao}","player-idle-timeout":"{inativo}","server-ip":"127.0.0.1","server-port":"{porta}","online-mode":"true","enable-rcon":"false","enable-query":"false"}},"modpack":{"formato":"modrinth","teto":67108864,"api":"https://api.modrinth.com/v2","pagina":"https://modrinth.com/modpack/","cdn":"cdn.modrinth.com","dominios":["cdn.modrinth.com","github.com","raw.githubusercontent.com","gitlab.com"],"loaders":{"fabric-loader":{"nome":"Fabric","medido":true,"instalador":{"fonte":"fixo","destino":"fabric-installer.jar","url":"https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.2/fabric-installer-1.1.2.jar","hash":{"algoritmo":"sha512","hex":"3cbe7b69498c44d814fc95e71cd9ce9c12c45a9e1dcf01085cb3e9aaf6fe63134b701065167be1fa6e4c2df19dfa5400bc5b6b1b7fb5e99e334d24dcdca55c20"},"tamanho":212123},"instalar":["-jar","fabric-installer.jar","server","-mcversion","{mc}","-loader","{loader}"],"rodar":["-Xms1G","-Xmx2G","-jar","fabric-server-launch.jar","nogui"],"dominiosDoJogo":["meta.fabricmc.net","maven.fabricmc.net"],"disco":134217728},"quilt-loader":{"nome":"Quilt","medido":false,"instalador":{"fonte":"fixo","destino":"quilt-installer.jar","url":"https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-installer/0.15.1/quilt-installer-0.15.1.jar","hash":{"algoritmo":"sha512","hex":"f001e6e5ee5bed04e8f51a5519fae03874ecf8c7ece0db390896b5a6ea5fdb4a5b43abd77d0c6be5902d846d90cf032167d86af09253e3965be6480181fe07eb"},"tamanho":8734533},"instalar":["-jar","quilt-installer.jar","install","server","{mc}","{loader}","--install-dir=."],"rodar":["-Xms1G","-Xmx2G","-jar","quilt-server-launch.jar","nogui"],"dominiosDoJogo":["meta.quiltmc.org","maven.quiltmc.org","maven.fabricmc.net"],"disco":134217728},"forge":{"nome":"Forge","medido":false,"sistemas":["mac-aarch64","mac-x64","linux-x64","linux-aarch64"],"instalador":{"fonte":"reposilite","destino":"forge-installer.jar","url":"https://maven.minecraftforge.net/net/minecraftforge/forge/{mc}-{loader}/forge-{mc}-{loader}-installer.jar","detalhes":"https://maven.minecraftforge.net/api/maven/details/releases/net/minecraftforge/forge/{mc}-{loader}/forge-{mc}-{loader}-installer.jar","algoritmo":"sha256"},"instalar":["-jar","forge-installer.jar","--installServer"],"rodar":["-Xms1G","-Xmx2G","@libraries/net/minecraftforge/forge/{mc}-{loader}/unix_args.txt","nogui"],"dominiosDoJogo":["maven.minecraftforge.net","libraries.minecraft.net","piston-data.mojang.com","piston-meta.mojang.com","launchermeta.mojang.com"],"disco":536870912},"neoforge":{"nome":"NeoForge","medido":false,"sistemas":["mac-aarch64","mac-x64","linux-x64","linux-aarch64"],"instalador":{"fonte":"reposilite","destino":"neoforge-installer.jar","url":"https://maven.neoforged.net/releases/net/neoforged/neoforge/{loader}/neoforge-{loader}-installer.jar","detalhes":"https://maven.neoforged.net/api/maven/details/releases/net/neoforged/neoforge/{loader}/neoforge-{loader}-installer.jar","algoritmo":"sha256"},"instalar":["-jar","neoforge-installer.jar","--install-server"],"rodar":["-Xms1G","-Xmx2G","@libraries/net/neoforged/neoforge/{loader}/unix_args.txt","nogui"],"dominiosDoJogo":["maven.neoforged.net","libraries.minecraft.net","piston-data.mojang.com","piston-meta.mojang.com","launchermeta.mojang.com"],"disco":536870912}}},"mundo":{"pasta":"world","salvar":[{"console":"save-off"},{"console":"save-all flush","esperar":"\\]: Saved the game","prazo":60},{"copiar":"world"},{"console":"save-on"}]},"saida":{"pronto":"\\]: Done \\(","entrou":"\\]: ([A-Za-z0-9_]{1,16}) joined the game$","saiu":"\\]: ([A-Za-z0-9_]{1,16}) left the game$","parar":{"console":"stop","esperar":"\\]: Stopping the server","prazo":60}}}];
+const ESQUEMA_DA_RECEITA = {"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://github.com/DATA-AND-DEV/SEELE-MOD-MULTIPLAYER/receitas/esquema.json","title":"Receita de jogo do MOD de multiplayer do SEELE","description":"Uma receita diz como um jogo é hospedado: o que baixar, o que rodar, a configuração e como ela vira o arquivo do jogo, os termos, como salvar o mundo com segurança e o que a saída do jogo quer dizer. É dado, e não código. Toda chave desconhecida é recusada pelo nome (additionalProperties: false em todo objeto).","type":"object","additionalProperties":false,"required":["formato","id","nome","icone","versao","descricao","variantes","versoes","artefatos","origens","dominiosDoJogo","rodar","rede","disco","termos","configuracao","mundo","saida"],"properties":{"formato":{"description":"A versão deste formato. Hoje, 1.","const":1},"id":{"description":"O nome da receita: vira o começo do nome de cada servidor de jogo (minecraft-1) e do túnel.","type":"string","pattern":"^[a-z0-9]+(-[a-z0-9]+)*$","maxLength":24},"nome":{"type":"string","minLength":1,"maxLength":40},"edicao":{"type":"string","minLength":1,"maxLength":40},"icone":{"description":"Um ou dois caracteres que a tela mostra no cartão do jogo.","type":"string","minLength":1,"maxLength":8},"versao":{"description":"A versão da receita: vai na oferta que a pessoa da máquina aceita.","type":"string","pattern":"^[0-9]+\\.[0-9]+\\.[0-9]+$"},"descricao":{"type":"string","minLength":1,"maxLength":200},"variantes":{"type":"object","additionalProperties":false,"required":["vanilla"],"properties":{"vanilla":{"$ref":"#/$defs/variante"},"com-mods":{"$ref":"#/$defs/variante"}}},"versoes":{"description":"De onde vem a lista de versões do jogo. mojang: o version_manifest_v2.json. fixo: a lista escrita aqui.","type":"object","additionalProperties":false,"required":["fonte"],"properties":{"fonte":{"enum":["mojang","fixo"]},"manifesto":{"$ref":"#/$defs/url"},"tipos":{"type":"array","minItems":1,"uniqueItems":true,"items":{"enum":["release","snapshot","old_beta","old_alpha"]}},"quantas":{"type":"integer","minimum":1,"maximum":40},"lista":{"type":"array","minItems":1,"maxItems":40,"items":{"$ref":"#/$defs/versaoFixa"}}}},"artefatos":{"description":"O que a máquina baixa. mojang-servidor: o downloads.server da versão (sha1). adoptium: o Java que a versão pede (javaVersion.majorVersion), um por plataforma (sha256). fixo: url, hash e tamanho por versão, escritos aqui.","type":"array","minItems":1,"maxItems":4,"items":{"$ref":"#/$defs/artefato"}},"origens":{"description":"Os domínios de onde a máquina pode baixar. Toda URL de artefato tem de cair num deles.","type":"array","minItems":1,"maxItems":16,"uniqueItems":true,"items":{"$ref":"#/$defs/host"}},"dominiosDoJogo":{"description":"Os domínios com que o jogo fala por conta própria, sem o SEELE conferir. O aceite os mostra.","type":"array","maxItems":16,"uniqueItems":true,"items":{"$ref":"#/$defs/host"}},"rodar":{"type":"object","additionalProperties":false,"required":["comando","argumentos"],"properties":{"comando":{"$ref":"#/$defs/caminho"},"argumentos":{"type":"array","maxItems":64,"items":{"type":"string","maxLength":256}}}},"rede":{"type":"object","additionalProperties":false,"required":["protocolo","portaPadrao"],"properties":{"protocolo":{"enum":["tcp","udp"]},"portaPadrao":{"type":"integer","minimum":1024,"maximum":65535}}},"disco":{"type":"object","additionalProperties":false,"required":["mundoMaximo"],"properties":{"mundoMaximo":{"description":"Quanto o mundo pode ocupar, em bytes, além do que se baixa.","type":"integer","minimum":1,"maximum":34359738368}}},"termos":{"type":"array","maxItems":4,"items":{"$ref":"#/$defs/termo"}},"configuracao":{"type":"object","additionalProperties":false,"required":["arquivo","formato","campos","propriedades"],"properties":{"arquivo":{"$ref":"#/$defs/caminho"},"formato":{"enum":["properties"]},"campos":{"type":"array","minItems":1,"maxItems":24,"items":{"$ref":"#/$defs/campo"}},"propriedades":{"description":"Cada propriedade do arquivo do jogo e o modelo do valor. {chave} é o valor de um campo; {porta} é a porta que o MOD escolheu.","type":"object","additionalProperties":{"type":"string","maxLength":256}}}},"modpack":{"description":"Com mods (API 8 parte 6): o formato do modpack (o .mrpack do Modrinth), o teto do envio, a API e a página do Modrinth, os domínios de onde um arquivo do pack pode vir e o instalador de cada loader. Opcional: sem ela, a variante com-mods não existe.","type":"object","additionalProperties":false,"required":["formato","teto","api","pagina","cdn","dominios","loaders"],"properties":{"formato":{"const":"modrinth"},"teto":{"type":"integer","minimum":1,"maximum":67108864},"api":{"$ref":"#/$defs/url"},"pagina":{"$ref":"#/$defs/url"},"cdn":{"$ref":"#/$defs/host"},"dominios":{"type":"array","minItems":1,"maxItems":8,"uniqueItems":true,"items":{"$ref":"#/$defs/host"}},"loaders":{"type":"object","additionalProperties":false,"properties":{"fabric-loader":{"$ref":"#/$defs/loader"},"quilt-loader":{"$ref":"#/$defs/loader"},"forge":{"$ref":"#/$defs/loader"},"neoforge":{"$ref":"#/$defs/loader"}}}}},"mundo":{"type":"object","additionalProperties":false,"required":["pasta","salvar"],"properties":{"pasta":{"$ref":"#/$defs/caminho"},"salvar":{"description":"O salvamento seguro, passo a passo. Obrigatório: é o que torna a reserva possível.","type":"array","minItems":1,"maxItems":8,"items":{"$ref":"#/$defs/passo"}}}},"saida":{"description":"Expressões regulares sobre cada linha da saída do jogo. entrou e saiu têm um grupo de captura: o nome de quem joga.","type":"object","additionalProperties":false,"required":["pronto","entrou","saiu","parar"],"properties":{"pronto":{"type":"string","minLength":1,"maxLength":200},"entrou":{"type":"string","minLength":1,"maxLength":200},"saiu":{"type":"string","minLength":1,"maxLength":200},"parar":{"$ref":"#/$defs/passo"}}}},"$defs":{"loader":{"description":"Um loader de servidor: o instalador (baixado com o hash: fixo, ou lido de um Maven Reposilite), os argumentos do passo de instalar e os de rodar ({mc} e {loader} são as versões que o pack pede; o comando é o de rodar da receita), os sistemas em que ele roda (ausente: todos), os domínios de onde ele baixa sozinho e o disco que ele ocupa.","type":"object","additionalProperties":false,"required":["nome","medido","instalador","instalar","rodar","dominiosDoJogo","disco"],"properties":{"nome":{"type":"string","minLength":1,"maxLength":24},"medido":{"type":"boolean"},"sistemas":{"type":"array","minItems":1,"uniqueItems":true,"items":{"enum":["windows-x64","mac-aarch64","mac-x64","linux-x64","linux-aarch64"]}},"instalador":{"type":"object","additionalProperties":false,"required":["fonte","destino","url"],"properties":{"fonte":{"enum":["fixo","reposilite"]},"destino":{"$ref":"#/$defs/caminho"},"url":{"type":"string","pattern":"^https://[^\\s]+$","maxLength":512},"hash":{"$ref":"#/$defs/hash"},"tamanho":{"type":"integer","minimum":1},"detalhes":{"type":"string","pattern":"^https://[^\\s]+$","maxLength":512},"algoritmo":{"enum":["sha1","sha256","sha512"]}}},"instalar":{"type":"array","maxItems":32,"items":{"type":"string","maxLength":256}},"rodar":{"type":"array","maxItems":32,"items":{"type":"string","maxLength":256}},"dominiosDoJogo":{"type":"array","maxItems":8,"uniqueItems":true,"items":{"$ref":"#/$defs/host"}},"disco":{"type":"integer","minimum":0}}},"variante":{"type":"object","additionalProperties":false,"required":["nome","descricao"],"properties":{"nome":{"type":"string","minLength":1,"maxLength":24},"descricao":{"type":"string","minLength":1,"maxLength":120},"disponivel":{"type":"boolean"},"porque":{"type":"string","minLength":1,"maxLength":120}}},"url":{"type":"string","pattern":"^https://[^\\s]+$","maxLength":512},"host":{"type":"string","pattern":"^(\\*\\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$","maxLength":253},"caminho":{"description":"Relativo à pasta do servidor de jogo, sem .. e sem começar por /.","type":"string","pattern":"^(?!/)(?!.*(^|/)\\.\\.(/|$))[A-Za-z0-9._/-]+$","maxLength":200},"hex":{"type":"string","pattern":"^[0-9a-f]+$"},"hash":{"type":"object","additionalProperties":false,"required":["algoritmo","hex"],"properties":{"algoritmo":{"enum":["sha1","sha256","sha512"]},"hex":{"$ref":"#/$defs/hex"}}},"baixavel":{"type":"object","additionalProperties":false,"required":["url","hash","tamanho"],"properties":{"url":{"$ref":"#/$defs/url"},"hash":{"$ref":"#/$defs/hash"},"tamanho":{"type":"integer","minimum":1}}},"versaoFixa":{"type":"object","additionalProperties":false,"required":["id"],"properties":{"id":{"type":"string","pattern":"^[A-Za-z0-9._+-]{1,64}$"}}},"plataforma":{"type":"object","additionalProperties":false,"required":["plataforma","os","arquitetura","raiz"],"properties":{"plataforma":{"enum":["windows-x64","windows-aarch64","mac-aarch64","mac-x64","linux-x64","linux-aarch64"]},"os":{"type":"string","pattern":"^[a-z-]+$"},"arquitetura":{"type":"string","pattern":"^[a-z0-9_]+$"},"raiz":{"description":"A pasta do pacote que vira o destino; {release} é o release_name da Adoptium.","type":"string","minLength":1,"maxLength":120},"senaoHouver":{"description":"A plataforma cujo Java serve quando a Adoptium não publica para esta.","enum":["windows-x64","windows-aarch64","mac-aarch64","mac-x64","linux-x64","linux-aarch64"]}}},"artefato":{"type":"object","additionalProperties":false,"required":["id","fonte","destino"],"properties":{"id":{"type":"string","pattern":"^[a-z0-9-]{1,24}$"},"fonte":{"enum":["mojang-servidor","adoptium","fixo"]},"destino":{"$ref":"#/$defs/caminho"},"consulta":{"$ref":"#/$defs/url"},"majorPadrao":{"type":"integer","minimum":8,"maximum":99},"plataformas":{"type":"array","minItems":1,"maxItems":6,"items":{"$ref":"#/$defs/plataforma"}},"porVersao":{"type":"object","additionalProperties":{"$ref":"#/$defs/baixavel"}}}},"termo":{"type":"object","additionalProperties":false,"required":["id","titulo","url"],"properties":{"id":{"type":"string","pattern":"^[a-z0-9-]{1,24}$"},"titulo":{"type":"string","minLength":1,"maxLength":120},"url":{"$ref":"#/$defs/url"},"arquivo":{"$ref":"#/$defs/caminho"},"conteudo":{"description":"O que se escreve no arquivo, e só depois do aceite.","type":"string","maxLength":256}}},"opcao":{"type":"object","additionalProperties":false,"required":["valor","rotulo"],"properties":{"valor":{"type":"string","minLength":1,"maxLength":64},"rotulo":{"type":"string","minLength":1,"maxLength":40},"amostra":{"description":"Uma cor #rrggbb que a tela mostra ao lado.","type":"string","pattern":"^#[0-9a-fA-F]{6}$"},"codigo":{"description":"O caractere depois do § no jogo (as 16 cores do Minecraft: 0-9 e a-f).","type":"string","pattern":"^[0-9a-f]$"}}},"segmento":{"type":"object","additionalProperties":false,"required":["texto","cor"],"properties":{"texto":{"type":"string","minLength":1,"maxLength":64},"cor":{"type":"string","minLength":1,"maxLength":64}}},"campo":{"type":"object","additionalProperties":false,"required":["chave","aba","forma","rotulo","padrao"],"properties":{"chave":{"type":"string","pattern":"^[a-z][a-zA-Z0-9]{0,23}$"},"aba":{"enum":["geral","jogadores"]},"grupo":{"description":"Campos com o mesmo grupo ficam lado a lado.","type":"string","pattern":"^[a-z0-9-]{1,24}$"},"forma":{"enum":["campo","numero","escolha","interruptor","segmentos"]},"rotulo":{"type":"string","minLength":1,"maxLength":80},"ajuda":{"type":"string","minLength":1,"maxLength":160},"padrao":{"description":"Uma lista de palavras ({texto, cor}) é o padrão de uma forma «segmentos».","type":["string","integer","boolean","array"],"items":{"$ref":"#/$defs/segmento"}},"obrigatorio":{"type":"boolean"},"tamanhoMaximo":{"description":"Em caracteres; numa lista de palavras, o nome todo com um espaço entre as palavras.","type":"integer","minimum":1,"maximum":256},"maximoSegmentos":{"description":"O teto de palavras de uma forma «segmentos».","type":"integer","minimum":1,"maximum":16},"minimo":{"type":"integer"},"maximo":{"type":"integer"},"opcoes":{"type":"array","minItems":1,"maxItems":24,"items":{"$ref":"#/$defs/opcao"}}}},"passo":{"description":"Um passo: mandar uma linha ao console (e, se quiser, esperar uma linha na saída, com prazo em segundos), ou copiar uma pasta do servidor de jogo.","type":"object","additionalProperties":false,"properties":{"console":{"type":"string","minLength":1,"maxLength":200,"pattern":"^[^\\n\\r]+$"},"esperar":{"type":"string","minLength":1,"maxLength":200},"prazo":{"type":"integer","minimum":1,"maximum":600},"copiar":{"$ref":"#/$defs/caminho"}}}}};
 // ---- comum.js: o que as três metades usam igual ----
 //
 // `RECEITAS` e `ESQUEMA_DA_RECEITA` vêm do build (ferramentas/montar.cjs), no
@@ -285,6 +285,26 @@ function conferirSentido(r, erros) {
       }
     }
   });
+  // ---- com mods (parte 6) ----
+  const comMods = r.variantes['com-mods'];
+  if (comMods && comMods.disponivel !== false && !r.modpack) erros.push(`${c}.variantes.com-mods: sem «modpack», a variante com mods não tem como rodar`);
+  for (const [id, l] of Object.entries(r.modpack?.loaders ?? {})) {
+    const cl = `${c}.modpack.loaders.${id}`;
+    const inst = l.instalador;
+    if (inst.fonte === 'fixo') {
+      if (!(inst.hash && inst.tamanho)) erros.push(`${cl}.instalador: a fonte fixo precisa de «hash» e «tamanho»`);
+      else if (inst.hash.hex.length !== TAMANHO_DO_HASH[inst.hash.algoritmo]) erros.push(`${cl}.instalador.hash: ${inst.hash.algoritmo} tem ${TAMANHO_DO_HASH[inst.hash.algoritmo]} caracteres`);
+    } else if (!(inst.detalhes && inst.algoritmo)) {
+      erros.push(`${cl}.instalador: a fonte reposilite precisa de «detalhes» e «algoritmo»`);
+    }
+    const host = hostDaUrl(inst.url);
+    if (!host || !hostNasOrigens(host, [...r.origens, ...l.dominiosDoJogo])) erros.push(`${cl}.instalador.url: ${host} não está nas origens nem nos domínios do loader`);
+    if (!l.instalar.some(a => a.includes(inst.destino))) erros.push(`${cl}.instalar: os argumentos não citam o instalador «${inst.destino}»`);
+    for (const v of [...l.instalar, ...l.rodar, inst.url, inst.detalhes ?? ''].flatMap(variaveisDe)) {
+      if (v !== 'mc' && v !== 'loader') erros.push(`${cl}: {${v}} não é {mc} nem {loader}`);
+    }
+  }
+
   const ids = new Set();
   r.artefatos.forEach((a, i) => {
     if (ids.has(a.id)) erros.push(`${c}.artefatos[${i}].id: «${a.id}» repetido`);
@@ -754,6 +774,218 @@ function casarSaida(receita) {
   };
 }
 
+// ---- modpack.js: o Minecraft com mods (o .mrpack do Modrinth) ----
+//
+// Funções puras sobre o `modrinth.index.json` e sobre a seção `modpack` da
+// receita, usadas pela metade de servidor (que monta a oferta) e pela de
+// máquina (que lê o índice do pack aceito e baixa cada arquivo). As regras são
+// as da spec («Minecraft, a primeira receita» → «Com mods»), conferidas na
+// especificação do formato do Modrinth:
+//
+// - `dependencies` dá a versão do Minecraft e o loader (`fabric-loader`,
+//   `forge`, `neoforge` ou `quilt-loader`); **uma chave desconhecida é
+//   recusada com o nome dela**, e não ignorada;
+// - de `files`, só entram os que têm `env.server` diferente de `unsupported`,
+//   cada um conferido pelo `sha512`, e só de `cdn.modrinth.com`, `github.com`,
+//   `raw.githubusercontent.com` e `gitlab.com` (os `dominios` da receita);
+// - `path` absoluto ou com `..` é recusado;
+// - aplicam-se `overrides` e depois `server-overrides`;
+// - instala-se o loader de servidor que o pack pede.
+//
+// **O pack inteiro é recusado no primeiro arquivo que não serve**, com o
+// nome, o arquivo e os dados: meio modpack é um servidor que cai em jogo.
+
+/** As chaves de `dependencies` que o formato conhece. */
+const CHAVES_DE_DEPENDENCIA = Object.freeze(['minecraft', 'fabric-loader', 'quilt-loader', 'forge', 'neoforge']);
+
+/** Quantos arquivos um pack pode ter: o índice de um pack grande tem algumas centenas. */
+const TETO_DE_ARQUIVOS_DO_PACK = 2000;
+
+/** Um `path` do índice que fica dentro da pasta do jogo: relativo, sem `..`, sem `\`. */
+function caminhoDoPackServe(caminho) {
+  if (typeof caminho !== 'string' || caminho === '' || caminho.length > 400) return false;
+  if (/^[/\\]/.test(caminho) || /^[A-Za-z]:/.test(caminho) || caminho.includes('\\')) return false;
+  if (/[\u0000-\u001f\u007f]/.test(caminho)) return false;
+  return !caminho.split('/').some(p => p === '..' || p === '.' || p === '');
+}
+
+/**
+ * **O índice do pack, conferido**: `{ ok: true, indice }` com o que a oferta e
+ * a máquina precisam, ou `{ ok: false, erro, ... }` com o nome e os dados.
+ *
+ * `indice.arquivos` são só os do servidor (sem os `env.server: unsupported`,
+ * contados em `excluidos`), cada um com a primeira URL que cai num dos
+ * `dominios` da receita.
+ */
+function lerIndice(texto, receita) {
+  const dominios = receita.modpack.dominios;
+  const j = typeof texto === 'string' ? lerJson(texto) : texto;
+  if (!j || typeof j !== 'object' || Array.isArray(j)) return { ok: false, erro: 'indice-ilegivel' };
+  if (j.formatVersion !== 1) return { ok: false, erro: 'formato-do-pack-desconhecido', formatVersion: j.formatVersion ?? null };
+  if (j.game !== 'minecraft') return { ok: false, erro: 'pack-de-outro-jogo', game: j.game ?? null };
+  const deps = j.dependencies;
+  if (!deps || typeof deps !== 'object' || Array.isArray(deps)) return { ok: false, erro: 'pack-sem-dependencias' };
+  for (const chave of Object.keys(deps)) {
+    if (!CHAVES_DE_DEPENDENCIA.includes(chave)) return { ok: false, erro: 'dependencia-desconhecida', dependencia: chave, conhecidas: CHAVES_DE_DEPENDENCIA };
+    if (typeof deps[chave] !== 'string' || !/^[A-Za-z0-9._+-]{1,64}$/.test(deps[chave])) return { ok: false, erro: 'versao-de-dependencia-invalida', dependencia: chave, versao: deps[chave] ?? null };
+  }
+  if (!deps.minecraft) return { ok: false, erro: 'pack-sem-minecraft' };
+  const loaders = Object.keys(deps).filter(k => k !== 'minecraft');
+  if (loaders.length > 1) return { ok: false, erro: 'loaders-demais', loaders };
+  const loader = loaders.length ? { id: loaders[0], versao: deps[loaders[0]] } : null;
+  if (loader && !receita.modpack.loaders[loader.id]) return { ok: false, erro: 'loader-sem-receita', loader: loader.id };
+
+  if (!Array.isArray(j.files)) return { ok: false, erro: 'pack-sem-files' };
+  if (j.files.length > TETO_DE_ARQUIVOS_DO_PACK) return { ok: false, erro: 'arquivos-demais-no-pack', quantos: j.files.length, teto: TETO_DE_ARQUIVOS_DO_PACK };
+  const arquivos = [];
+  let excluidos = 0;
+  for (const f of j.files) {
+    const path = f?.path;
+    if (!caminhoDoPackServe(path)) return { ok: false, erro: 'caminho-recusado', path: path ?? null };
+    if (f.env !== undefined && (typeof f.env !== 'object' || f.env === null)) return { ok: false, erro: 'env-invalido', path };
+    if (f.env?.server === 'unsupported') {
+      excluidos++;
+      continue;
+    }
+    const sha512 = f.hashes?.sha512;
+    if (typeof sha512 !== 'string' || !/^[0-9a-f]{128}$/.test(sha512)) return { ok: false, erro: 'sem-sha512', path };
+    if (!Number.isInteger(f.fileSize) || f.fileSize < 1) return { ok: false, erro: 'sem-tamanho', path };
+    const urls = Array.isArray(f.downloads) ? f.downloads.map(String) : [];
+    const url = urls.find(u => {
+      const host = hostDaUrl(u);
+      return host && dominios.includes(host);
+    });
+    if (!url) return { ok: false, erro: 'download-fora-dos-dominios', path, urls: urls.slice(0, 3), dominios };
+    if (arquivos.some(a => a.path === path)) return { ok: false, erro: 'caminho-repetido', path };
+    arquivos.push({ path, url, sha512, tamanho: f.fileSize });
+  }
+  return {
+    ok: true,
+    indice: {
+      nome: cortar(String(j.name ?? ''), 64),
+      versaoDoPack: cortar(String(j.versionId ?? ''), 32),
+      mc: deps.minecraft,
+      loader,
+      arquivos,
+      excluidos,
+      bytes: arquivos.reduce((n, a) => n + a.tamanho, 0),
+    },
+  };
+}
+
+/** O que a metade de servidor guarda e a tela mostra de um pack lido (sem a lista de arquivos). */
+function resumoDoIndice(indice) {
+  return {
+    nome: indice.nome, versaoDoPack: indice.versaoDoPack, mc: indice.mc, loader: indice.loader,
+    arquivos: indice.arquivos.length, excluidos: indice.excluidos, bytesDosArquivos: indice.bytes,
+  };
+}
+
+/**
+ * Um link do Modrinth: `https://modrinth.com/modpack/<slug>`, com
+ * `/version/<id ou número>` opcional. Devolve `{ slug, versao }` ou a recusa.
+ */
+function lerLinkDoModrinth(link) {
+  const m = /^https:\/\/(?:www\.)?modrinth\.com\/modpack\/([A-Za-z0-9_-]{1,64})(?:\/version\/([A-Za-z0-9._+-]{1,64}))?\/?(?:[?#].*)?$/.exec(String(link ?? '').trim());
+  if (!m) return { ok: false, erro: 'link-nao-e-do-modrinth', link: cortar(String(link ?? ''), 120) };
+  return { ok: true, slug: m[1], versao: m[2] ?? null };
+}
+
+/**
+ * A versão do modpack na resposta da API do Modrinth (`/project/<slug>/version`,
+ * da mais nova para a mais velha): a pedida (por id ou número) ou a mais nova,
+ * e o arquivo `.mrpack` primário dela, com o `sha512` e o tamanho.
+ */
+function escolherVersaoDoModrinth(lista, versao, receita) {
+  if (!Array.isArray(lista) || !lista.length) return { ok: false, erro: 'modpack-sem-versoes' };
+  const v = versao ? lista.find(x => x?.id === versao || x?.version_number === versao) : lista[0];
+  if (!v) return { ok: false, erro: 'versao-do-modpack-desconhecida', versao };
+  const arquivos = Array.isArray(v.files) ? v.files : [];
+  const f = arquivos.find(x => x?.primary && /\.mrpack$/.test(String(x.filename))) ?? arquivos.find(x => /\.mrpack$/.test(String(x?.filename)));
+  if (!f) return { ok: false, erro: 'versao-sem-mrpack', versao: v.id ?? null };
+  if (hostDaUrl(f.url) !== receita.modpack.cdn) return { ok: false, erro: 'mrpack-fora-do-cdn', url: f.url ?? null, cdn: receita.modpack.cdn };
+  if (!/^[0-9a-f]{128}$/.test(String(f.hashes?.sha512)) || !Number.isInteger(f.size)) return { ok: false, erro: 'mrpack-sem-hash', url: f.url };
+  return {
+    ok: true,
+    versao: { id: String(v.id), numero: cortar(String(v.version_number ?? ''), 32), nome: cortar(String(v.name ?? ''), 64) },
+    arquivo: { nome: cortar(String(f.filename), 120), url: f.url, sha512: f.hashes.sha512, tamanho: f.size },
+  };
+}
+
+/** `{mc}` e `{loader}` num modelo. */
+const comVersoes = (modelo, mc, loader) => String(modelo).replace(/\{mc\}/g, mc).replace(/\{loader\}/g, loader);
+
+/**
+ * **O instalador do loader** que o pack pede, como um artefato da oferta:
+ * fixo (a receita traz URL, hash e tamanho), ou lido de um Maven Reposilite
+ * (o hash do `<url>.<algoritmo>` e o tamanho da API de detalhes).
+ */
+function instaladorDoLoader(receita, loader, mc, buscar) {
+  const l = receita.modpack.loaders[loader.id];
+  if (!l) return { ok: false, erro: 'loader-sem-receita', loader: loader.id };
+  const inst = l.instalador;
+  const nome = inst.destino.split('/').pop();
+  if (inst.fonte === 'fixo') {
+    return { ok: true, artefato: { id: 'instalador', nome, url: inst.url, tamanho: inst.tamanho, hash: { ...inst.hash }, destino: inst.destino } };
+  }
+  const url = comVersoes(inst.url, mc, loader.versao);
+  let hex;
+  try {
+    hex = buscar(url + '.' + inst.algoritmo);
+  } catch {
+    hex = null;
+  }
+  hex = typeof hex === 'string' ? hex.trim().toLowerCase().slice(0, 128) : null;
+  if (!hex || hex.length !== ({ sha1: 40, sha256: 64, sha512: 128 })[inst.algoritmo] || !/^[0-9a-f]+$/.test(hex)) {
+    return { ok: false, erro: 'instalador-sem-hash', url: url + '.' + inst.algoritmo };
+  }
+  const detalhes = buscarJson(buscar, comVersoes(inst.detalhes, mc, loader.versao));
+  if (!detalhes.ok) return { ...detalhes, erro: 'instalador-sem-tamanho' };
+  const tamanho = detalhes.json?.contentLength;
+  if (!Number.isInteger(tamanho) || tamanho < 1) return { ok: false, erro: 'instalador-sem-tamanho', url: comVersoes(inst.detalhes, mc, loader.versao) };
+  return { ok: true, artefato: { id: 'instalador', nome, url, tamanho, hash: { algoritmo: inst.algoritmo, hex }, destino: inst.destino } };
+}
+
+/** Os dois comandos do loader, com as versões do pack: `{ instalar, rodar }`. */
+function comandosDoLoader(receita, loader, mc) {
+  const l = receita.modpack.loaders[loader.id];
+  return {
+    instalar: { comando: receita.rodar.comando, argumentos: l.instalar.map(a => comVersoes(a, mc, loader.versao)) },
+    rodar: { comando: receita.rodar.comando, argumentos: l.rodar.map(a => comVersoes(a, mc, loader.versao)) },
+  };
+}
+
+/**
+ * A oferta de um servidor com mods: a do Vanilla da versão do pack, mais o
+ * instalador do loader, o `.mrpack` (pelo link, como artefato do CDN), o
+ * `pack` pelo `sha512`, os domínios do pack nas origens (a segunda porta do
+ * `programa`, decisão Q1 da parte 4), os do loader nos do jogo, o passo de
+ * instalar e o disco dos mods e do loader.
+ */
+function montarOfertaComMods(receita, args, resolvido, pack) {
+  const oferta = montarOferta(receita, args, resolvido);
+  const extras = [];
+  if (pack.instalador) extras.push(pack.instalador);
+  if (pack.origem === 'link') extras.push({ nome: 'pack.mrpack', url: pack.url, tamanho: pack.bytes, hash: { algoritmo: 'sha512', hex: pack.sha512 } });
+  for (const a of extras) oferta.artefatos.push({ nome: a.nome, url: a.url, tamanho: a.tamanho, hash: { algoritmo: a.hash.algoritmo, hex: a.hash.hex } });
+  oferta.pack = { algoritmo: 'sha512', hex: pack.sha512 };
+  for (const d of receita.modpack.dominios) if (!oferta.origens.includes(d)) oferta.origens.push(d);
+  if (pack.loader) {
+    const l = receita.modpack.loaders[pack.loader.id];
+    for (const d of l.dominiosDoJogo) if (!oferta.dominios_do_jogo.includes(d)) oferta.dominios_do_jogo.push(d);
+    const c = comandosDoLoader(receita, pack.loader, pack.mc);
+    oferta.instalar = c.instalar;
+    oferta.rodar = c.rodar;
+  }
+  // O pack, o pack aberto (os overrides, cerca de três vezes o pack), os
+  // arquivos do índice, o instalador e o que o loader instala sozinho.
+  const loaderDisco = pack.loader ? receita.modpack.loaders[pack.loader.id].disco : 0;
+  const somar = pack.bytes * 4 + (pack.resumo?.bytesDosArquivos ?? 0) + (pack.instalador?.tamanho ?? 0) + loaderDisco;
+  oferta.disco_maximo = Math.min(DISCO_MAXIMO_DA_OFERTA, oferta.disco_maximo + somar);
+  oferta.titulo = cortar(`${receita.nome} ${args.versao} com mods · ${args.servidor}`, 64);
+  return oferta;
+}
+
 // ---- servidor.js: a metade de servidor ----
 //
 // Guarda a lista de servidores de jogo e a configuração de cada um, quem roda
@@ -779,6 +1011,10 @@ const TETO_DE_SERVIDORES = 8;
 const TETO_DE_FALHAS = 6;
 const TETO_DE_LINHAS = 8;
 const VALIDADE_DAS_VERSOES = 3600;
+/** O teto de `mundo.buscarPack` (o de `mundo.buscar`): um pack maior vai pelo envio. */
+const TETO_DO_PACK_PELO_LINK = 4 * 1024 * 1024;
+/** Quanto uma espera de envio do pack vale, em segundos (o teto do produto é 600). */
+const PRAZO_DO_ENVIO = 600;
 
 /** A ação que cada operação de mudança pede. As outras são leitura. */
 const ACAO_DA_OP = Object.freeze({
@@ -786,13 +1022,17 @@ const ACAO_DA_OP = Object.freeze({
   apagar: 'criar-servidor-de-jogo',
   configurar: 'configurar-servidor-de-jogo',
   console: 'configurar-servidor-de-jogo',
+  // O modpack (parte 6): escolher o pack muda o que roda, como a versão.
+  'pack-link': 'configurar-servidor-de-jogo',
+  'pack-enviar': 'configurar-servidor-de-jogo',
+  'pack-chegou': 'configurar-servidor-de-jogo',
   ligar: 'ligar-desligar-servidor-de-jogo',
   desligar: 'ligar-desligar-servidor-de-jogo',
 });
 
 /** Os estados em que o processo do jogo está de pé, ou a caminho. */
 const RODANDO = new Set(['ligando', 'ligado', 'parando', 'salvando']);
-const ESTADOS_DA_MAQUINA = new Set(['desligado', 'baixando', 'pronto', 'ligando', 'ligado', 'parando', 'salvando', 'caiu']);
+const ESTADOS_DA_MAQUINA = new Set(['desligado', 'baixando', 'instalando', 'pronto', 'ligando', 'ligado', 'parando', 'salvando', 'caiu']);
 
 // ---------------------------------------------------------------- o quintal
 
@@ -839,6 +1079,15 @@ function publico(s) {
     substituidas: s.resolvido?.substituidas ?? {},
     disco: s.oferta ? s.oferta.disco_maximo : null,
     protocolo: receita?.rede.protocolo ?? 'tcp',
+    pack: s.pack ? publicoDoPack(s.pack) : null,
+  };
+}
+
+/** O que a tela mostra do pack: o resumo, de onde veio, o hash e o tamanho. */
+function publicoDoPack(p) {
+  return {
+    origem: p.origem, link: p.link ?? null, pagina: p.pagina ?? null, sha512: p.sha512, bytes: p.bytes,
+    ...p.resumo, instalador: p.instalador ? { nome: p.instalador.nome, tamanho: p.instalador.tamanho } : null,
   };
 }
 
@@ -856,13 +1105,19 @@ function portaPara(servidores, s, quem) {
 /** Monta a oferta da versão e da máquina escolhidas, e chama a pessoa. */
 function pedirAMaquina(servidores, s) {
   const receita = receitaPorId(s.receita);
+  const comMods = s.variante === 'com-mods';
+  if (comMods && !s.pack) {
+    s.aceite = 'sem-pack';
+    return { ok: true };
+  }
   if (!s.resolvido || s.resolvido.versao !== s.versao) {
     const resolvido = resolverVersao(receita, s.versao, url => mundo.buscar(url));
     if (!resolvido.ok) return resolvido;
     s.resolvido = resolvido;
   }
   s.porta = portaPara(servidores, s, s.quem);
-  s.oferta = montarOferta(receita, { servidor: s.id, versao: s.versao, porta: s.porta }, s.resolvido);
+  const args = { servidor: s.id, versao: s.versao, porta: s.porta };
+  s.oferta = comMods ? montarOfertaComMods(receita, args, s.resolvido, s.pack) : montarOferta(receita, args, s.resolvido);
   try {
     mundo.maquinas.pedir({ quem: s.quem, servidor: s.id, oferta: s.oferta });
   } catch (erro) {
@@ -926,6 +1181,7 @@ function opCriar(pedido, contexto) {
 
 function opApagar(s, servidores) {
   if (RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
+  if (s.pack?.caminho) volume.apagar(s.pack.caminho);
   delete servidores[s.id];
   gravarServidores(servidores);
   return { ok: true };
@@ -933,8 +1189,10 @@ function opApagar(s, servidores) {
 
 function opConfigurar(s, servidores, pedido) {
   const receita = receitaPorId(s.receita);
-  if (pedido.variante !== undefined && pedido.variante !== 'vanilla') {
-    return { ok: false, erro: 'variante-indisponivel', variante: pedido.variante, porque: receita.variantes[pedido.variante]?.porque ?? null };
+  const variante = pedido.variante !== undefined ? pedido.variante : (s.variante ?? 'vanilla');
+  const v = receita.variantes[variante];
+  if (!v || v.disponivel === false || (variante === 'com-mods' && !receita.modpack)) {
+    return { ok: false, erro: 'variante-indisponivel', variante, porque: v?.porque ?? null };
   }
   let config = s.config;
   if (pedido.config !== undefined) {
@@ -942,21 +1200,27 @@ function opConfigurar(s, servidores, pedido) {
     if (Object.keys(r.erros).length) return { ok: false, erro: 'config-invalida', erros: r.erros };
     config = r.config;
   }
-  const versao = pedido.versao !== undefined ? (pedido.versao === null ? null : String(pedido.versao)) : s.versao;
+  // Com mods, a versão é a que o pack pede, e não a que a tela manda.
+  const versao = variante === 'com-mods'
+    ? (s.pack?.mc ?? null)
+    : pedido.versao !== undefined ? (pedido.versao === null ? null : String(pedido.versao)) : (s.variante === 'com-mods' ? null : s.versao);
   const quem = pedido.quem !== undefined ? (pedido.quem === null ? null : String(pedido.quem)) : s.quem;
   if (quem !== null && !/^[1-9][0-9]*$/.test(quem)) return { ok: false, erro: 'quem-invalido', quem };
-  const mudaOQueRoda = versao !== s.versao || quem !== s.quem;
+  const mudaOQueRoda = versao !== s.versao || quem !== s.quem || variante !== (s.variante ?? 'vanilla');
   if (mudaOQueRoda && RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
 
   const configMudou = JSON.stringify(config) !== JSON.stringify(s.config);
   s.config = config;
   s.versao = versao;
   s.quem = quem;
+  s.variante = variante;
   if (mudaOQueRoda) {
     if (quem === null) {
       s.aceite = 'sem-maquina';
       s.porta = null;
       s.oferta = null;
+    } else if (variante === 'com-mods' && !s.pack) {
+      s.aceite = 'sem-pack';
     } else if (versao === null) {
       s.aceite = 'sem-versao';
     } else {
@@ -973,6 +1237,7 @@ function opConfigurar(s, servidores, pedido) {
 }
 
 function opLigar(s, servidores) {
+  if (s.variante === 'com-mods' && !s.pack) return { ok: false, erro: 'sem-pack' };
   if (!s.versao) return { ok: false, erro: 'sem-versao' };
   if (!s.quem) return { ok: false, erro: 'sem-maquina' };
   s.ligar = true;
@@ -1008,6 +1273,102 @@ function opConsole(s, pedido) {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------- o modpack
+
+/**
+ * **O pack lido vira o pack do servidor de jogo** (pelo link ou pelo envio):
+ * o índice conferido pelas regras da spec, o instalador do loader que ele
+ * pede, e a variante e a versão que ele define. Se já há máquina, pede o
+ * aceite de novo: o pack, o loader e os comandos mudaram o que roda.
+ */
+function usarPack(s, servidores, pack, texto) {
+  const receita = receitaPorId(s.receita);
+  const lido = lerIndice(texto, receita);
+  if (!lido.ok) return lido;
+  const indice = lido.indice;
+  let instalador = null;
+  if (indice.loader) {
+    const r = instaladorDoLoader(receita, indice.loader, indice.mc, url => mundo.buscar(url));
+    if (!r.ok) return r;
+    instalador = r.artefato;
+  }
+  const antes = s.pack;
+  s.pack = { ...pack, mc: indice.mc, loader: indice.loader, instalador, resumo: resumoDoIndice(indice) };
+  if (antes?.caminho && antes.caminho !== s.pack.caminho) volume.apagar(antes.caminho);
+  s.variante = 'com-mods';
+  s.versao = indice.mc;
+  s.resolvido = s.resolvido?.versao === indice.mc ? s.resolvido : null;
+  if (s.quem) {
+    const r = pedirAMaquina(servidores, s);
+    if (!r.ok) return r;
+  }
+  gravarServidores(servidores);
+  return { ok: true, servidor: publico(s) };
+}
+
+/** O pack pelo link do Modrinth: a API dá o .mrpack e o sha512; o produto o abre. */
+function opPackLink(s, servidores, pedido) {
+  if (RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
+  const receita = receitaPorId(s.receita);
+  if (!receita.modpack) return { ok: false, erro: 'variante-indisponivel', variante: 'com-mods' };
+  const link = lerLinkDoModrinth(pedido.link);
+  if (!link.ok) return link;
+  const url = `${receita.modpack.api}/project/${link.slug}/version`;
+  const lido = buscarJson(url => mundo.buscar(url), url);
+  if (!lido.ok) return lido;
+  const escolhida = escolherVersaoDoModrinth(lido.json, link.versao, receita);
+  if (!escolhida.ok) return escolhida;
+  const arquivo = escolhida.arquivo;
+  if (arquivo.tamanho > TETO_DO_PACK_PELO_LINK) {
+    return { ok: false, erro: 'pack-grande-para-o-link', tamanho: arquivo.tamanho, teto: TETO_DO_PACK_PELO_LINK };
+  }
+  const r = mundo.buscarPack({ url: arquivo.url, sha512: arquivo.sha512, tamanho: arquivo.tamanho });
+  if (!r || r.ok !== true) return { ...(r ?? {}), ok: false, erro: r?.erro ?? 'busca-falhou', url: arquivo.url };
+  return usarPack(s, servidores, {
+    origem: 'link', link: `${receita.modpack.pagina}${link.slug}`, pagina: `${receita.modpack.pagina}${link.slug}/version/${escolhida.versao.id}`,
+    url: arquivo.url, sha512: r.sha512, bytes: r.bytes, versaoDoModrinth: escolhida.versao.id,
+  }, r.indice);
+}
+
+/** O envio do .mrpack: a espera no volume (o produto confere os bytes e o teto de 64 MiB). */
+function opPackEnviar(s) {
+  if (RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
+  const receita = receitaPorId(s.receita);
+  if (!receita.modpack) return { ok: false, erro: 'variante-indisponivel', variante: 'com-mods' };
+  const n = Number(dados.envios ?? '0') + 1;
+  dados.envios = String(n);
+  const token = `${s.id}-${mundo.agora()}-${n}`;
+  const caminho = `packs/${s.id}/${token}.mrpack`;
+  if (!volume.esperar(token, caminho, ['mrpack'], PRAZO_DO_ENVIO)) return { ok: false, erro: 'espera-recusada' };
+  dados['envio:' + token] = JSON.stringify({ id: s.id, caminho });
+  return { ok: true, token, teto: receita.modpack.teto };
+}
+
+/** O envio chegou: o produto abre o pack do volume, e ele vira o pack do servidor. */
+function opPackChegou(s, servidores, pedido) {
+  const envio = lerJson(dados['envio:' + String(pedido.token ?? '')]);
+  if (!envio || envio.id !== s.id) return { ok: false, erro: 'envio-desconhecido', token: pedido.token ?? null };
+  delete dados['envio:' + pedido.token];
+  const r = volume.pack(envio.caminho);
+  if (!r || r.ok !== true) {
+    volume.apagar(envio.caminho);
+    return { ok: false, ...(r ?? {}), erro: r?.erro ?? 'pack-nao-chegou' };
+  }
+  const usado = usarPack(s, servidores, { origem: 'enviado', caminho: envio.caminho, sha512: r.sha512, bytes: r.bytes }, r.indice);
+  if (!usado.ok) volume.apagar(envio.caminho);
+  return usado;
+}
+
+/** **O pack para quem pede** (quem joga, pelo `SeeleUI.salvar`, e a máquina, pelo `trazer`): o caminho no volume. */
+function opPackLer(pedido) {
+  const s = lerServidores()[pedido.id];
+  if (!s) return { ok: false, erro: 'servidor-desconhecido', servidor: pedido.id ?? null };
+  if (s.pack?.origem !== 'enviado') return { ok: false, erro: 'sem-pack-enviado' };
+  const caminho = volume.servir(s.pack.caminho);
+  if (!caminho) return { ok: false, erro: 'pack-sumiu' };
+  return { ok: true, volume: caminho };
+}
+
 // ---------------------------------------------------------------- a máquina
 
 /** O que a máquina aceita precisa para baixar, configurar e rodar. */
@@ -1026,6 +1387,22 @@ function planoDe(s) {
     rodar: s.oferta.rodar,
     tunel: s.oferta.tuneis[0],
     ligar: s.ligar,
+    ...(s.variante === 'com-mods' && s.pack ? planoDoPack(s) : {}),
+  };
+}
+
+/** O que a máquina precisa do pack: de onde ele vem, o hash, o loader e o passo de instalar. */
+function planoDoPack(s) {
+  const p = s.pack;
+  const extras = [];
+  if (p.instalador) extras.push(p.instalador);
+  if (p.origem === 'link') extras.push({ id: 'pack', nome: 'pack.mrpack', url: p.url, tamanho: p.bytes, hash: { algoritmo: 'sha512', hex: p.sha512 }, destino: 'pack.mrpack' });
+  return {
+    artefatos: [...s.resolvido.artefatos, ...extras],
+    modpack: {
+      origem: p.origem, destino: 'pack.mrpack', pedido: { op: 'pack-ler', id: s.id },
+      sha512: p.sha512, bytes: p.bytes, mc: p.mc, loader: p.loader, instalar: s.oferta.instalar ?? null,
+    },
   };
 }
 
@@ -1083,6 +1460,7 @@ globalThis.aoPedir = (textoDoContexto, textoDoPedido) => {
   let resposta;
   if (op === 'estado') resposta = opEstado(contexto);
   else if (op === 'versoes') resposta = opVersoes(pedido);
+  else if (op === 'pack-ler') resposta = opPackLer(pedido);
   else if (op === 'criar') resposta = opCriar(pedido, contexto);
   else if (acaoPedida) {
     const servidores = lerServidores();
@@ -1092,6 +1470,9 @@ globalThis.aoPedir = (textoDoContexto, textoDoPedido) => {
     else if (op === 'configurar') resposta = opConfigurar(s, servidores, pedido);
     else if (op === 'ligar') resposta = opLigar(s, servidores);
     else if (op === 'desligar') resposta = opDesligar(s, servidores);
+    else if (op === 'pack-link') resposta = opPackLink(s, servidores, pedido);
+    else if (op === 'pack-enviar') resposta = opPackEnviar(s);
+    else if (op === 'pack-chegou') resposta = opPackChegou(s, servidores, pedido);
     else resposta = opConsole(s, pedido);
   } else resposta = { ok: false, erro: 'op-desconhecida', op: op ?? null };
   return JSON.stringify(resposta);

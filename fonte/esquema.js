@@ -161,6 +161,26 @@ function conferirSentido(r, erros) {
       }
     }
   });
+  // ---- com mods (parte 6) ----
+  const comMods = r.variantes['com-mods'];
+  if (comMods && comMods.disponivel !== false && !r.modpack) erros.push(`${c}.variantes.com-mods: sem «modpack», a variante com mods não tem como rodar`);
+  for (const [id, l] of Object.entries(r.modpack?.loaders ?? {})) {
+    const cl = `${c}.modpack.loaders.${id}`;
+    const inst = l.instalador;
+    if (inst.fonte === 'fixo') {
+      if (!(inst.hash && inst.tamanho)) erros.push(`${cl}.instalador: a fonte fixo precisa de «hash» e «tamanho»`);
+      else if (inst.hash.hex.length !== TAMANHO_DO_HASH[inst.hash.algoritmo]) erros.push(`${cl}.instalador.hash: ${inst.hash.algoritmo} tem ${TAMANHO_DO_HASH[inst.hash.algoritmo]} caracteres`);
+    } else if (!(inst.detalhes && inst.algoritmo)) {
+      erros.push(`${cl}.instalador: a fonte reposilite precisa de «detalhes» e «algoritmo»`);
+    }
+    const host = hostDaUrl(inst.url);
+    if (!host || !hostNasOrigens(host, [...r.origens, ...l.dominiosDoJogo])) erros.push(`${cl}.instalador.url: ${host} não está nas origens nem nos domínios do loader`);
+    if (!l.instalar.some(a => a.includes(inst.destino))) erros.push(`${cl}.instalar: os argumentos não citam o instalador «${inst.destino}»`);
+    for (const v of [...l.instalar, ...l.rodar, inst.url, inst.detalhes ?? ''].flatMap(variaveisDe)) {
+      if (v !== 'mc' && v !== 'loader') erros.push(`${cl}: {${v}} não é {mc} nem {loader}`);
+    }
+  }
+
   const ids = new Set();
   r.artefatos.forEach((a, i) => {
     if (ids.has(a.id)) erros.push(`${c}.artefatos[${i}].id: «${a.id}» repetido`);

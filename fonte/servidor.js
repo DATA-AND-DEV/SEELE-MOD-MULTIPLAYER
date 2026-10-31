@@ -23,6 +23,10 @@ const TETO_DE_SERVIDORES = 8;
 const TETO_DE_FALHAS = 6;
 const TETO_DE_LINHAS = 8;
 const VALIDADE_DAS_VERSOES = 3600;
+/** O teto de `mundo.buscarPack` (o de `mundo.buscar`): um pack maior vai pelo envio. */
+const TETO_DO_PACK_PELO_LINK = 4 * 1024 * 1024;
+/** Quanto uma espera de envio do pack vale, em segundos (o teto do produto é 600). */
+const PRAZO_DO_ENVIO = 600;
 
 /** A ação que cada operação de mudança pede. As outras são leitura. */
 const ACAO_DA_OP = Object.freeze({
@@ -30,13 +34,17 @@ const ACAO_DA_OP = Object.freeze({
   apagar: 'criar-servidor-de-jogo',
   configurar: 'configurar-servidor-de-jogo',
   console: 'configurar-servidor-de-jogo',
+  // O modpack (parte 6): escolher o pack muda o que roda, como a versão.
+  'pack-link': 'configurar-servidor-de-jogo',
+  'pack-enviar': 'configurar-servidor-de-jogo',
+  'pack-chegou': 'configurar-servidor-de-jogo',
   ligar: 'ligar-desligar-servidor-de-jogo',
   desligar: 'ligar-desligar-servidor-de-jogo',
 });
 
 /** Os estados em que o processo do jogo está de pé, ou a caminho. */
 const RODANDO = new Set(['ligando', 'ligado', 'parando', 'salvando']);
-const ESTADOS_DA_MAQUINA = new Set(['desligado', 'baixando', 'pronto', 'ligando', 'ligado', 'parando', 'salvando', 'caiu']);
+const ESTADOS_DA_MAQUINA = new Set(['desligado', 'baixando', 'instalando', 'pronto', 'ligando', 'ligado', 'parando', 'salvando', 'caiu']);
 
 // ---------------------------------------------------------------- o quintal
 
@@ -83,6 +91,15 @@ function publico(s) {
     substituidas: s.resolvido?.substituidas ?? {},
     disco: s.oferta ? s.oferta.disco_maximo : null,
     protocolo: receita?.rede.protocolo ?? 'tcp',
+    pack: s.pack ? publicoDoPack(s.pack) : null,
+  };
+}
+
+/** O que a tela mostra do pack: o resumo, de onde veio, o hash e o tamanho. */
+function publicoDoPack(p) {
+  return {
+    origem: p.origem, link: p.link ?? null, pagina: p.pagina ?? null, sha512: p.sha512, bytes: p.bytes,
+    ...p.resumo, instalador: p.instalador ? { nome: p.instalador.nome, tamanho: p.instalador.tamanho } : null,
   };
 }
 
@@ -100,13 +117,19 @@ function portaPara(servidores, s, quem) {
 /** Monta a oferta da versão e da máquina escolhidas, e chama a pessoa. */
 function pedirAMaquina(servidores, s) {
   const receita = receitaPorId(s.receita);
+  const comMods = s.variante === 'com-mods';
+  if (comMods && !s.pack) {
+    s.aceite = 'sem-pack';
+    return { ok: true };
+  }
   if (!s.resolvido || s.resolvido.versao !== s.versao) {
     const resolvido = resolverVersao(receita, s.versao, url => mundo.buscar(url));
     if (!resolvido.ok) return resolvido;
     s.resolvido = resolvido;
   }
   s.porta = portaPara(servidores, s, s.quem);
-  s.oferta = montarOferta(receita, { servidor: s.id, versao: s.versao, porta: s.porta }, s.resolvido);
+  const args = { servidor: s.id, versao: s.versao, porta: s.porta };
+  s.oferta = comMods ? montarOfertaComMods(receita, args, s.resolvido, s.pack) : montarOferta(receita, args, s.resolvido);
   try {
     mundo.maquinas.pedir({ quem: s.quem, servidor: s.id, oferta: s.oferta });
   } catch (erro) {
@@ -170,6 +193,7 @@ function opCriar(pedido, contexto) {
 
 function opApagar(s, servidores) {
   if (RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
+  if (s.pack?.caminho) volume.apagar(s.pack.caminho);
   delete servidores[s.id];
   gravarServidores(servidores);
   return { ok: true };
@@ -177,8 +201,10 @@ function opApagar(s, servidores) {
 
 function opConfigurar(s, servidores, pedido) {
   const receita = receitaPorId(s.receita);
-  if (pedido.variante !== undefined && pedido.variante !== 'vanilla') {
-    return { ok: false, erro: 'variante-indisponivel', variante: pedido.variante, porque: receita.variantes[pedido.variante]?.porque ?? null };
+  const variante = pedido.variante !== undefined ? pedido.variante : (s.variante ?? 'vanilla');
+  const v = receita.variantes[variante];
+  if (!v || v.disponivel === false || (variante === 'com-mods' && !receita.modpack)) {
+    return { ok: false, erro: 'variante-indisponivel', variante, porque: v?.porque ?? null };
   }
   let config = s.config;
   if (pedido.config !== undefined) {
@@ -186,21 +212,27 @@ function opConfigurar(s, servidores, pedido) {
     if (Object.keys(r.erros).length) return { ok: false, erro: 'config-invalida', erros: r.erros };
     config = r.config;
   }
-  const versao = pedido.versao !== undefined ? (pedido.versao === null ? null : String(pedido.versao)) : s.versao;
+  // Com mods, a versão é a que o pack pede, e não a que a tela manda.
+  const versao = variante === 'com-mods'
+    ? (s.pack?.mc ?? null)
+    : pedido.versao !== undefined ? (pedido.versao === null ? null : String(pedido.versao)) : (s.variante === 'com-mods' ? null : s.versao);
   const quem = pedido.quem !== undefined ? (pedido.quem === null ? null : String(pedido.quem)) : s.quem;
   if (quem !== null && !/^[1-9][0-9]*$/.test(quem)) return { ok: false, erro: 'quem-invalido', quem };
-  const mudaOQueRoda = versao !== s.versao || quem !== s.quem;
+  const mudaOQueRoda = versao !== s.versao || quem !== s.quem || variante !== (s.variante ?? 'vanilla');
   if (mudaOQueRoda && RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
 
   const configMudou = JSON.stringify(config) !== JSON.stringify(s.config);
   s.config = config;
   s.versao = versao;
   s.quem = quem;
+  s.variante = variante;
   if (mudaOQueRoda) {
     if (quem === null) {
       s.aceite = 'sem-maquina';
       s.porta = null;
       s.oferta = null;
+    } else if (variante === 'com-mods' && !s.pack) {
+      s.aceite = 'sem-pack';
     } else if (versao === null) {
       s.aceite = 'sem-versao';
     } else {
@@ -217,6 +249,7 @@ function opConfigurar(s, servidores, pedido) {
 }
 
 function opLigar(s, servidores) {
+  if (s.variante === 'com-mods' && !s.pack) return { ok: false, erro: 'sem-pack' };
   if (!s.versao) return { ok: false, erro: 'sem-versao' };
   if (!s.quem) return { ok: false, erro: 'sem-maquina' };
   s.ligar = true;
@@ -252,6 +285,102 @@ function opConsole(s, pedido) {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------- o modpack
+
+/**
+ * **O pack lido vira o pack do servidor de jogo** (pelo link ou pelo envio):
+ * o índice conferido pelas regras da spec, o instalador do loader que ele
+ * pede, e a variante e a versão que ele define. Se já há máquina, pede o
+ * aceite de novo: o pack, o loader e os comandos mudaram o que roda.
+ */
+function usarPack(s, servidores, pack, texto) {
+  const receita = receitaPorId(s.receita);
+  const lido = lerIndice(texto, receita);
+  if (!lido.ok) return lido;
+  const indice = lido.indice;
+  let instalador = null;
+  if (indice.loader) {
+    const r = instaladorDoLoader(receita, indice.loader, indice.mc, url => mundo.buscar(url));
+    if (!r.ok) return r;
+    instalador = r.artefato;
+  }
+  const antes = s.pack;
+  s.pack = { ...pack, mc: indice.mc, loader: indice.loader, instalador, resumo: resumoDoIndice(indice) };
+  if (antes?.caminho && antes.caminho !== s.pack.caminho) volume.apagar(antes.caminho);
+  s.variante = 'com-mods';
+  s.versao = indice.mc;
+  s.resolvido = s.resolvido?.versao === indice.mc ? s.resolvido : null;
+  if (s.quem) {
+    const r = pedirAMaquina(servidores, s);
+    if (!r.ok) return r;
+  }
+  gravarServidores(servidores);
+  return { ok: true, servidor: publico(s) };
+}
+
+/** O pack pelo link do Modrinth: a API dá o .mrpack e o sha512; o produto o abre. */
+function opPackLink(s, servidores, pedido) {
+  if (RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
+  const receita = receitaPorId(s.receita);
+  if (!receita.modpack) return { ok: false, erro: 'variante-indisponivel', variante: 'com-mods' };
+  const link = lerLinkDoModrinth(pedido.link);
+  if (!link.ok) return link;
+  const url = `${receita.modpack.api}/project/${link.slug}/version`;
+  const lido = buscarJson(url => mundo.buscar(url), url);
+  if (!lido.ok) return lido;
+  const escolhida = escolherVersaoDoModrinth(lido.json, link.versao, receita);
+  if (!escolhida.ok) return escolhida;
+  const arquivo = escolhida.arquivo;
+  if (arquivo.tamanho > TETO_DO_PACK_PELO_LINK) {
+    return { ok: false, erro: 'pack-grande-para-o-link', tamanho: arquivo.tamanho, teto: TETO_DO_PACK_PELO_LINK };
+  }
+  const r = mundo.buscarPack({ url: arquivo.url, sha512: arquivo.sha512, tamanho: arquivo.tamanho });
+  if (!r || r.ok !== true) return { ...(r ?? {}), ok: false, erro: r?.erro ?? 'busca-falhou', url: arquivo.url };
+  return usarPack(s, servidores, {
+    origem: 'link', link: `${receita.modpack.pagina}${link.slug}`, pagina: `${receita.modpack.pagina}${link.slug}/version/${escolhida.versao.id}`,
+    url: arquivo.url, sha512: r.sha512, bytes: r.bytes, versaoDoModrinth: escolhida.versao.id,
+  }, r.indice);
+}
+
+/** O envio do .mrpack: a espera no volume (o produto confere os bytes e o teto de 64 MiB). */
+function opPackEnviar(s) {
+  if (RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
+  const receita = receitaPorId(s.receita);
+  if (!receita.modpack) return { ok: false, erro: 'variante-indisponivel', variante: 'com-mods' };
+  const n = Number(dados.envios ?? '0') + 1;
+  dados.envios = String(n);
+  const token = `${s.id}-${mundo.agora()}-${n}`;
+  const caminho = `packs/${s.id}/${token}.mrpack`;
+  if (!volume.esperar(token, caminho, ['mrpack'], PRAZO_DO_ENVIO)) return { ok: false, erro: 'espera-recusada' };
+  dados['envio:' + token] = JSON.stringify({ id: s.id, caminho });
+  return { ok: true, token, teto: receita.modpack.teto };
+}
+
+/** O envio chegou: o produto abre o pack do volume, e ele vira o pack do servidor. */
+function opPackChegou(s, servidores, pedido) {
+  const envio = lerJson(dados['envio:' + String(pedido.token ?? '')]);
+  if (!envio || envio.id !== s.id) return { ok: false, erro: 'envio-desconhecido', token: pedido.token ?? null };
+  delete dados['envio:' + pedido.token];
+  const r = volume.pack(envio.caminho);
+  if (!r || r.ok !== true) {
+    volume.apagar(envio.caminho);
+    return { ok: false, ...(r ?? {}), erro: r?.erro ?? 'pack-nao-chegou' };
+  }
+  const usado = usarPack(s, servidores, { origem: 'enviado', caminho: envio.caminho, sha512: r.sha512, bytes: r.bytes }, r.indice);
+  if (!usado.ok) volume.apagar(envio.caminho);
+  return usado;
+}
+
+/** **O pack para quem pede** (quem joga, pelo `SeeleUI.salvar`, e a máquina, pelo `trazer`): o caminho no volume. */
+function opPackLer(pedido) {
+  const s = lerServidores()[pedido.id];
+  if (!s) return { ok: false, erro: 'servidor-desconhecido', servidor: pedido.id ?? null };
+  if (s.pack?.origem !== 'enviado') return { ok: false, erro: 'sem-pack-enviado' };
+  const caminho = volume.servir(s.pack.caminho);
+  if (!caminho) return { ok: false, erro: 'pack-sumiu' };
+  return { ok: true, volume: caminho };
+}
+
 // ---------------------------------------------------------------- a máquina
 
 /** O que a máquina aceita precisa para baixar, configurar e rodar. */
@@ -270,6 +399,22 @@ function planoDe(s) {
     rodar: s.oferta.rodar,
     tunel: s.oferta.tuneis[0],
     ligar: s.ligar,
+    ...(s.variante === 'com-mods' && s.pack ? planoDoPack(s) : {}),
+  };
+}
+
+/** O que a máquina precisa do pack: de onde ele vem, o hash, o loader e o passo de instalar. */
+function planoDoPack(s) {
+  const p = s.pack;
+  const extras = [];
+  if (p.instalador) extras.push(p.instalador);
+  if (p.origem === 'link') extras.push({ id: 'pack', nome: 'pack.mrpack', url: p.url, tamanho: p.bytes, hash: { algoritmo: 'sha512', hex: p.sha512 }, destino: 'pack.mrpack' });
+  return {
+    artefatos: [...s.resolvido.artefatos, ...extras],
+    modpack: {
+      origem: p.origem, destino: 'pack.mrpack', pedido: { op: 'pack-ler', id: s.id },
+      sha512: p.sha512, bytes: p.bytes, mc: p.mc, loader: p.loader, instalar: s.oferta.instalar ?? null,
+    },
   };
 }
 
@@ -327,6 +472,7 @@ globalThis.aoPedir = (textoDoContexto, textoDoPedido) => {
   let resposta;
   if (op === 'estado') resposta = opEstado(contexto);
   else if (op === 'versoes') resposta = opVersoes(pedido);
+  else if (op === 'pack-ler') resposta = opPackLer(pedido);
   else if (op === 'criar') resposta = opCriar(pedido, contexto);
   else if (acaoPedida) {
     const servidores = lerServidores();
@@ -336,6 +482,9 @@ globalThis.aoPedir = (textoDoContexto, textoDoPedido) => {
     else if (op === 'configurar') resposta = opConfigurar(s, servidores, pedido);
     else if (op === 'ligar') resposta = opLigar(s, servidores);
     else if (op === 'desligar') resposta = opDesligar(s, servidores);
+    else if (op === 'pack-link') resposta = opPackLink(s, servidores, pedido);
+    else if (op === 'pack-enviar') resposta = opPackEnviar(s);
+    else if (op === 'pack-chegou') resposta = opPackChegou(s, servidores, pedido);
     else resposta = opConsole(s, pedido);
   } else resposta = { ok: false, erro: 'op-desconhecida', op: op ?? null };
   return JSON.stringify(resposta);

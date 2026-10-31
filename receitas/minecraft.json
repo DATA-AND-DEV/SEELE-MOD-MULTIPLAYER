@@ -13,9 +13,7 @@
     },
     "com-mods": {
       "nome": "Com mods",
-      "descricao": "Um modpack do Modrinth define a versão, o loader e os mods.",
-      "disponivel": false,
-      "porque": "Com mods chega na próxima versão."
+      "descricao": "Um modpack do Modrinth define a versão, o loader e os mods."
     }
   },
   "versoes": {
@@ -198,6 +196,78 @@
       "online-mode": "true",
       "enable-rcon": "false",
       "enable-query": "false"
+    }
+  },
+  "modpack": {
+    "formato": "modrinth",
+    "teto": 67108864,
+    "api": "https://api.modrinth.com/v2",
+    "pagina": "https://modrinth.com/modpack/",
+    "cdn": "cdn.modrinth.com",
+    "dominios": ["cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com"],
+    "loaders": {
+      "fabric-loader": {
+        "nome": "Fabric",
+        "medido": true,
+        "instalador": {
+          "fonte": "fixo",
+          "destino": "fabric-installer.jar",
+          "url": "https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.2/fabric-installer-1.1.2.jar",
+          "hash": { "algoritmo": "sha512", "hex": "3cbe7b69498c44d814fc95e71cd9ce9c12c45a9e1dcf01085cb3e9aaf6fe63134b701065167be1fa6e4c2df19dfa5400bc5b6b1b7fb5e99e334d24dcdca55c20" },
+          "tamanho": 212123
+        },
+        "instalar": ["-jar", "fabric-installer.jar", "server", "-mcversion", "{mc}", "-loader", "{loader}"],
+        "rodar": ["-Xms1G", "-Xmx2G", "-jar", "fabric-server-launch.jar", "nogui"],
+        "dominiosDoJogo": ["meta.fabricmc.net", "maven.fabricmc.net"],
+        "disco": 134217728
+      },
+      "quilt-loader": {
+        "nome": "Quilt",
+        "medido": false,
+        "instalador": {
+          "fonte": "fixo",
+          "destino": "quilt-installer.jar",
+          "url": "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-installer/0.15.1/quilt-installer-0.15.1.jar",
+          "hash": { "algoritmo": "sha512", "hex": "f001e6e5ee5bed04e8f51a5519fae03874ecf8c7ece0db390896b5a6ea5fdb4a5b43abd77d0c6be5902d846d90cf032167d86af09253e3965be6480181fe07eb" },
+          "tamanho": 8734533
+        },
+        "instalar": ["-jar", "quilt-installer.jar", "install", "server", "{mc}", "{loader}", "--install-dir=."],
+        "rodar": ["-Xms1G", "-Xmx2G", "-jar", "quilt-server-launch.jar", "nogui"],
+        "dominiosDoJogo": ["meta.quiltmc.org", "maven.quiltmc.org", "maven.fabricmc.net"],
+        "disco": 134217728
+      },
+      "forge": {
+        "nome": "Forge",
+        "medido": false,
+        "sistemas": ["mac-aarch64", "mac-x64", "linux-x64", "linux-aarch64"],
+        "instalador": {
+          "fonte": "reposilite",
+          "destino": "forge-installer.jar",
+          "url": "https://maven.minecraftforge.net/net/minecraftforge/forge/{mc}-{loader}/forge-{mc}-{loader}-installer.jar",
+          "detalhes": "https://maven.minecraftforge.net/api/maven/details/releases/net/minecraftforge/forge/{mc}-{loader}/forge-{mc}-{loader}-installer.jar",
+          "algoritmo": "sha256"
+        },
+        "instalar": ["-jar", "forge-installer.jar", "--installServer"],
+        "rodar": ["-Xms1G", "-Xmx2G", "@libraries/net/minecraftforge/forge/{mc}-{loader}/unix_args.txt", "nogui"],
+        "dominiosDoJogo": ["maven.minecraftforge.net", "libraries.minecraft.net", "piston-data.mojang.com", "piston-meta.mojang.com", "launchermeta.mojang.com"],
+        "disco": 536870912
+      },
+      "neoforge": {
+        "nome": "NeoForge",
+        "medido": false,
+        "sistemas": ["mac-aarch64", "mac-x64", "linux-x64", "linux-aarch64"],
+        "instalador": {
+          "fonte": "reposilite",
+          "destino": "neoforge-installer.jar",
+          "url": "https://maven.neoforged.net/releases/net/neoforged/neoforge/{loader}/neoforge-{loader}-installer.jar",
+          "detalhes": "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/neoforge/{loader}/neoforge-{loader}-installer.jar",
+          "algoritmo": "sha256"
+        },
+        "instalar": ["-jar", "neoforge-installer.jar", "--install-server"],
+        "rodar": ["-Xms1G", "-Xmx2G", "@libraries/net/neoforged/neoforge/{loader}/unix_args.txt", "nogui"],
+        "dominiosDoJogo": ["maven.neoforged.net", "libraries.minecraft.net", "piston-data.mojang.com", "piston-meta.mojang.com", "launchermeta.mojang.com"],
+        "disco": 536870912
+      }
     }
   },
   "mundo": {

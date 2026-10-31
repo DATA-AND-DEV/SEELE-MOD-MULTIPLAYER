@@ -16,18 +16,30 @@ const path = require('node:path');
 const { criarAnfitriao } = require(path.join(__dirname, '..', 'test', 'anfitriao.cjs'));
 
 const destino = process.argv[2];
-if (!destino) throw new Error('uso: node ferramentas/plano-de-verdade.cjs <plano.json>');
+// `--mods` (parte 6): o mesmo Minecraft com o pack de prova (Fabric 1.21.4,
+// ferramentas/pack-de-prova.cjs), enviado ao volume como quem configura o
+// envia; o plano leva `pack_local`, o .mrpack que o volume guardaria.
+const comMods = process.argv.includes('--mods');
+if (!destino || destino.startsWith('--')) throw new Error('uso: node ferramentas/plano-de-verdade.cjs <plano.json> [--mods]');
 const a = criarAnfitriao();
 const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
 const r = a.acao(1, 'configurar-servidor-de-jogo', {
-  op: 'configurar', id, versao: '1.21.4', quem: '2',
-  config: { nome: [{ texto: 'Casa', cor: 'aqua' }, { texto: 'do SEELE', cor: 'gold' }], maximo: 4 },
+  op: 'configurar', id, versao: '1.21.4', quem: '2', variante: comMods ? 'com-mods' : 'vanilla',
+  config: { nome: [{ texto: 'Casa', cor: 'aqua' }, { texto: comMods ? 'com mods' : 'do SEELE', cor: 'gold' }], maximo: 4 },
 });
 if (!r.ok) throw new Error(JSON.stringify(r));
+let packLocal = null;
+if (comMods) {
+  packLocal = path.join(__dirname, '..', 'test', 'fixtures', 'fabric-prova.mrpack');
+  const e = a.acao(1, 'configurar-servidor-de-jogo', { op: 'pack-enviar', id });
+  a.enviarAoVolume(e.token, fs.readFileSync(packLocal));
+  const c = a.acao(1, 'configurar-servidor-de-jogo', { op: 'pack-chegou', id, token: e.token });
+  if (!c.ok) throw new Error(JSON.stringify(c));
+}
 a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
 a.aceitar(id);
 const oferta = a.pedidosDeMaquina.at(-1).oferta;
 const plano = a.daMaquina(2, id, { op: 'plano' });
 if (!plano.ok) throw new Error(JSON.stringify(plano));
-fs.writeFileSync(destino, JSON.stringify({ servidor: id, oferta, plano: plano.plano }, null, 1));
+fs.writeFileSync(destino, JSON.stringify({ servidor: id, oferta, plano: plano.plano, ...(packLocal ? { pack_local: packLocal } : {}) }, null, 1));
 console.log(`${id}: ${oferta.artefatos.length} artefatos na oferta, plano com ligar=${plano.plano.ligar}`);

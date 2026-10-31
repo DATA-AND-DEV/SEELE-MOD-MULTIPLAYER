@@ -74,6 +74,11 @@ fn fixtures() -> Result<HashMap<String, String>, Erro> {
         "https://api.adoptium.net/v3/assets/latest/21/hotspot?image_type=jre&vendor=eclipse".to_owned(),
         include_str!("../../../test/fixtures/adoptium-21.json").to_owned(),
     );
+    // Com mods (parte 6): a API do Modrinth para o pack de prova.
+    mapa.insert(
+        "https://api.modrinth.com/v2/project/prova-do-seele/version".to_owned(),
+        include_str!("../../../test/fixtures/modrinth-prova-versoes.json").to_owned(),
+    );
     Ok(mapa)
 }
 
@@ -88,7 +93,15 @@ const AMBIENTE_DO_SERVIDOR: &str = r#"globalThis.dados = {};
         pedir: p => { __pedidosDeMaquina.push(JSON.parse(JSON.stringify(p))); },
         avisar: a => { __avisosAMaquina.push(JSON.parse(JSON.stringify(a))); },
       },
-    };"#;
+      // O pack pelo link (seele-server `mods::pack::buscar`): o índice do pack
+      // de prova, com o sha512 e o tamanho que a API do Modrinth deu.
+      buscarPack: ({ url, sha512, tamanho }) => {
+        const v = JSON.parse(__buscar('https://api.modrinth.com/v2/project/prova-do-seele/version'))[0].files[0];
+        if (url !== v.url || sha512 !== v.hashes.sha512 || tamanho !== v.size) return { ok: false, erro: 'hash-nao-bate' };
+        return { ok: true, bytes: v.size, sha512: v.hashes.sha512, indice: __indiceDaProva };
+      },
+    };
+    globalThis.volume = { esperar: () => true, tamanho: () => null, servir: () => null, apagar: () => true, pack: () => ({ ok: false, erro: 'nao-existe' }) };"#;
 
 fn servidor() -> Result<(Runtime, Context), Erro> {
     let (rt, ctx) = motor()?;
@@ -99,6 +112,8 @@ fn servidor() -> Result<(Runtime, Context), Erro> {
         c.globals().set("__buscar", buscar).map_err(|e| e.to_string())
     })
     .map_err(std::io::Error::other)?;
+    ctx.with(|c| c.globals().set("__indiceDaProva", include_str!("../../../test/fixtures/fabric-prova.index.json")))
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     avaliar(&ctx, AMBIENTE_DO_SERVIDOR, "ambiente do servidor")?;
     avaliar(&ctx, include_str!("../../../servidor/main.js"), "servidor/main.js")?;
     Ok((rt, ctx))
@@ -168,6 +183,7 @@ struct Fita {
     parados: Vec<Value>,
     entrada: Vec<String>,
     parada_pronta: bool,
+    lidos: Vec<Value>,
 }
 
 /// **A conversa da metade de máquina, pelo prelúdio de verdade**: cada
@@ -202,7 +218,29 @@ fn assentar_maquina(maq: &Context, falas: &Falas, srv: &Context, id: &str, fita:
                 }
                 "programa-desempacotar" => { fita.abertos.push(m.clone()); json!({ "arquivos": 3, "bytes": 1000, "linksPulados": 0, "foraDaRaiz": 1 }) }
                 "programa-escrever" => { fita.escritos.push(m.clone()); json!({ "destino": m["destino"], "bytes": 1 }) }
-                "programa-rodar" => { fita.rodados.push(m.clone()); json!({ "processo": 1, "pid": 4242 }) }
+                "programa-rodar" => {
+                    fita.rodados.push(m.clone());
+                    // O instalador do loader sai sozinho, com 0, depois da resposta.
+                    let instalador = m["argumentos"].as_array().is_some_and(|a| a.iter().any(|x| x.as_str().is_some_and(|x| x.ends_with("-installer.jar"))));
+                    let numero = if instalador { 100 + fita.rodados.len() } else { 1 };
+                    responder(maq, &json!({ "n": m["n"], "ok": true, "valor": { "processo": numero, "pid": 4242 } }).to_string())?;
+                    if instalador {
+                        responder(maq, &json!({ "tipo": "processo-linha", "processo": numero, "fluxo": "saida", "linha": "Done, start server by running fabric-server-launch.jar" }).to_string())?;
+                        responder(maq, &json!({ "tipo": "processo-fim", "processo": numero, "codigo": 0, "mortoAPedido": false, "linhasPerdidas": 0, "linhasCortadas": 0 }).to_string())?;
+                    }
+                    continue;
+                }
+                // O índice do pack aberto, como o `programa.ler` do app o lê; a
+                // marca do loader não existe ainda (a recusa do núcleo, `disco`).
+                "programa-ler" => {
+                    fita.lidos.push(m.clone());
+                    if m["arquivo"] == "pack/modrinth.index.json" {
+                        Value::String(include_str!("../../../test/fixtures/fabric-prova.index.json").to_owned())
+                    } else {
+                        responder(maq, &json!({ "n": m["n"], "ok": false, "erro": "disco", "frase": "o disco recusou: No such file" }).to_string())?;
+                        continue;
+                    }
+                }
                 "processo-escrever" => { fita.entrada.push(m["texto"].as_str().unwrap_or_default().to_owned()); Value::Null }
                 "porta-servir" => { fita.servidos.push(m.clone()); Value::Null }
                 "porta-parar" => { fita.parados.push(m.clone()); Value::Null }
@@ -328,6 +366,70 @@ fn maquina_e_servidor(srv: &Context) -> Result<String, Erro> {
     Ok(id)
 }
 
+/// **Com mods, pelo prelúdio de verdade** (parte 6): o pack de prova pelo link
+/// do Modrinth, a oferta com o instalador e o hash, e a máquina que baixa o
+/// .mrpack do CDN, abre, lê o índice (`programa.ler`), baixa só os arquivos do
+/// servidor pelo sha512, aplica os overrides e os server-overrides por cima
+/// (`mesclar`) e roda o instalador do Fabric com os argumentos aceitos.
+fn com_mods(srv: &Context) -> Result<(), Erro> {
+    let r = pedir(srv, &de(Some("criar-servidor-de-jogo")), &json!({ "op": "criar", "receita": "minecraft" }))?;
+    let id = r["servidor"]["id"].as_str().ok_or_else(|| format!("criar: {r}"))?.to_owned();
+    let r = pedir(srv, &de(Some("configurar-servidor-de-jogo")), &json!({ "op": "configurar", "id": id, "variante": "com-mods", "quem": "2", "config": {} }))?;
+    if r["ok"] != true { return Err(format!("configurar com mods: {r}").into()); }
+    let r = pedir(srv, &de(Some("configurar-servidor-de-jogo")), &json!({ "op": "pack-link", "id": id, "link": "https://modrinth.com/modpack/prova-do-seele" }))?;
+    if r["ok"] != true { return Err(format!("pack-link: {r}").into()); }
+    let pedidos: Vec<Value> = serde_json::from_str(&texto(srv, "JSON.stringify(__pedidosDeMaquina)")?)?;
+    let oferta = pedidos.last().ok_or("a oferta com mods não saiu")?["oferta"].clone();
+    if oferta["pack"]["algoritmo"] != "sha512" || oferta["instalar"]["argumentos"][1] != "fabric-installer.jar" {
+        return Err(format!("a oferta com mods: {oferta}").into());
+    }
+    let (_rm, maq) = motor()?;
+    let (falas, registro, grandes): (Falas, Falas, Rc<RefCell<usize>>) = Default::default();
+    ponte(&maq, &falas, &registro, &grandes)?;
+    let contrato: Value = serde_json::from_str(include_str!("../../../test/contrato/api-v8.json"))?;
+    let da_maquina = &contrato["compatibilidade"]["capacidades-da-maquina"];
+    let mut capacidades = da_maquina["base"].as_array().cloned().ok_or("sem capacidades-da-maquina.base")?;
+    for poder in ["porta", "programa"] {
+        capacidades.extend(da_maquina[poder].as_array().cloned().ok_or(format!("sem capacidades-da-maquina.{poder}"))?);
+    }
+    avaliar(&maq, &format!("globalThis.__seeleCapacidades = {};", Value::Array(capacidades)), "capacidades")?;
+    let aceito = json!({ "servidor": id, "oferta": oferta, "plataforma": "mac-aarch64" }).to_string();
+    maq.with(|c| c.globals().set("__seeleMaquina", aceito)).map_err(|e| std::io::Error::other(e.to_string()))?;
+    avaliar(&maq, &preludio()?, "prelúdio")?;
+    if texto(&maq, "[typeof maquina.programa.trazer, typeof maquina.programa.ler].join(',')")? != "function,function" {
+        return Err("o prelúdio não deu trazer e ler à metade de máquina".into());
+    }
+    avaliar(&maq, include_str!("../../../maquina/main.js"), "maquina/main.js")?;
+    let mut fita = Fita::default();
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
+    momento(srv, "MaquinaAceitou", &json!({ "servidor": id, "pessoa": "2" }))?;
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
+    let destinos: Vec<String> = fita.baixados.iter().filter_map(|b| b["destino"].as_str().map(str::to_owned)).collect();
+    let mods: Vec<&String> = destinos.iter().filter(|d| d.starts_with("mods/")).collect();
+    if !destinos.contains(&"pack.mrpack".to_owned()) || !destinos.contains(&"fabric-installer.jar".to_owned())
+        || mods != ["mods/fabric-api-0.119.4+1.21.4.jar", "mods/lithium-fabric-0.15.3+mc1.21.4.jar"]
+        || fita.baixados.iter().filter(|b| b["destino"].as_str().is_some_and(|d| d.starts_with("mods/"))).any(|b| b["sha512"].as_str().map(str::len) != Some(128)) {
+        return Err(format!("com mods, baixou: {destinos:?}").into());
+    }
+    let mesclados: Vec<(String, String)> = fita.abertos.iter().filter(|a| a["mesclar"] == true)
+        .map(|a| (a["raiz"].as_str().unwrap_or_default().to_owned(), a["destino"].as_str().unwrap_or_default().to_owned())).collect();
+    if mesclados != [("overrides".to_owned(), String::new()), ("server-overrides".to_owned(), String::new())] {
+        return Err(format!("com mods, os overrides: {:?}", fita.abertos).into());
+    }
+    let instalar: Vec<&str> = fita.rodados.first().and_then(|r| r["argumentos"].as_array()).into_iter().flatten().filter_map(Value::as_str).collect();
+    if instalar != ["-jar", "fabric-installer.jar", "server", "-mcversion", "1.21.4", "-loader", "0.16.14"] {
+        return Err(format!("com mods, o instalador: {:?}", fita.rodados).into());
+    }
+    if !fita.escritos.iter().any(|e| e["destino"] == ".seele-loader") { return Err(format!("a marca do loader: {:?}", fita.escritos).into()); }
+    let s = estado_do(srv, &id)?;
+    if s["estado"] != "pronto" { return Err(format!("com mods, o estado: {s}").into()); }
+    let erros: Vec<String> = registro.borrow().iter().filter(|l| l.starts_with("error") || l.starts_with("warn")).cloned().collect();
+    if !erros.is_empty() { return Err(format!("com mods, a máquina anotou erros: {erros:?}").into()); }
+    println!("com mods (prelúdio da API 8): o pack pelo link, a oferta com o instalador e o sha512, baixar {} arquivo(s) ({} do pack), abrir, ler o índice, os overrides e os server-overrides por cima, o instalador do Fabric com os argumentos aceitos, pronto.",
+        fita.baixados.len(), mods.len());
+    Ok(())
+}
+
 fn cliente(srv: &Context, id: &str) -> Result<(), Erro> {
     let (_rc, cli) = motor()?;
     let fita: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
@@ -439,6 +541,7 @@ fn main() -> Result<(), Erro> {
     if dados_sao_texto != "true" { return Err("o quintal tem valor que não é texto".into()); }
     println!("servidor: criar, configurar, a oferta, o aceite, o plano e os estados da máquina, no quintal só texto.");
     cliente(&srv, &id)?;
+    com_mods(&srv)?;
     println!("QuickJS 0.12.2 / 8 MiB: as três metades passaram.");
     Ok(())
 }

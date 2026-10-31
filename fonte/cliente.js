@@ -101,6 +101,38 @@ const FRASES = Object.freeze({
   'sem-resposta': 'O servidor não respondeu a tempo.',
   'fora-do-aceite': 'A máquina não aceitou servir este jogo, ou nesta porta.',
   'tunel-indisponivel': 'Este app não abre túnel de jogo.',
+  // o modpack (parte 6)
+  'sem-pack': 'Escolha o modpack na aba MODS antes de ligar.',
+  'arquivo-grande-demais': 'O arquivo passa do teto que o SEELE envia. Para um modpack, use o link do Modrinth: por ele nada passa pelo envio.',
+  'pack-grande-para-o-link': 'Este modpack é grande demais para ser lido pelo link (até 4 MiB): envie o arquivo .mrpack.',
+  'link-nao-e-do-modrinth': 'Cole o link de um modpack do Modrinth, como https://modrinth.com/modpack/nome.',
+  'modpack-sem-versoes': 'O Modrinth não tem versões desse modpack.',
+  'versao-do-modpack-desconhecida': 'O Modrinth não tem essa versão do modpack.',
+  'versao-sem-mrpack': 'Essa versão do modpack não tem arquivo .mrpack.',
+  'mrpack-fora-do-cdn': 'O .mrpack dessa versão não está no CDN do Modrinth.',
+  'mrpack-sem-hash': 'O Modrinth não publica o sha512 desse .mrpack.',
+  'nao-e-pack': 'O arquivo não é um .mrpack: falta o modrinth.index.json na raiz.',
+  'formato-desconhecido': 'O arquivo não é de um formato que o SEELE aceita aqui.',
+  'indice-ilegivel': 'O modrinth.index.json do pack não se lê.',
+  'hash-nao-bate': 'O pack baixado não tem o hash que o Modrinth publica.',
+  'busca-falhou': 'O Modrinth não respondeu.',
+  'dependencia-desconhecida': 'O pack pede uma dependência que este MOD não conhece; ele não foi usado.',
+  'loaders-demais': 'O pack pede mais de um loader.',
+  'loader-sem-receita': 'Este MOD não sabe instalar o loader que o pack pede.',
+  'pack-sem-minecraft': 'O pack não diz a versão do Minecraft.',
+  'caminho-recusado': 'Um arquivo do pack tem um caminho absoluto ou com «..», e o pack foi recusado.',
+  'sem-sha512': 'Um arquivo do pack não traz o sha512, e o pack foi recusado.',
+  'download-fora-dos-dominios': 'Um arquivo do pack vem de fora dos domínios aceitos (cdn.modrinth.com, github.com, raw.githubusercontent.com, gitlab.com).',
+  'pack-nao-confere': 'O índice do pack na máquina não é o que foi aceito.',
+  'pack-diferente': 'O pack que chegou à máquina não tem o hash do aceite; nada foi gravado.',
+  'pack-nao-veio': 'A máquina não conseguiu trazer o pack do servidor.',
+  'instalador-falhou': 'O instalador do loader saiu com erro; as últimas linhas estão nos dados.',
+  'instalador-sem-hash': 'O Maven do loader não publica o hash do instalador.',
+  'instalador-sem-tamanho': 'O Maven do loader não diz o tamanho do instalador.',
+  'loader-sem-este-sistema': 'Este loader ainda não roda no sistema desta máquina.',
+  'sem-pack-enviado': 'Este servidor de jogo não tem um pack enviado para baixar.',
+  'envio-desconhecido': 'O envio do pack não é conhecido: comece de novo.',
+  'espera-recusada': 'O SEELE não abriu o envio do pack.',
   // a ponte
   'sessao-encerrada': 'A sessão acabou antes da resposta.',
   'bridge-refused': 'A metade de servidor do MOD falhou ao responder.',
@@ -110,7 +142,7 @@ const FRASES = Object.freeze({
 });
 
 const ROTULO_DO_ESTADO = Object.freeze({
-  desligado: 'DESLIGADO', baixando: 'BAIXANDO', pronto: 'PRONTO PARA LIGAR', ligando: 'LIGANDO',
+  desligado: 'DESLIGADO', baixando: 'BAIXANDO', instalando: 'INSTALANDO O LOADER', pronto: 'PRONTO PARA LIGAR', ligando: 'LIGANDO',
   ligado: 'LIGADO', parando: 'DESLIGANDO', salvando: 'SALVANDO', caiu: 'CAIU',
 });
 
@@ -170,6 +202,8 @@ const estado = {
   vista: 'seletor', atual: null, aba: 'aba-geral',
   rascunho: null, palavra: {}, erros: {}, aviso: null, versoes: {},
   portas: {}, entradas: {}, consoleTexto: '', situacao: null,
+  // O modpack: o link digitado, o envio em curso e o pack salvo por quem joga.
+  packLink: '', enviando: null, salvos: {},
   // A página passou do teto de uma montagem: o resumo, sem os dados longos.
   enxuta: false,
 };
@@ -280,6 +314,72 @@ function entrar(id) {
   ).then(pintar);
 }
 
+// ---------------------------------------------------------------- o pack
+
+/**
+ * **Quem joga recebe o pack** pelo diálogo de salvar do sistema
+ * (`SeeleUI.salvar`, API 8 parte 6): chamado na volta síncrona do clique, como
+ * o túnel. O caminho fica com a pessoa; o cartão diz quantos bytes vieram.
+ */
+function salvarPack(id) {
+  const s = estado.dados?.servidores.find(x => x.id === id);
+  const nome = cortar(`${s?.pack?.nome || id}.mrpack`, 80);
+  let promessa;
+  try {
+    promessa = SeeleUI.salvar({ pedido: { op: 'pack-ler', id }, nome });
+  } catch (erro) {
+    promessa = Promise.reject(SeeleUI.salvar ? erro : { erro: 'salvar-indisponivel' });
+  }
+  Promise.resolve(promessa).then(
+    salvo => { estado.salvos[id] = salvo ? { bytes: salvo.bytes } : { cancelado: true }; },
+    erro => {
+      estado.salvos[id] = { falha: { erro: erro?.erro ?? fraseDoErro(erro), onde: 'salvar-pack', dados: dadosDoErro(erro) } };
+      console.warn(`multiplayer: salvar o pack de ${id}: ${estado.salvos[id].falha.erro}`);
+    },
+  ).then(pintar);
+}
+
+/** O link do Modrinth vira o pack do servidor de jogo atual. */
+async function usarLink() {
+  const s = servidorAtual();
+  if (!s) return;
+  const r = await agir('configurar-servidor-de-jogo', { op: 'pack-link', id: s.id, link: estado.packLink });
+  if (await aposAcao(r, 'pack-link')) {
+    estado.packLink = '';
+    const novo = servidorAtual();
+    if (novo) estado.rascunho = rascunhoDe(novo);
+  }
+}
+
+/**
+ * **O `.mrpack` escolhido vai ao volume da metade de servidor**: ela abre a
+ * espera, o produto manda os bytes (e confere que é um pack, até 64 MiB), e
+ * ela abre o pack. A recusa — o tamanho e o teto, o formato — fica na página,
+ * e o arquivo escolhido é solto.
+ */
+async function enviarPack(arquivo) {
+  const s = servidorAtual();
+  if (!s) return;
+  estado.enviando = { bytes: arquivo.bytes };
+  try {
+    const espera = await agir('configurar-servidor-de-jogo', { op: 'pack-enviar', id: s.id });
+    if (recusaDe(espera, 'pack-enviar')) return void avisar(recusaDe(espera, 'pack-enviar'));
+    try {
+      await SeeleUI.enviar(arquivo.id, espera.token);
+    } catch (erro) {
+      return void avisar({ erro: erro?.erro ?? fraseDoErro(erro), onde: 'pack-enviar', dados: dadosDoErro(erro) });
+    }
+    const r = await agir('configurar-servidor-de-jogo', { op: 'pack-chegou', id: s.id, token: espera.token });
+    if (await aposAcao(r, 'pack-chegou')) {
+      const novo = servidorAtual();
+      if (novo) estado.rascunho = rascunhoDe(novo);
+    }
+  } finally {
+    estado.enviando = null;
+    SeeleUI.soltar?.(arquivo.id)?.catch?.(() => {});
+  }
+}
+
 // ---------------------------------------------------------------- os eventos
 
 async function aposAcao(r, onde) {
@@ -294,7 +394,7 @@ async function salvar() {
   const s = servidorAtual();
   if (!s || !estado.rascunho) return;
   const r = await agir('configurar-servidor-de-jogo', {
-    op: 'configurar', id: s.id, versao: estado.rascunho.versao, quem: estado.rascunho.quem, config: estado.rascunho.config,
+    op: 'configurar', id: s.id, variante: estado.rascunho.variante, versao: estado.rascunho.versao, quem: estado.rascunho.quem, config: estado.rascunho.config,
   });
   if (r?.ok === false && r.erro === 'config-invalida') {
     estado.erros = r.erros ?? {};
@@ -347,6 +447,8 @@ async function tratarBotao(chave) {
       estado.vista = 'seletor';
       estado.atual = null;
     }
+  } else if (chave === 'pack:link') {
+    await usarLink();
   } else if (chave === 'console:enviar') {
     const r = await agir('configurar-servidor-de-jogo', { op: 'console', id: estado.atual, comando: estado.consoleTexto });
     if (await aposAcao(r, 'console')) estado.consoleTexto = '';
@@ -380,6 +482,12 @@ function tratarCampo(evento) {
   if (chave === 'console:texto') {
     estado.consoleTexto = String(valor ?? '');
     return false;
+  }
+  if (chave === 'pack:link-texto') {
+    const antes = estado.packLink;
+    estado.packLink = String(valor ?? '');
+    // Repinta só quando o USAR O LINK liga ou desliga.
+    return !antes !== !estado.packLink;
   }
   if (!estado.rascunho) return false;
   if (chave === 'versao') estado.rascunho.versao = valor || null;
@@ -438,6 +546,12 @@ async function tratar(evento) {
     estado.aba = evento.valor;
   } else if (evento.nome === 'botao') {
     await tratarBotao(String(evento.chave ?? ''));
+  } else if (evento.nome === 'arquivo' && evento.chave === 'pack:arquivo') {
+    if (evento.resultado === 'escolhido' && evento.arquivo) await enviarPack(evento.arquivo);
+    else if (evento.resultado === 'falhou') {
+      const { nome, chave, arquivo, resultado, erro, ...dados } = evento;
+      avisar({ erro: erro ?? 'falhou', onde: 'pack-escolher', dados });
+    } else return;
   } else if (['campo', 'escolha', 'numero', 'marca', 'cor'].includes(evento.nome)) {
     if (!tratarCampo(evento)) return;
   } else {
@@ -450,6 +564,11 @@ SeeleUI.aoEvento(evento => {
   // O túnel primeiro, sem nenhum `await` antes: o bilhete do clique vale só agora.
   if (evento.nome === 'botao' && String(evento.chave).startsWith('entrar:')) {
     entrar(String(evento.chave).slice('entrar:'.length));
+    return;
+  }
+  // O diálogo de salvar também só abre de dentro do clique.
+  if (evento.nome === 'botao' && String(evento.chave).startsWith('salvar-pack:')) {
+    salvarPack(String(evento.chave).slice('salvar-pack:'.length));
     return;
   }
   tratar(evento).catch(erro => {
@@ -590,6 +709,11 @@ function opcaoDeVariante(receita, s, chave) {
 }
 
 function escolhaDeVersao(receita, s) {
+  if ((estado.rascunho?.variante ?? s.variante) === 'com-mods') {
+    return bloco('Versão do jogo', [
+      tx(s.pack ? `Minecraft ${s.pack.mc}, a que o modpack pede` : 'A versão vem do modpack: escolha-o na aba MODS.', { corpo: 16 }),
+    ], { chave: 'versao-do-pack' });
+  }
   const versoes = estado.versoes[receita.id];
   if (!versoes) return bloco('Versão do jogo', [apagado('Lendo as versões…')]);
   if (versoes.falha) return bloco('Versão do jogo', [quadroDeFalha(versoes.falha, 'falha-versoes')]);
@@ -635,11 +759,37 @@ function abaGeral(receita, s) {
   ], 32);
 }
 
-function abaMods() {
+/** O pack do servidor de jogo, em linhas: de onde veio, o que pede e o hash. */
+function resumoDoPack(p) {
+  const loader = p.loader ? `${p.loader.id} ${p.loader.versao}` : 'sem loader';
   return pilha([
-    tx('Com mods chega na próxima versão.', { corpo: 20, cor: COR.acento }),
-    apagado('Nesta versão o servidor é Vanilla: o Minecraft puro, na versão que você escolher. O modpack do Modrinth, por link ou pelo arquivo .mrpack, vem na próxima.'),
-  ], 12);
+    tx(p.nome || 'Modpack sem nome', { corpo: 20 }),
+    apagado(`Minecraft ${p.mc} · ${loader} · ${p.arquivos} arquivo(s) no servidor${p.excluidos ? `, ${p.excluidos} só do cliente fora` : ''}`),
+    mono(`${p.origem === 'link' ? 'pelo link do Modrinth' : 'enviado'} · ${(p.bytes / 1048576).toFixed(1).replace('.', ',')} MiB · sha512 ${String(p.sha512).slice(0, 16)}…`),
+    p.instalador ? apagado(`Instala o loader com ${p.instalador.nome} antes de ligar.`) : null,
+  ], 4, { chave: 'pack' });
+}
+
+function abaMods(receita, s) {
+  if (!receita.modpack) return pilha([apagado('Esta receita não tem modpack.')], 12);
+  const livre = pode('configurar-servidor-de-jogo') && !['ligando', 'ligado', 'parando', 'salvando'].includes(s.estado);
+  const comMods = (estado.rascunho?.variante ?? s.variante) === 'com-mods';
+  return pilha([
+    comMods ? null : apagado('O modpack vale quando Com mods está escolhido em GERAL. Escolher um aqui já escolhe Com mods.'),
+    bloco('O modpack', [s.pack ? resumoDoPack(s.pack) : apagado('Nenhum modpack ainda.')]),
+    bloco('Pelo link do Modrinth', [
+      linhaH([
+        { forma: 'campo', chave: 'pack:link-texto', rotulo: 'Link do modpack', valor: estado.packLink, inicial: estado.packLink, tamanhoMaximo: 200, desligado: !livre },
+        botao('pack:link', 'USAR O LINK', { classe: 'vazado', desligado: !livre || !estado.packLink }),
+      ]),
+      apagado('Nada passa pelo envio: a máquina do jogo baixa o .mrpack direto do cdn.modrinth.com, com o hash que a API do Modrinth dá.'),
+    ]),
+    bloco('Ou o arquivo .mrpack', [
+      { forma: 'arquivo', chave: 'pack:arquivo', rotulo: estado.enviando ? 'ENVIANDO…' : 'ESCOLHER UM .MRPACK', tipos: ['pack'], finalidade: 'O modpack (.mrpack) deste servidor de jogo', desligado: !livre || Boolean(estado.enviando) },
+      apagado(`O exportado do app do Modrinth, até ${Math.round(receita.modpack.teto / 1048576)} MiB. Ele fica no servidor SEELE, e quem joga o baixa pelo cartão.`),
+    ]),
+    apagado(`Cada arquivo do pack é conferido pelo sha512, e só vem de ${receita.modpack.dominios.join(', ')}.`),
+  ], 32);
 }
 
 function abaJogadores(receita, s) {
@@ -711,7 +861,7 @@ function vistaConfig() {
   const nome = nomeEmTexto(estado.rascunho?.config?.nome ?? s.config?.nome) || s.id;
   const conteudo = {
     'aba-geral': () => abaGeral(receita, s),
-    'aba-mods': () => abaMods(),
+    'aba-mods': () => abaMods(receita, s),
     'aba-jogadores': () => abaJogadores(receita, s),
     'aba-maquina': () => abaMaquina(receita, s),
   };
@@ -733,6 +883,9 @@ function avisoDaPagina() {
     linhaH([botao('fechar-aviso', 'ENTENDI', { variante: 'discreta' })]),
   ], 6, { chave: 'aviso' });
 }
+
+/** O cartão fala do pack só quando o servidor de jogo roda com mods. */
+const comModsNoCartao = s => s.variante === 'com-mods' && Boolean(s.pack);
 
 function cartao(s) {
   const receita = receitaPorId(s.receita);
@@ -756,11 +909,16 @@ function cartao(s) {
         apagado(`No ${receita?.nome ?? 'jogo'}: Multijogador, Conexão direta, e este endereço.${porta !== s.porta && s.porta ? ' A porta é outra porque a do jogo estava ocupada neste computador.' : ''}`),
       ], 4) : null,
       recusa ? quadroDeFalha(recusa) : null,
+      comModsNoCartao(s) ? apagado(`Com mods: ${s.pack.nome || 'modpack'} (${s.pack.loader ? s.pack.loader.id : 'sem loader'}). Importe o mesmo pack no app do Modrinth para entrar.`) : null,
+      estado.salvos[s.id]?.bytes ? apagado(`Pack salvo: ${(estado.salvos[s.id].bytes / 1048576).toFixed(1).replace('.', ',')} MiB.`) : null,
+      estado.salvos[s.id]?.falha ? quadroDeFalha(estado.salvos[s.id].falha) : null,
       configura && s.falhas?.length ? apagado(`Última falha: ${s.falhas.at(-1).erro}`) : null,
       {
         forma: 'acoes',
         dentro: [
           botao('entrar:' + s.id, 'ENTRAR', { desligado: !ligado || !pode('entrar-no-jogo'), classe: 'cheio' }),
+          comModsNoCartao(s) && s.pack.origem === 'enviado' ? botao('salvar-pack:' + s.id, 'BAIXAR O PACK', { classe: 'vazado' }) : null,
+          comModsNoCartao(s) && s.pack.origem === 'link' && s.pack.pagina ? { forma: 'link', chave: 'pack-link:' + s.id, endereco: s.pack.pagina, dentro: 'O PACK NO MODRINTH' } : null,
           configura ? botao('configurar:' + s.id, 'CONFIGURAR', { classe: 'vazado' }) : null,
         ].filter(Boolean),
       },

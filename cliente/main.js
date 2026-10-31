@@ -1,7 +1,7 @@
 /* Gerado por ferramentas/build.mjs a partir de fonte/ e receitas/. API 8. Não edite aqui. */
 (() => {
 "use strict";
-const RECEITAS = [{"formato":1,"id":"minecraft","nome":"Minecraft","edicao":"Java Edition","icone":"MC","versao":"1.0.0","descricao":"O servidor oficial da Mojang, com o Java que cada versão pede.","variantes":{"vanilla":{"nome":"Vanilla","descricao":"Minecraft puro, sem mods. Você escolhe só a versão."},"com-mods":{"nome":"Com mods","descricao":"Um modpack do Modrinth define a versão, o loader e os mods.","disponivel":false,"porque":"Com mods chega na próxima versão."}},"versoes":{"fonte":"mojang","manifesto":"https://piston-meta.mojang.com/mc/game/version_manifest_v2.json","tipos":["release"],"quantas":24},"artefatos":[{"id":"servidor","fonte":"mojang-servidor","destino":"server.jar"},{"id":"java","fonte":"adoptium","destino":"java","consulta":"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?image_type=jre&vendor=eclipse","majorPadrao":8,"plataformas":[{"plataforma":"windows-x64","os":"windows","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"mac-aarch64","os":"mac","arquitetura":"aarch64","raiz":"{release}-jre/Contents/Home","senaoHouver":"mac-x64"},{"plataforma":"mac-x64","os":"mac","arquitetura":"x64","raiz":"{release}-jre/Contents/Home"},{"plataforma":"linux-x64","os":"linux","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"linux-aarch64","os":"linux","arquitetura":"aarch64","raiz":"{release}-jre"}]}],"origens":["piston-data.mojang.com","github.com","objects.githubusercontent.com","release-assets.githubusercontent.com"],"dominiosDoJogo":["sessionserver.mojang.com","api.minecraftservices.com","api.mojang.com"],"rodar":{"comando":"java/bin/java","argumentos":["-Xms1G","-Xmx2G","-jar","server.jar","nogui"]},"rede":{"protocolo":"tcp","portaPadrao":25565},"disco":{"mundoMaximo":8589934592},"termos":[{"id":"eula","titulo":"EULA do Minecraft (Mojang)","url":"https://aka.ms/MinecraftEULA","arquivo":"eula.txt","conteudo":"eula=true\n"}],"configuracao":{"arquivo":"server.properties","formato":"properties","campos":[{"chave":"nome","aba":"geral","forma":"segmentos","rotulo":"Nome que aparece na lista do jogo","ajuda":"Cada palavra tem a sua cor, entre as 16 do Minecraft.","padrao":[{"texto":"Servidor do SEELE","cor":"aqua"}],"tamanhoMaximo":59,"maximoSegmentos":6,"opcoes":[{"valor":"white","rotulo":"Branco","amostra":"#FFFFFF","codigo":"f"},{"valor":"gray","rotulo":"Cinza","amostra":"#AAAAAA","codigo":"7"},{"valor":"dark_gray","rotulo":"Cinza-escuro","amostra":"#555555","codigo":"8"},{"valor":"black","rotulo":"Preto","amostra":"#000000","codigo":"0"},{"valor":"yellow","rotulo":"Amarelo","amostra":"#FFFF55","codigo":"e"},{"valor":"gold","rotulo":"Dourado","amostra":"#FFAA00","codigo":"6"},{"valor":"red","rotulo":"Vermelho","amostra":"#FF5555","codigo":"c"},{"valor":"dark_red","rotulo":"Vermelho-escuro","amostra":"#AA0000","codigo":"4"},{"valor":"light_purple","rotulo":"Rosa","amostra":"#FF55FF","codigo":"d"},{"valor":"dark_purple","rotulo":"Roxo","amostra":"#AA00AA","codigo":"5"},{"valor":"blue","rotulo":"Azul","amostra":"#5555FF","codigo":"9"},{"valor":"dark_blue","rotulo":"Azul-escuro","amostra":"#0000AA","codigo":"1"},{"valor":"aqua","rotulo":"Ciano","amostra":"#55FFFF","codigo":"b"},{"valor":"dark_aqua","rotulo":"Ciano-escuro","amostra":"#00AAAA","codigo":"3"},{"valor":"green","rotulo":"Verde","amostra":"#55FF55","codigo":"a"},{"valor":"dark_green","rotulo":"Verde-escuro","amostra":"#00AA00","codigo":"2"}]},{"chave":"maximo","aba":"geral","grupo":"regras","forma":"numero","rotulo":"Máx. jogadores","padrao":10,"minimo":1,"maximo":100},{"chave":"dificuldade","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Dificuldade","padrao":"normal","opcoes":[{"valor":"peaceful","rotulo":"Pacífica"},{"valor":"easy","rotulo":"Fácil"},{"valor":"normal","rotulo":"Normal"},{"valor":"hard","rotulo":"Difícil"}]},{"chave":"modo","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Modo","padrao":"survival","opcoes":[{"valor":"survival","rotulo":"Sobrevivência"},{"valor":"creative","rotulo":"Criativo"},{"valor":"adventure","rotulo":"Aventura"},{"valor":"spectator","rotulo":"Espectador"}]},{"chave":"pvp","aba":"geral","forma":"interruptor","rotulo":"PvP","padrao":true},{"chave":"hardcore","aba":"jogadores","forma":"interruptor","rotulo":"Hardcore","ajuda":"Quem morre vira espectador até o mundo acabar.","padrao":false},{"chave":"protecao","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Proteção em volta do nascimento","ajuda":"Em blocos. Só quem é operador constrói ali.","padrao":16,"minimo":0,"maximo":64},{"chave":"inativo","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Tirar quem fica parado","ajuda":"Em minutos. Zero é nunca.","padrao":0,"minimo":0,"maximo":120}],"propriedades":{"motd":"{nome}","max-players":"{maximo}","difficulty":"{dificuldade}","gamemode":"{modo}","pvp":"{pvp}","hardcore":"{hardcore}","spawn-protection":"{protecao}","player-idle-timeout":"{inativo}","server-ip":"127.0.0.1","server-port":"{porta}","online-mode":"true","enable-rcon":"false","enable-query":"false"}},"mundo":{"pasta":"world","salvar":[{"console":"save-off"},{"console":"save-all flush","esperar":"\\]: Saved the game","prazo":60},{"copiar":"world"},{"console":"save-on"}]},"saida":{"pronto":"\\]: Done \\(","entrou":"\\]: ([A-Za-z0-9_]{1,16}) joined the game$","saiu":"\\]: ([A-Za-z0-9_]{1,16}) left the game$","parar":{"console":"stop","esperar":"\\]: Stopping the server","prazo":60}}}];
+const RECEITAS = [{"formato":1,"id":"minecraft","nome":"Minecraft","edicao":"Java Edition","icone":"MC","versao":"1.0.0","descricao":"O servidor oficial da Mojang, com o Java que cada versão pede.","variantes":{"vanilla":{"nome":"Vanilla","descricao":"Minecraft puro, sem mods. Você escolhe só a versão."},"com-mods":{"nome":"Com mods","descricao":"Um modpack do Modrinth define a versão, o loader e os mods."}},"versoes":{"fonte":"mojang","manifesto":"https://piston-meta.mojang.com/mc/game/version_manifest_v2.json","tipos":["release"],"quantas":24},"artefatos":[{"id":"servidor","fonte":"mojang-servidor","destino":"server.jar"},{"id":"java","fonte":"adoptium","destino":"java","consulta":"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?image_type=jre&vendor=eclipse","majorPadrao":8,"plataformas":[{"plataforma":"windows-x64","os":"windows","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"mac-aarch64","os":"mac","arquitetura":"aarch64","raiz":"{release}-jre/Contents/Home","senaoHouver":"mac-x64"},{"plataforma":"mac-x64","os":"mac","arquitetura":"x64","raiz":"{release}-jre/Contents/Home"},{"plataforma":"linux-x64","os":"linux","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"linux-aarch64","os":"linux","arquitetura":"aarch64","raiz":"{release}-jre"}]}],"origens":["piston-data.mojang.com","github.com","objects.githubusercontent.com","release-assets.githubusercontent.com"],"dominiosDoJogo":["sessionserver.mojang.com","api.minecraftservices.com","api.mojang.com"],"rodar":{"comando":"java/bin/java","argumentos":["-Xms1G","-Xmx2G","-jar","server.jar","nogui"]},"rede":{"protocolo":"tcp","portaPadrao":25565},"disco":{"mundoMaximo":8589934592},"termos":[{"id":"eula","titulo":"EULA do Minecraft (Mojang)","url":"https://aka.ms/MinecraftEULA","arquivo":"eula.txt","conteudo":"eula=true\n"}],"configuracao":{"arquivo":"server.properties","formato":"properties","campos":[{"chave":"nome","aba":"geral","forma":"segmentos","rotulo":"Nome que aparece na lista do jogo","ajuda":"Cada palavra tem a sua cor, entre as 16 do Minecraft.","padrao":[{"texto":"Servidor do SEELE","cor":"aqua"}],"tamanhoMaximo":59,"maximoSegmentos":6,"opcoes":[{"valor":"white","rotulo":"Branco","amostra":"#FFFFFF","codigo":"f"},{"valor":"gray","rotulo":"Cinza","amostra":"#AAAAAA","codigo":"7"},{"valor":"dark_gray","rotulo":"Cinza-escuro","amostra":"#555555","codigo":"8"},{"valor":"black","rotulo":"Preto","amostra":"#000000","codigo":"0"},{"valor":"yellow","rotulo":"Amarelo","amostra":"#FFFF55","codigo":"e"},{"valor":"gold","rotulo":"Dourado","amostra":"#FFAA00","codigo":"6"},{"valor":"red","rotulo":"Vermelho","amostra":"#FF5555","codigo":"c"},{"valor":"dark_red","rotulo":"Vermelho-escuro","amostra":"#AA0000","codigo":"4"},{"valor":"light_purple","rotulo":"Rosa","amostra":"#FF55FF","codigo":"d"},{"valor":"dark_purple","rotulo":"Roxo","amostra":"#AA00AA","codigo":"5"},{"valor":"blue","rotulo":"Azul","amostra":"#5555FF","codigo":"9"},{"valor":"dark_blue","rotulo":"Azul-escuro","amostra":"#0000AA","codigo":"1"},{"valor":"aqua","rotulo":"Ciano","amostra":"#55FFFF","codigo":"b"},{"valor":"dark_aqua","rotulo":"Ciano-escuro","amostra":"#00AAAA","codigo":"3"},{"valor":"green","rotulo":"Verde","amostra":"#55FF55","codigo":"a"},{"valor":"dark_green","rotulo":"Verde-escuro","amostra":"#00AA00","codigo":"2"}]},{"chave":"maximo","aba":"geral","grupo":"regras","forma":"numero","rotulo":"Máx. jogadores","padrao":10,"minimo":1,"maximo":100},{"chave":"dificuldade","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Dificuldade","padrao":"normal","opcoes":[{"valor":"peaceful","rotulo":"Pacífica"},{"valor":"easy","rotulo":"Fácil"},{"valor":"normal","rotulo":"Normal"},{"valor":"hard","rotulo":"Difícil"}]},{"chave":"modo","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Modo","padrao":"survival","opcoes":[{"valor":"survival","rotulo":"Sobrevivência"},{"valor":"creative","rotulo":"Criativo"},{"valor":"adventure","rotulo":"Aventura"},{"valor":"spectator","rotulo":"Espectador"}]},{"chave":"pvp","aba":"geral","forma":"interruptor","rotulo":"PvP","padrao":true},{"chave":"hardcore","aba":"jogadores","forma":"interruptor","rotulo":"Hardcore","ajuda":"Quem morre vira espectador até o mundo acabar.","padrao":false},{"chave":"protecao","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Proteção em volta do nascimento","ajuda":"Em blocos. Só quem é operador constrói ali.","padrao":16,"minimo":0,"maximo":64},{"chave":"inativo","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Tirar quem fica parado","ajuda":"Em minutos. Zero é nunca.","padrao":0,"minimo":0,"maximo":120}],"propriedades":{"motd":"{nome}","max-players":"{maximo}","difficulty":"{dificuldade}","gamemode":"{modo}","pvp":"{pvp}","hardcore":"{hardcore}","spawn-protection":"{protecao}","player-idle-timeout":"{inativo}","server-ip":"127.0.0.1","server-port":"{porta}","online-mode":"true","enable-rcon":"false","enable-query":"false"}},"modpack":{"formato":"modrinth","teto":67108864,"api":"https://api.modrinth.com/v2","pagina":"https://modrinth.com/modpack/","cdn":"cdn.modrinth.com","dominios":["cdn.modrinth.com","github.com","raw.githubusercontent.com","gitlab.com"],"loaders":{"fabric-loader":{"nome":"Fabric","medido":true,"instalador":{"fonte":"fixo","destino":"fabric-installer.jar","url":"https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.1.2/fabric-installer-1.1.2.jar","hash":{"algoritmo":"sha512","hex":"3cbe7b69498c44d814fc95e71cd9ce9c12c45a9e1dcf01085cb3e9aaf6fe63134b701065167be1fa6e4c2df19dfa5400bc5b6b1b7fb5e99e334d24dcdca55c20"},"tamanho":212123},"instalar":["-jar","fabric-installer.jar","server","-mcversion","{mc}","-loader","{loader}"],"rodar":["-Xms1G","-Xmx2G","-jar","fabric-server-launch.jar","nogui"],"dominiosDoJogo":["meta.fabricmc.net","maven.fabricmc.net"],"disco":134217728},"quilt-loader":{"nome":"Quilt","medido":false,"instalador":{"fonte":"fixo","destino":"quilt-installer.jar","url":"https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-installer/0.15.1/quilt-installer-0.15.1.jar","hash":{"algoritmo":"sha512","hex":"f001e6e5ee5bed04e8f51a5519fae03874ecf8c7ece0db390896b5a6ea5fdb4a5b43abd77d0c6be5902d846d90cf032167d86af09253e3965be6480181fe07eb"},"tamanho":8734533},"instalar":["-jar","quilt-installer.jar","install","server","{mc}","{loader}","--install-dir=."],"rodar":["-Xms1G","-Xmx2G","-jar","quilt-server-launch.jar","nogui"],"dominiosDoJogo":["meta.quiltmc.org","maven.quiltmc.org","maven.fabricmc.net"],"disco":134217728},"forge":{"nome":"Forge","medido":false,"sistemas":["mac-aarch64","mac-x64","linux-x64","linux-aarch64"],"instalador":{"fonte":"reposilite","destino":"forge-installer.jar","url":"https://maven.minecraftforge.net/net/minecraftforge/forge/{mc}-{loader}/forge-{mc}-{loader}-installer.jar","detalhes":"https://maven.minecraftforge.net/api/maven/details/releases/net/minecraftforge/forge/{mc}-{loader}/forge-{mc}-{loader}-installer.jar","algoritmo":"sha256"},"instalar":["-jar","forge-installer.jar","--installServer"],"rodar":["-Xms1G","-Xmx2G","@libraries/net/minecraftforge/forge/{mc}-{loader}/unix_args.txt","nogui"],"dominiosDoJogo":["maven.minecraftforge.net","libraries.minecraft.net","piston-data.mojang.com","piston-meta.mojang.com","launchermeta.mojang.com"],"disco":536870912},"neoforge":{"nome":"NeoForge","medido":false,"sistemas":["mac-aarch64","mac-x64","linux-x64","linux-aarch64"],"instalador":{"fonte":"reposilite","destino":"neoforge-installer.jar","url":"https://maven.neoforged.net/releases/net/neoforged/neoforge/{loader}/neoforge-{loader}-installer.jar","detalhes":"https://maven.neoforged.net/api/maven/details/releases/net/neoforged/neoforge/{loader}/neoforge-{loader}-installer.jar","algoritmo":"sha256"},"instalar":["-jar","neoforge-installer.jar","--install-server"],"rodar":["-Xms1G","-Xmx2G","@libraries/net/neoforged/neoforge/{loader}/unix_args.txt","nogui"],"dominiosDoJogo":["maven.neoforged.net","libraries.minecraft.net","piston-data.mojang.com","piston-meta.mojang.com","launchermeta.mojang.com"],"disco":536870912}}},"mundo":{"pasta":"world","salvar":[{"console":"save-off"},{"console":"save-all flush","esperar":"\\]: Saved the game","prazo":60},{"copiar":"world"},{"console":"save-on"}]},"saida":{"pronto":"\\]: Done \\(","entrou":"\\]: ([A-Za-z0-9_]{1,16}) joined the game$","saiu":"\\]: ([A-Za-z0-9_]{1,16}) left the game$","parar":{"console":"stop","esperar":"\\]: Stopping the server","prazo":60}}}];
 const ESQUEMA_DA_RECEITA = null;
 // ---- comum.js: o que as três metades usam igual ----
 //
@@ -589,6 +589,38 @@ const FRASES = Object.freeze({
   'sem-resposta': 'O servidor não respondeu a tempo.',
   'fora-do-aceite': 'A máquina não aceitou servir este jogo, ou nesta porta.',
   'tunel-indisponivel': 'Este app não abre túnel de jogo.',
+  // o modpack (parte 6)
+  'sem-pack': 'Escolha o modpack na aba MODS antes de ligar.',
+  'arquivo-grande-demais': 'O arquivo passa do teto que o SEELE envia. Para um modpack, use o link do Modrinth: por ele nada passa pelo envio.',
+  'pack-grande-para-o-link': 'Este modpack é grande demais para ser lido pelo link (até 4 MiB): envie o arquivo .mrpack.',
+  'link-nao-e-do-modrinth': 'Cole o link de um modpack do Modrinth, como https://modrinth.com/modpack/nome.',
+  'modpack-sem-versoes': 'O Modrinth não tem versões desse modpack.',
+  'versao-do-modpack-desconhecida': 'O Modrinth não tem essa versão do modpack.',
+  'versao-sem-mrpack': 'Essa versão do modpack não tem arquivo .mrpack.',
+  'mrpack-fora-do-cdn': 'O .mrpack dessa versão não está no CDN do Modrinth.',
+  'mrpack-sem-hash': 'O Modrinth não publica o sha512 desse .mrpack.',
+  'nao-e-pack': 'O arquivo não é um .mrpack: falta o modrinth.index.json na raiz.',
+  'formato-desconhecido': 'O arquivo não é de um formato que o SEELE aceita aqui.',
+  'indice-ilegivel': 'O modrinth.index.json do pack não se lê.',
+  'hash-nao-bate': 'O pack baixado não tem o hash que o Modrinth publica.',
+  'busca-falhou': 'O Modrinth não respondeu.',
+  'dependencia-desconhecida': 'O pack pede uma dependência que este MOD não conhece; ele não foi usado.',
+  'loaders-demais': 'O pack pede mais de um loader.',
+  'loader-sem-receita': 'Este MOD não sabe instalar o loader que o pack pede.',
+  'pack-sem-minecraft': 'O pack não diz a versão do Minecraft.',
+  'caminho-recusado': 'Um arquivo do pack tem um caminho absoluto ou com «..», e o pack foi recusado.',
+  'sem-sha512': 'Um arquivo do pack não traz o sha512, e o pack foi recusado.',
+  'download-fora-dos-dominios': 'Um arquivo do pack vem de fora dos domínios aceitos (cdn.modrinth.com, github.com, raw.githubusercontent.com, gitlab.com).',
+  'pack-nao-confere': 'O índice do pack na máquina não é o que foi aceito.',
+  'pack-diferente': 'O pack que chegou à máquina não tem o hash do aceite; nada foi gravado.',
+  'pack-nao-veio': 'A máquina não conseguiu trazer o pack do servidor.',
+  'instalador-falhou': 'O instalador do loader saiu com erro; as últimas linhas estão nos dados.',
+  'instalador-sem-hash': 'O Maven do loader não publica o hash do instalador.',
+  'instalador-sem-tamanho': 'O Maven do loader não diz o tamanho do instalador.',
+  'loader-sem-este-sistema': 'Este loader ainda não roda no sistema desta máquina.',
+  'sem-pack-enviado': 'Este servidor de jogo não tem um pack enviado para baixar.',
+  'envio-desconhecido': 'O envio do pack não é conhecido: comece de novo.',
+  'espera-recusada': 'O SEELE não abriu o envio do pack.',
   // a ponte
   'sessao-encerrada': 'A sessão acabou antes da resposta.',
   'bridge-refused': 'A metade de servidor do MOD falhou ao responder.',
@@ -598,7 +630,7 @@ const FRASES = Object.freeze({
 });
 
 const ROTULO_DO_ESTADO = Object.freeze({
-  desligado: 'DESLIGADO', baixando: 'BAIXANDO', pronto: 'PRONTO PARA LIGAR', ligando: 'LIGANDO',
+  desligado: 'DESLIGADO', baixando: 'BAIXANDO', instalando: 'INSTALANDO O LOADER', pronto: 'PRONTO PARA LIGAR', ligando: 'LIGANDO',
   ligado: 'LIGADO', parando: 'DESLIGANDO', salvando: 'SALVANDO', caiu: 'CAIU',
 });
 
@@ -658,6 +690,8 @@ const estado = {
   vista: 'seletor', atual: null, aba: 'aba-geral',
   rascunho: null, palavra: {}, erros: {}, aviso: null, versoes: {},
   portas: {}, entradas: {}, consoleTexto: '', situacao: null,
+  // O modpack: o link digitado, o envio em curso e o pack salvo por quem joga.
+  packLink: '', enviando: null, salvos: {},
   // A página passou do teto de uma montagem: o resumo, sem os dados longos.
   enxuta: false,
 };
@@ -768,6 +802,72 @@ function entrar(id) {
   ).then(pintar);
 }
 
+// ---------------------------------------------------------------- o pack
+
+/**
+ * **Quem joga recebe o pack** pelo diálogo de salvar do sistema
+ * (`SeeleUI.salvar`, API 8 parte 6): chamado na volta síncrona do clique, como
+ * o túnel. O caminho fica com a pessoa; o cartão diz quantos bytes vieram.
+ */
+function salvarPack(id) {
+  const s = estado.dados?.servidores.find(x => x.id === id);
+  const nome = cortar(`${s?.pack?.nome || id}.mrpack`, 80);
+  let promessa;
+  try {
+    promessa = SeeleUI.salvar({ pedido: { op: 'pack-ler', id }, nome });
+  } catch (erro) {
+    promessa = Promise.reject(SeeleUI.salvar ? erro : { erro: 'salvar-indisponivel' });
+  }
+  Promise.resolve(promessa).then(
+    salvo => { estado.salvos[id] = salvo ? { bytes: salvo.bytes } : { cancelado: true }; },
+    erro => {
+      estado.salvos[id] = { falha: { erro: erro?.erro ?? fraseDoErro(erro), onde: 'salvar-pack', dados: dadosDoErro(erro) } };
+      console.warn(`multiplayer: salvar o pack de ${id}: ${estado.salvos[id].falha.erro}`);
+    },
+  ).then(pintar);
+}
+
+/** O link do Modrinth vira o pack do servidor de jogo atual. */
+async function usarLink() {
+  const s = servidorAtual();
+  if (!s) return;
+  const r = await agir('configurar-servidor-de-jogo', { op: 'pack-link', id: s.id, link: estado.packLink });
+  if (await aposAcao(r, 'pack-link')) {
+    estado.packLink = '';
+    const novo = servidorAtual();
+    if (novo) estado.rascunho = rascunhoDe(novo);
+  }
+}
+
+/**
+ * **O `.mrpack` escolhido vai ao volume da metade de servidor**: ela abre a
+ * espera, o produto manda os bytes (e confere que é um pack, até 64 MiB), e
+ * ela abre o pack. A recusa — o tamanho e o teto, o formato — fica na página,
+ * e o arquivo escolhido é solto.
+ */
+async function enviarPack(arquivo) {
+  const s = servidorAtual();
+  if (!s) return;
+  estado.enviando = { bytes: arquivo.bytes };
+  try {
+    const espera = await agir('configurar-servidor-de-jogo', { op: 'pack-enviar', id: s.id });
+    if (recusaDe(espera, 'pack-enviar')) return void avisar(recusaDe(espera, 'pack-enviar'));
+    try {
+      await SeeleUI.enviar(arquivo.id, espera.token);
+    } catch (erro) {
+      return void avisar({ erro: erro?.erro ?? fraseDoErro(erro), onde: 'pack-enviar', dados: dadosDoErro(erro) });
+    }
+    const r = await agir('configurar-servidor-de-jogo', { op: 'pack-chegou', id: s.id, token: espera.token });
+    if (await aposAcao(r, 'pack-chegou')) {
+      const novo = servidorAtual();
+      if (novo) estado.rascunho = rascunhoDe(novo);
+    }
+  } finally {
+    estado.enviando = null;
+    SeeleUI.soltar?.(arquivo.id)?.catch?.(() => {});
+  }
+}
+
 // ---------------------------------------------------------------- os eventos
 
 async function aposAcao(r, onde) {
@@ -782,7 +882,7 @@ async function salvar() {
   const s = servidorAtual();
   if (!s || !estado.rascunho) return;
   const r = await agir('configurar-servidor-de-jogo', {
-    op: 'configurar', id: s.id, versao: estado.rascunho.versao, quem: estado.rascunho.quem, config: estado.rascunho.config,
+    op: 'configurar', id: s.id, variante: estado.rascunho.variante, versao: estado.rascunho.versao, quem: estado.rascunho.quem, config: estado.rascunho.config,
   });
   if (r?.ok === false && r.erro === 'config-invalida') {
     estado.erros = r.erros ?? {};
@@ -835,6 +935,8 @@ async function tratarBotao(chave) {
       estado.vista = 'seletor';
       estado.atual = null;
     }
+  } else if (chave === 'pack:link') {
+    await usarLink();
   } else if (chave === 'console:enviar') {
     const r = await agir('configurar-servidor-de-jogo', { op: 'console', id: estado.atual, comando: estado.consoleTexto });
     if (await aposAcao(r, 'console')) estado.consoleTexto = '';
@@ -868,6 +970,12 @@ function tratarCampo(evento) {
   if (chave === 'console:texto') {
     estado.consoleTexto = String(valor ?? '');
     return false;
+  }
+  if (chave === 'pack:link-texto') {
+    const antes = estado.packLink;
+    estado.packLink = String(valor ?? '');
+    // Repinta só quando o USAR O LINK liga ou desliga.
+    return !antes !== !estado.packLink;
   }
   if (!estado.rascunho) return false;
   if (chave === 'versao') estado.rascunho.versao = valor || null;
@@ -926,6 +1034,12 @@ async function tratar(evento) {
     estado.aba = evento.valor;
   } else if (evento.nome === 'botao') {
     await tratarBotao(String(evento.chave ?? ''));
+  } else if (evento.nome === 'arquivo' && evento.chave === 'pack:arquivo') {
+    if (evento.resultado === 'escolhido' && evento.arquivo) await enviarPack(evento.arquivo);
+    else if (evento.resultado === 'falhou') {
+      const { nome, chave, arquivo, resultado, erro, ...dados } = evento;
+      avisar({ erro: erro ?? 'falhou', onde: 'pack-escolher', dados });
+    } else return;
   } else if (['campo', 'escolha', 'numero', 'marca', 'cor'].includes(evento.nome)) {
     if (!tratarCampo(evento)) return;
   } else {
@@ -938,6 +1052,11 @@ SeeleUI.aoEvento(evento => {
   // O túnel primeiro, sem nenhum `await` antes: o bilhete do clique vale só agora.
   if (evento.nome === 'botao' && String(evento.chave).startsWith('entrar:')) {
     entrar(String(evento.chave).slice('entrar:'.length));
+    return;
+  }
+  // O diálogo de salvar também só abre de dentro do clique.
+  if (evento.nome === 'botao' && String(evento.chave).startsWith('salvar-pack:')) {
+    salvarPack(String(evento.chave).slice('salvar-pack:'.length));
     return;
   }
   tratar(evento).catch(erro => {
@@ -1078,6 +1197,11 @@ function opcaoDeVariante(receita, s, chave) {
 }
 
 function escolhaDeVersao(receita, s) {
+  if ((estado.rascunho?.variante ?? s.variante) === 'com-mods') {
+    return bloco('Versão do jogo', [
+      tx(s.pack ? `Minecraft ${s.pack.mc}, a que o modpack pede` : 'A versão vem do modpack: escolha-o na aba MODS.', { corpo: 16 }),
+    ], { chave: 'versao-do-pack' });
+  }
   const versoes = estado.versoes[receita.id];
   if (!versoes) return bloco('Versão do jogo', [apagado('Lendo as versões…')]);
   if (versoes.falha) return bloco('Versão do jogo', [quadroDeFalha(versoes.falha, 'falha-versoes')]);
@@ -1123,11 +1247,37 @@ function abaGeral(receita, s) {
   ], 32);
 }
 
-function abaMods() {
+/** O pack do servidor de jogo, em linhas: de onde veio, o que pede e o hash. */
+function resumoDoPack(p) {
+  const loader = p.loader ? `${p.loader.id} ${p.loader.versao}` : 'sem loader';
   return pilha([
-    tx('Com mods chega na próxima versão.', { corpo: 20, cor: COR.acento }),
-    apagado('Nesta versão o servidor é Vanilla: o Minecraft puro, na versão que você escolher. O modpack do Modrinth, por link ou pelo arquivo .mrpack, vem na próxima.'),
-  ], 12);
+    tx(p.nome || 'Modpack sem nome', { corpo: 20 }),
+    apagado(`Minecraft ${p.mc} · ${loader} · ${p.arquivos} arquivo(s) no servidor${p.excluidos ? `, ${p.excluidos} só do cliente fora` : ''}`),
+    mono(`${p.origem === 'link' ? 'pelo link do Modrinth' : 'enviado'} · ${(p.bytes / 1048576).toFixed(1).replace('.', ',')} MiB · sha512 ${String(p.sha512).slice(0, 16)}…`),
+    p.instalador ? apagado(`Instala o loader com ${p.instalador.nome} antes de ligar.`) : null,
+  ], 4, { chave: 'pack' });
+}
+
+function abaMods(receita, s) {
+  if (!receita.modpack) return pilha([apagado('Esta receita não tem modpack.')], 12);
+  const livre = pode('configurar-servidor-de-jogo') && !['ligando', 'ligado', 'parando', 'salvando'].includes(s.estado);
+  const comMods = (estado.rascunho?.variante ?? s.variante) === 'com-mods';
+  return pilha([
+    comMods ? null : apagado('O modpack vale quando Com mods está escolhido em GERAL. Escolher um aqui já escolhe Com mods.'),
+    bloco('O modpack', [s.pack ? resumoDoPack(s.pack) : apagado('Nenhum modpack ainda.')]),
+    bloco('Pelo link do Modrinth', [
+      linhaH([
+        { forma: 'campo', chave: 'pack:link-texto', rotulo: 'Link do modpack', valor: estado.packLink, inicial: estado.packLink, tamanhoMaximo: 200, desligado: !livre },
+        botao('pack:link', 'USAR O LINK', { classe: 'vazado', desligado: !livre || !estado.packLink }),
+      ]),
+      apagado('Nada passa pelo envio: a máquina do jogo baixa o .mrpack direto do cdn.modrinth.com, com o hash que a API do Modrinth dá.'),
+    ]),
+    bloco('Ou o arquivo .mrpack', [
+      { forma: 'arquivo', chave: 'pack:arquivo', rotulo: estado.enviando ? 'ENVIANDO…' : 'ESCOLHER UM .MRPACK', tipos: ['pack'], finalidade: 'O modpack (.mrpack) deste servidor de jogo', desligado: !livre || Boolean(estado.enviando) },
+      apagado(`O exportado do app do Modrinth, até ${Math.round(receita.modpack.teto / 1048576)} MiB. Ele fica no servidor SEELE, e quem joga o baixa pelo cartão.`),
+    ]),
+    apagado(`Cada arquivo do pack é conferido pelo sha512, e só vem de ${receita.modpack.dominios.join(', ')}.`),
+  ], 32);
 }
 
 function abaJogadores(receita, s) {
@@ -1199,7 +1349,7 @@ function vistaConfig() {
   const nome = nomeEmTexto(estado.rascunho?.config?.nome ?? s.config?.nome) || s.id;
   const conteudo = {
     'aba-geral': () => abaGeral(receita, s),
-    'aba-mods': () => abaMods(),
+    'aba-mods': () => abaMods(receita, s),
     'aba-jogadores': () => abaJogadores(receita, s),
     'aba-maquina': () => abaMaquina(receita, s),
   };
@@ -1221,6 +1371,9 @@ function avisoDaPagina() {
     linhaH([botao('fechar-aviso', 'ENTENDI', { variante: 'discreta' })]),
   ], 6, { chave: 'aviso' });
 }
+
+/** O cartão fala do pack só quando o servidor de jogo roda com mods. */
+const comModsNoCartao = s => s.variante === 'com-mods' && Boolean(s.pack);
 
 function cartao(s) {
   const receita = receitaPorId(s.receita);
@@ -1244,11 +1397,16 @@ function cartao(s) {
         apagado(`No ${receita?.nome ?? 'jogo'}: Multijogador, Conexão direta, e este endereço.${porta !== s.porta && s.porta ? ' A porta é outra porque a do jogo estava ocupada neste computador.' : ''}`),
       ], 4) : null,
       recusa ? quadroDeFalha(recusa) : null,
+      comModsNoCartao(s) ? apagado(`Com mods: ${s.pack.nome || 'modpack'} (${s.pack.loader ? s.pack.loader.id : 'sem loader'}). Importe o mesmo pack no app do Modrinth para entrar.`) : null,
+      estado.salvos[s.id]?.bytes ? apagado(`Pack salvo: ${(estado.salvos[s.id].bytes / 1048576).toFixed(1).replace('.', ',')} MiB.`) : null,
+      estado.salvos[s.id]?.falha ? quadroDeFalha(estado.salvos[s.id].falha) : null,
       configura && s.falhas?.length ? apagado(`Última falha: ${s.falhas.at(-1).erro}`) : null,
       {
         forma: 'acoes',
         dentro: [
           botao('entrar:' + s.id, 'ENTRAR', { desligado: !ligado || !pode('entrar-no-jogo'), classe: 'cheio' }),
+          comModsNoCartao(s) && s.pack.origem === 'enviado' ? botao('salvar-pack:' + s.id, 'BAIXAR O PACK', { classe: 'vazado' }) : null,
+          comModsNoCartao(s) && s.pack.origem === 'link' && s.pack.pagina ? { forma: 'link', chave: 'pack-link:' + s.id, endereco: s.pack.pagina, dentro: 'O PACK NO MODRINTH' } : null,
           configura ? botao('configurar:' + s.id, 'CONFIGURAR', { classe: 'vazado' }) : null,
         ].filter(Boolean),
       },

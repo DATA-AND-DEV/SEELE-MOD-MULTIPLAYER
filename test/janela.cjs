@@ -78,7 +78,7 @@ function criarJanela(anfitriao, opcoes = {}) {
   ];
   const j = {
     superficies: new Map(), contribuicoes: [], avisos: [], erros: [], pedidos: [], acoes: [], entradas: [],
-    mensagensGrandes: [], ouvinte: null,
+    mensagensGrandes: [], ouvinte: null, salvos: [], escolhidos: new Map(),
   };
   let gesto = null;
   let handles = 0;
@@ -127,7 +127,7 @@ function criarJanela(anfitriao, opcoes = {}) {
 
   const SeeleUI = {
     retrato: async () => ({ eu: Number(pessoa), servidor: { nome: 'Casa' }, pessoas, salas: [], canais: [], onde: 'computador', regioes: ['servidor.navegacao', 'pagina'] }),
-    capacidades: async () => [...contrato.compatibilidade['capacidades-por-versao']['8'], 'tunel'],
+    capacidades: async () => [...contrato.compatibilidade['capacidades-por-versao']['8'], ...contrato.compatibilidade['capacidades-por-poder'].porta],
     superficies: {
       criar: async descricao => {
         medir('superficie-criar', { descricao });
@@ -166,6 +166,30 @@ function criarJanela(anfitriao, opcoes = {}) {
       },
     },
   };
+  // `SeeleUI.salvar` (API 8 parte 6): como o túnel, o bilhete é lido na hora
+  // da chamada; o diálogo de salvar responde o que o teste combinou.
+  SeeleUI.salvar = pedido => {
+    const bilhete = gesto;
+    return (async () => {
+      j.salvos.push({ pedido: JSON.parse(JSON.stringify(pedido)), bilhete });
+      if (!bilhete) throw recusa('fora-de-um-clique');
+      if (opcoes.cancelarOSalvar) return null;
+      const bytes = anfitriao.lerDoVolume(pessoa, pedido.pedido);
+      return { bytes: bytes.length };
+    })();
+  };
+  // O envio (`SeeleUI.enviar`): os bytes do arquivo escolhido vão ao volume
+  // pelo produto, que confere o tipo e o teto da espera.
+  SeeleUI.enviar = async (arquivo, token) => {
+    const bytes = j.escolhidos.get(arquivo);
+    if (!bytes) throw recusa('arquivo-nao-esta-de-pe');
+    try {
+      anfitriao.enviarAoVolume(token, bytes);
+    } catch (e) {
+      throw recusa(e.erro, { ...(e.tamanho ? { tamanho: e.tamanho, teto: e.teto } : {}) });
+    }
+  };
+  SeeleUI.soltar = async arquivo => { j.escolhidos.delete(arquivo); };
   const SeeleMods = {
     request: async (id, canal, valor) => {
       assert.equal(id, EU, 'o request foi com o id de outro MOD');
@@ -211,6 +235,22 @@ function criarJanela(anfitriao, opcoes = {}) {
     assert.ok(j.no(chave), `não há «${chave}» à vista`);
     j.emitir({ nome, chave, valor });
     await assentar();
+  };
+  /**
+   * A pessoa escolhe um arquivo no seletor do produto: o evento `arquivo` com o
+   * que os bytes provaram ser, ou a recusa do produto (o teto, o formato).
+   */
+  j.escolher = async (chave, bytes, recusaDoProduto = null) => {
+    const no = j.no(chave);
+    assert.ok(no && no.forma === 'arquivo', `não há arquivo «${chave}» à vista`);
+    if (recusaDoProduto) {
+      j.emitir({ nome: 'arquivo', chave, arquivo: null, resultado: 'falhou', ...recusaDoProduto });
+    } else {
+      const id = j.escolhidos.size + 1;
+      j.escolhidos.set(id, bytes);
+      j.emitir({ nome: 'arquivo', chave, arquivo: { id, tipo: 'application/x-modrinth-modpack+zip', papel: 'pack', bytes: bytes.length }, resultado: 'escolhido' });
+    }
+    for (let i = 0; i < 10; i++) await assentar();
   };
   j.pagina = () => j.superficies.get('multiplayer');
   j.no = chave => nos(j.pagina()?.arvore ?? []).find(n => n.chave === chave) ?? null;

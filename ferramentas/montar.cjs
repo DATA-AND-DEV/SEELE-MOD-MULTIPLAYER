@@ -15,8 +15,8 @@ const RAIZ = path.resolve(__dirname, '..');
 
 /** As fontes de cada metade, na ordem em que entram. */
 const ORDEM = Object.freeze({
-  servidor: ['comum', 'esquema', 'receita', 'servidor'],
-  maquina: ['comum', 'esquema', 'receita', 'adaptador', 'maquina'],
+  servidor: ['comum', 'esquema', 'receita', 'modpack', 'servidor'],
+  maquina: ['comum', 'esquema', 'receita', 'modpack', 'adaptador', 'maquina'],
   cliente: ['comum', 'receita', 'cliente'],
 });
 

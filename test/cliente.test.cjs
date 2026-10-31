@@ -59,8 +59,9 @@ test('criar abre a configuração, na aba GERAL, com Vanilla e Com mods no topo'
   const primeiroCampo = geral.findIndex(n => ['campo', 'numero', 'escolha', 'interruptor'].includes(n.forma));
   assert.ok(vanilla > 0 && comMods > vanilla && comMods < primeiroCampo, 'Vanilla e Com mods não estão no topo');
   assert.match(j.texto('variante:vanilla'), /Minecraft puro, sem mods/);
-  assert.equal(j.no('variante:com-mods').desligado, true);
-  assert.match(j.texto('variante:com-mods'), /chega na próxima versão/);
+  // Com mods existe na parte 6: a opção liga, e diz o que o modpack define.
+  assert.equal(j.no('variante:com-mods').desligado, false);
+  assert.match(j.texto('variante:com-mods'), /modpack do Modrinth define a versão, o loader e os mods/);
   assert.match(j.texto('titulo'), /MINECRAFT · SERVIDOR DO SEELE/);
 });
 
@@ -118,11 +119,17 @@ test('escolher a máquina na aba MÁQUINA mostra o aceite que se espera', async 
   assert.match(j.texto('chip-aceite'), /ACEITO/);
 });
 
-test('a aba MODS diz que com mods chega na próxima versão', async () => {
+test('a aba MODS oferece o link do Modrinth e o arquivo .mrpack, com o teto do envio', async () => {
   const { j } = await aberta();
   await j.apertar('criar:minecraft');
   await j.mudar('aba', 'aba', 'aba-mods');
-  assert.match(j.texto('aba-mods'), /com mods chega na próxima versão/i);
+  assert.match(j.texto('aba-mods'), /Nenhum modpack ainda/);
+  assert.equal(j.no('pack:link-texto').forma, 'campo');
+  const arquivo = j.no('pack:arquivo');
+  assert.equal(arquivo.forma, 'arquivo');
+  assert.deepEqual(arquivo.tipos, ['pack']);
+  assert.match(j.texto('aba-mods'), /até 64 MiB/);
+  assert.match(j.texto('aba-mods'), /cdn\.modrinth\.com/);
 });
 
 test('a aba JOGADORES mostra quem está dentro, e os campos dela', async () => {
