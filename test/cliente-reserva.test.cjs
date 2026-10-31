@@ -33,6 +33,13 @@ test('a aba MÁQUINA escolhe a reserva, mostra o aceite dela e quem é a dona ag
   assert.match(j.texto('chip-aceite-reserva'), /ACEITO/);
   assert.match(j.texto('reserva'), /A DONA AGORA/);
   assert.match(j.texto('reserva'), /Nenhuma cópia ainda/);
+  // O desenho 0.19: os estados em chips, com as cores do canvas.
+  assert.equal(j.no('chip-aceite-reserva').classe, 'chipV', 'o aceite da reserva não é o chip verde');
+  assert.equal(j.no('chip-dona').dentro, 'PRINCIPAL');
+  assert.equal(j.no('chip-dona').classe, 'chipV');
+  assert.equal(j.no('chip-copia').dentro, 'SEM CÓPIA');
+  assert.equal(j.no('passar').variante, 'secundaria', 'PASSAR não é um controle do produto');
+  assert.equal(j.no('passar').classe, undefined, 'PASSAR leva uma classe do MOD por cima do controle do produto');
   assert.ok(j.no('passar'), 'sem o botão de passar à reserva');
   assert.equal(j.no('intervaloDaCopia').valor, 5);
 });
@@ -52,4 +59,12 @@ test('o cartão diz a todos quanto tempo de jogo se perdeu quando a reserva assu
   a.sumir(id, 'principal', 2, 60);
   const j = await aberta(a);
   assert.match(j.texto('cartao:' + id), /A reserva assumiu às .*: perderam-se 4 min de jogo, desde a última cópia/);
+  // O desenho 0.19: a frase vai no aviso laranja do canvas, com o rótulo
+  // miúdo, e o cartão diz que roda na reserva, na máquina dela.
+  const aviso = j.no('aviso-da-queda:' + id);
+  assert.ok(aviso, 'o tempo perdido não está no aviso');
+  assert.equal(aviso.classe, 'alerta');
+  assert.match(j.texto('aviso-da-queda:' + id), /TEMPO DE JOGO PERDIDO/i);
+  assert.equal(j.no('chip-na-reserva').classe, 'chipA');
+  assert.match(j.texto('cartao:' + id), /na máquina de Bia /, 'o cartão diz a máquina da principal, e roda a da reserva');
 });

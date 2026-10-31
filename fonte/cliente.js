@@ -180,6 +180,10 @@ const CLASSES = Object.freeze({
   aceso: { base: { fundo: COR.vidro, borda: linhaDe(COR.verdeBorda), raio: 18, preenchimento: 18 } },
   // A recusa: a faixa vermelha do canvas (Porta).
   quadro: { base: { fundo: COR.erroFundo, raio: 18, preenchimento: 14, borda: linhaDe(COR.erroBorda) } },
+  // O aviso: a caixa laranja do canvas (Mods-aceite, «isto mudou desde o seu
+  // aceite»), com o rótulo miúdo no laranja.
+  alerta: { base: { fundo: COR.laranjaFundo, raio: 18, preenchimento: 14, borda: linhaDe(COR.laranjaBorda) } },
+  lbL: { base: { familia: 'mono', corpo: 11, cor: COR.laranja, espacamento: 1, transformar: 'maiuscula' } },
   erro: { base: { familia: 'mono', corpo: 13, cor: COR.erro } },
   // A barra de salvar: laranja, com as ações à direita (Config-mods).
   barra: { base: { fundo: COR.laranjaFundo, raio: 20, preenchimento: 10, borda: linhaDe(COR.laranjaBorda) } },
@@ -726,25 +730,65 @@ function fraseDaQueda(s) {
   return `A ${s.perdido.para === 'reserva' ? 'reserva' : 'principal'} assumiu às ${hora(s.perdido.quando)}: perderam-se ${tempoPerdido(s.perdido.segundos)} de jogo, desde a última cópia (${hora(s.perdido.copiaDe)}).`;
 }
 
+/**
+ * O aviso do tempo perdido: a caixa laranja do canvas (a de «isto mudou desde
+ * o seu aceite»), com o rótulo miúdo e a frase. Laranja e não vermelha: o jogo
+ * voltou, e o aviso conta o que custou; o que não voltou é uma falha, no quadro
+ * vermelho.
+ */
+function avisoDaQueda(s, chave) {
+  const frase = fraseDaQueda(s);
+  if (!frase) return null;
+  return {
+    forma: 'caixa', chave, classe: 'alerta',
+    dentro: [pilha([cl('Tempo de jogo perdido', 'lbL'), tx(frase, { corpo: 14, cor: COR.texto })], 4)],
+  };
+}
+
 function rotuloDaReserva(r) {
   return rotuloDoAceite({ quem: r.quem, aceite: r.aceite, motivo: r.motivo });
 }
 
-/** A reserva na aba MÁQUINA: escolher, o aceite, quem é a dona agora, a última cópia, e passar. */
+/** Onde está a cópia mais nova: na outra máquina, a caminho, ou nenhuma. */
+function chipDaCopia(s) {
+  if (!s.copia) return chip('Sem cópia', 'chip-copia');
+  return s.copiaRecebida?.sha256 === s.copia.sha256
+    ? chip('Cópia na outra máquina', 'chip-copia', 'chipV')
+    : chip('Cópia a caminho', 'chip-copia', 'chipL');
+}
+
+/**
+ * A reserva na aba MÁQUINA: escolher, o aceite, quem é a dona agora, a última
+ * cópia, e passar. O padrão do canvas: o rótulo miúdo em cima e o nome em caixa
+ * de frase; os estados (o aceite, a dona, a cópia, a passagem) em chips.
+ */
 function blocoDaReserva(s, opcoes) {
   const reserva = estado.rascunho?.reserva ?? '';
-  const dona = s.quemEADona ? `Máquina de ${apelidoDe(s.quemEADona)}` : 'ninguém';
-  const ultima = s.copia ? `Última cópia: ${hora(s.copia.quando)}, ${(s.copia.tamanho / 1048576).toFixed(1).replace('.', ',')} MiB${s.copiaRecebida?.sha256 === s.copia.sha256 ? ', já na outra máquina' : ', ainda não chegou à outra máquina'}.` : 'Nenhuma cópia ainda.';
+  const papelDaDona = s.dona === 'reserva' ? 'reserva' : 'principal';
+  const ultima = s.copia ? `Última cópia às ${hora(s.copia.quando)}, ${(s.copia.tamanho / 1048576).toFixed(1).replace('.', ',')} MiB.` : 'Nenhuma cópia ainda.';
   return bloco('A reserva', [
     { forma: 'escolha', chave: 'reserva', rotulo: 'Quem assume se esta máquina sair', valor: reserva, inicial: s.reserva?.quem ?? '', opcoes: opcoes.map(o => (o.valor ? { ...o } : { valor: '', dentro: 'Sem reserva' })), desligado: !pode('configurar-servidor-de-jogo') },
-    s.reserva ? linhaH([tx(`Máquina de ${apelidoDe(s.reserva.quem)}`), chip(rotuloDaReserva(s.reserva), 'chip-aceite-reserva')]) : null,
-    linhaH([lb('A dona agora'), tx(dona)]),
+    s.reserva ? linhaH([
+      tx(`Máquina de ${apelidoDe(s.reserva.quem)}`),
+      chip(rotuloDaReserva(s.reserva), 'chip-aceite-reserva', CHIP_DO_ACEITE[s.reserva.aceite] ?? 'chip'),
+    ]) : null,
+    pilha([
+      lb('A dona agora'),
+      linhaH([
+        cl(s.quemEADona ? `Máquina de ${apelidoDe(s.quemEADona)}` : 'Ninguém', 'grande'),
+        s.quemEADona ? chip(papelDaDona, 'chip-dona', 'chipV') : null,
+        s.passando ? chip(`Passando à ${s.passando.para}`, 'chip-passando', 'chipL') : null,
+      ]),
+    ], 6, { chave: 'dona' }),
     { forma: 'numero', chave: 'intervaloDaCopia', rotulo: 'Copiar o mundo a cada (minutos)', valor: estado.rascunho?.intervaloDaCopia ?? 5, inicial: s.intervaloDaCopia ?? 5, minimo: 1, maximo: 60, inteiro: true, desligado: !pode('configurar-servidor-de-jogo') },
-    apagado(ultima),
-    fraseDaQueda(s) ? tx(fraseDaQueda(s), { cor: COR.erro, corpo: 14 }) : null,
-    s.voltouRodando ? apagado(`A máquina que voltou com o jogo de pé sem ser a dona foi desligada ${s.voltouRodando} vez(es).`) : null,
+    linhaH([chipDaCopia(s), apagado(ultima)]),
+    avisoDaQueda(s, 'aviso-da-queda'),
+    s.voltouRodando ? linhaH([
+      chip(`Voltou rodando · ${s.voltouRodando}`, 'chip-voltou', 'chipL'),
+      apagado(`A máquina que voltou com o jogo de pé sem ser a dona foi desligada ${s.voltouRodando} vez(es).`),
+    ]) : null,
     s.reserva && pode('ligar-desligar-servidor-de-jogo')
-      ? linhaH([botao('passar', s.dona === 'reserva' ? 'PASSAR À PRINCIPAL' : 'PASSAR À RESERVA', { classe: 'vazado', desligado: Boolean(s.passando) })])
+      ? linhaH([botao('passar', s.dona === 'reserva' ? 'PASSAR À PRINCIPAL' : 'PASSAR À RESERVA', { variante: 'secundaria', desligado: Boolean(s.passando) })])
       : null,
     apagado('Só uma máquina roda por vez. A dona copia o mundo para a outra depois de salvar; numa queda de mais de 60 s a outra assume com a última cópia, e a tela diz quanto se perdeu.'),
   ], { chave: 'reserva' });
@@ -992,10 +1036,11 @@ function cartao(s) {
         cl(receita?.icone ?? '?', 'ic'),
         cl(nomeEmTexto(s.config?.nome) || s.id, 'grande'),
         chip(rotuloDoEstado(s), null, chipDoEstado(s)),
+        s.dona === 'reserva' ? chip('Na reserva', 'chip-na-reserva', 'chipA') : null,
       ]),
-      apagado(`${receita?.nome ?? s.receita} ${s.versao ?? '(sem versão)'} · ${s.quem ? 'na máquina de ' + apelidoDe(s.quem) : 'sem máquina'}`),
+      apagado(`${receita?.nome ?? s.receita} ${s.versao ?? '(sem versão)'} · ${(s.quemEADona ?? s.quem) ? 'na máquina de ' + apelidoDe(s.quemEADona ?? s.quem) : 'sem máquina'}`),
       tx(`${(s.jogadores ?? []).length} de ${s.maximo ?? '?'} jogando`, { corpo: 14 }),
-      fraseDaQueda(s) ? tx(fraseDaQueda(s), { cor: COR.erro, corpo: 14 }) : null,
+      avisoDaQueda(s, 'aviso-da-queda:' + s.id),
       porta ? pilha([
         tx(`localhost:${porta}`, { familia: 'mono', corpo: 20, cor: COR.acento }),
         apagado(`No ${receita?.nome ?? 'jogo'}: Multijogador, Conexão direta, e este endereço.${porta !== s.porta && s.porta ? ' A porta é outra porque a do jogo estava ocupada neste computador.' : ''}`),
