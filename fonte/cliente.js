@@ -185,8 +185,6 @@ const CLASSES = Object.freeze({
   alerta: { base: { fundo: COR.laranjaFundo, raio: 18, preenchimento: 14, borda: linhaDe(COR.laranjaBorda) } },
   lbL: { base: { familia: 'mono', corpo: 11, cor: COR.laranja, espacamento: 1, transformar: 'maiuscula' } },
   erro: { base: { familia: 'mono', corpo: 13, cor: COR.erro } },
-  // A barra de salvar: laranja, com as ações à direita (Config-mods).
-  barra: { base: { fundo: COR.laranjaFundo, raio: 20, preenchimento: 10, borda: linhaDe(COR.laranjaBorda) } },
   // A marca do jogo, no ladrilho laranja dos cartões de MOD.
   ic: { base: { familia: 'mono', corpo: 14, peso: 'forte', cor: COR.acento, fundo: COR.icone, raio: 12, preenchimento: 10 } },
   grande: { base: { familia: 'sans', corpo: 18, peso: 'forte' } },
@@ -553,7 +551,10 @@ function tratarCampo(evento) {
 async function tratar(evento) {
   if (evento.nome === 'acao' && evento.acao === 'abrir-multiplayer') {
     if (!estado.punho) {
-      estado.punho = await SeeleUI.superficies.criar({ id: 'multiplayer', tipo: 'pagina', titulo: 'Multiplayer' });
+      // Um modal sobre a sessão, e não uma página no lugar do chat: a
+      // conversa fica atrás, e fechar volta a ela. 720 px é um cartão no
+      // meio do véu; de 800 px em diante o produto o desenharia como tela.
+      estado.punho = await SeeleUI.superficies.criar({ id: 'multiplayer', tipo: 'dialogo', titulo: 'Multiplayer', tamanho: { largura: 720 } });
       // Recusadas, as classes que serviram valem e a página abre do mesmo
       // jeito, mais crua; a recusa é dita.
       try {
@@ -864,15 +865,12 @@ function botoesDaConfig(s) {
 }
 
 /**
- * A barra de salvar do canvas (Config-mods): a caixa laranja de 20, com as
- * ações à direita e SALVAR por último, cheio. O estado fica no bloco dele,
+ * As ações de salvar, no rodapé fixo do modal (`fixas`): SALVAR por último,
+ * cheio, e à vista em qualquer ponto da rolagem. O estado fica no bloco dele,
  * acima, e não se repete aqui.
  */
 function barraDeSalvar(s) {
-  return {
-    forma: 'caixa', chave: 'barra', classe: 'barra',
-    dentro: [{ ...botoesDaConfig(s), estilo: { distribuir: 'fim', quebra: 'sim', intervalo: 8 } }],
-  };
+  return { ...botoesDaConfig(s), fixas: true };
 }
 
 function abaGeral(receita, s) {
@@ -1073,7 +1071,6 @@ function vistaSeletor() {
   const servidores = dados?.servidores ?? [];
   const criar = pode('criar-servidor-de-jogo');
   return [
-    cl('Multiplayer', 'titulo', { chave: 'titulo' }),
     estado.aviso ? avisoDaPagina() : null,
     !dados ? apagado('Lendo os servidores de jogo…') : null,
     servidores.length ? bloco('Servidores de jogo', servidores.map(cartao)) : null,
@@ -1101,7 +1098,7 @@ function montarRaiz() {
   if (estado.enxuta) conteudo.splice(1, 0, apagado('A página passou do tamanho que o SEELE monta de uma vez: este é o resumo, sem as linhas e os dados das falhas.', { chave: 'resumo' }));
   return {
     forma: 'caixa', chave: 'raiz',
-    // Sem moldura própria: a página do produto já é o painel, e o canvas tem
+    // Sem moldura própria: o modal do produto já é o painel, e o canvas tem
     // um nível de painel só.
     estilo: { cor: COR.texto, familia: 'sans', corpo: 16, preenchimento: 8 },
     dentro: [pilha(conteudo, 32)],

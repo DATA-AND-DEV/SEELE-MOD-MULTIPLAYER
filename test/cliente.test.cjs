@@ -34,6 +34,17 @@ test('a entrada «Multiplayer» fica na navegação do servidor', async () => {
   assert.ok(j.pagina()?.visivel, 'a página não abriu');
 });
 
+test('a configuração abre num modal, e não no lugar do chat', async () => {
+  const { j } = await aberta();
+  const { descricao } = j.pagina();
+  assert.equal(descricao.tipo, 'dialogo');
+  assert.notEqual(descricao.modal, false);
+  // Abaixo de 800 px o produto o desenha como cartão no meio do véu, e não como tela.
+  assert.ok(descricao.tamanho.largura < 800, `largura ${descricao.tamanho.largura}`);
+  // O título é do cabeçalho do modal: o seletor não o repete.
+  assert.equal(j.no('titulo'), null);
+});
+
 test('o seletor mostra as receitas para criar, e diz quando quem vê não pode criar', async () => {
   const { j } = await aberta();
   assert.match(j.texto(), /CRIAR UM SERVIDOR/);
@@ -265,9 +276,8 @@ test('o estilo segue o desenho 0.19: as cores do tema, o vidro, os chips e a bar
   assert.deepEqual(vanilla.estilo.borda.cor, { tema: 'acento' });
   assert.equal(vanilla.estilo.raio, 18);
   assert.equal(j.no('variante:com-mods').estilo.borda.cor, '#ffffff12');
-  // SALVAR é o primário do produto, na barra laranja, por último.
-  const barra = j.no('barra');
-  assert.equal(barra.classe, 'barra');
+  // SALVAR é o primário do produto, no rodapé fixo do modal, por último.
+  assert.equal(j.no('botoes').fixas, true, 'as ações saíram do rodapé fixo: SALVAR some no fim da rolagem');
   const acoes = j.no('botoes').dentro.map(b => b.chave);
   assert.equal(acoes.at(-1), 'salvar');
   assert.equal(j.no('salvar').variante, 'primaria');
