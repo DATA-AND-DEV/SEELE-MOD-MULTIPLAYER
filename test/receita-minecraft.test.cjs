@@ -126,7 +126,8 @@ test('a oferta tem a forma que mundo.maquinas.pedir valida (OfertaDeMaquina)', (
   assert.equal(o.receita, 'minecraft');
   assert.equal(o.versao_da_receita, '1.0.0');
   assert.equal(o.versao_do_jogo, '1.21.4');
-  assert.deepEqual(o.tuneis, [{ nome: 'minecraft-1', protocolo: 'tcp', porta: 25565 }, { nome: 'minecraft-1-copia', protocolo: 'tcp', porta: 35565 }]);
+  // Sem reserva, o túnel da cópia não entra na oferta (e2e da API 8, 31/10).
+  assert.deepEqual(o.tuneis, [{ nome: 'minecraft-1', protocolo: 'tcp', porta: 25565 }]);
   assert.deepEqual(o.rodar, { comando: 'java/bin/java', argumentos: ['-Xms1G', '-Xmx2G', '-jar', 'server.jar', 'nogui'] });
   assert.deepEqual(o.termos, [{ titulo: 'EULA do Minecraft (Mojang)', url: 'https://aka.ms/MinecraftEULA' }]);
   assert.equal(o.pack, null);

@@ -143,6 +143,27 @@ const FRASES = Object.freeze({
   'sem-pack-enviado': 'Este servidor de jogo não tem um pack enviado para baixar.',
   'envio-desconhecido': 'O envio do pack não é conhecido: comece de novo.',
   'espera-recusada': 'O SEELE não abriu o envio do pack.',
+  // a metade de servidor: a reserva, a configuração e o reinício
+  'quem-invalido': 'A máquina escolhida não é uma pessoa deste servidor.',
+  'mesma-pessoa-nas-duas': 'A mesma pessoa não pode ser a principal e a reserva.',
+  'intervalo-invalido': 'O intervalo da cópia vai de 1 a 60 minutos.',
+  'passe-antes': 'A reserva roda o jogo agora: passe à principal antes de trocar a reserva ou a máquina.',
+  'sem-reserva': 'Escolha uma reserva antes de passar.',
+  'outra-sem-aceite': 'A outra máquina ainda não aceitou: passar só depois do aceite dela.',
+  'ja-passando': 'Já há uma passagem em curso.',
+  'dona-fora-e-sem-copia': 'A máquina que roda o jogo não está aqui e a outra não tem a última cópia do mundo: passar agora perderia o mundo.',
+  'esperando-as-maquinas': 'O servidor SEELE acabou de subir e a máquina que roda o jogo ainda não respondeu: passe depois que ela voltar.',
+  'passagem-interrompida': 'O servidor SEELE reiniciou no meio da passagem, e ela foi cancelada. Passe de novo quando as duas máquinas voltarem.',
+  'nao-e-desta-maquina': 'Uma máquina que não roda este servidor de jogo falou por ele, e foi mandada parar.',
+  'voltou-rodando-sem-a-posse': 'A máquina que voltou com o jogo de pé não era mais a dona, e desligou o jogo dela.',
+  'reserva-sem-copia': 'A máquina que rodava sumiu, mas a reserva ainda não tinha uma cópia do mundo: ela não assumiu, para não começar um mundo vazio.',
+  'a-reserva-assumiu': 'A outra máquina assumiu o jogo com a última cópia do mundo.',
+  'sem-reserva-para-a-copia': 'O mundo foi salvo; sem reserva, não há para quem copiá-lo.',
+  'sem-tunel-de-copia': 'A oferta aceita não tem o túnel da cópia: a máquina precisa aceitar de novo, com a reserva escolhida.',
+  'sem-aceite': 'A máquina ainda não aceitou este servidor de jogo.',
+  'pack-sumiu': 'O pack enviado sumiu do servidor SEELE: envie de novo.',
+  'op-desconhecida': 'Este MOD não conhece esse pedido: as versões do MOD diferem.',
+  'estado-desconhecido': 'A máquina contou um estado que este MOD não conhece: as versões do MOD diferem.',
   // a ponte
   'sessao-encerrada': 'A sessão acabou antes da resposta.',
   'bridge-refused': 'A metade de servidor do MOD falhou ao responder.',
@@ -154,6 +175,8 @@ const FRASES = Object.freeze({
 const ROTULO_DO_ESTADO = Object.freeze({
   desligado: 'DESLIGADO', baixando: 'BAIXANDO', instalando: 'INSTALANDO O LOADER', pronto: 'PRONTO PARA LIGAR', ligando: 'LIGANDO',
   ligado: 'LIGADO', parando: 'DESLIGANDO', salvando: 'SALVANDO', caiu: 'CAIU',
+  // O servidor SEELE subiu de novo e chamou a máquina de volta.
+  'esperando-maquina': 'ESPERANDO A MÁQUINA',
 });
 
 const fraseDe = erro => FRASES[erro] ?? '';
@@ -170,7 +193,28 @@ function fraseDaFalha(f) {
   if (f?.erro === 'pelo-dono' && f.momento === 'parou') return `${pessoa} desligou o jogo na máquina dela.`;
   if (f?.erro === 'pelo-dono' && f.momento === 'recusou') return `${pessoa} recusou o pedido de máquina.`;
   if (f?.erro === 'revogada' && quem) return `${pessoa} revogou a autorização.`;
+  if (f?.erro === 'nao-esta-aqui' && quem) return `${pessoa} não está conectada a este servidor SEELE agora.`;
+  if (f?.erro === 'desligou-sem-maquina') {
+    return `${pessoa} não está conectada ao SEELE agora, e o servidor de jogo ficou desligado aqui. Se o jogo seguiu rodando na máquina dela, ele para quando ela voltar, ou sozinho, salvo, em até 10 minutos.`;
+  }
+  if (f?.erro === 'mundo-mais-novo') {
+    return `O mundo deste servidor de jogo rodou por último na versão ${f.dados?.mundo}. A ${f.dados?.pedida} é mais velha e não abre um mundo de uma versão mais nova: comece um mundo novo (o de agora fica guardado na máquina) ou mantenha a ${f.dados?.mundo}.`;
+  }
+  if (f?.erro === 'o-jogo-caiu') return fraseDaQuedaDoJogo(f.dados ?? {});
   return fraseDe(f?.erro);
+}
+
+/** As linhas de um jogo que caiu ao abrir um mundo de uma versão mais nova (medido: Fabric 1.21.4 num mundo do 26.3). */
+const MUNDO_MAIS_NOVO = /No key (dimensions|seed)|newer version|was last played in|Unsupported (world|level)|Failed to (load|read) level/i;
+
+/** A queda do jogo em frase: a causa que se reconhece, ou o código; a pilha fica nos detalhes. */
+function fraseDaQuedaDoJogo(d) {
+  const linhas = Array.isArray(d.linhas) ? d.linhas.join('\n') : '';
+  if (d.versaoDoMundo || MUNDO_MAIS_NOVO.test(linhas)) {
+    const de = d.versaoDoMundo ? ` (a ${d.versaoDoMundo})` : '';
+    return `O jogo caiu ao abrir o mundo: ele parece ser de uma versão mais nova${de} que a ${d.versao ?? 'escolhida'}. Volte à versão do mundo, ou troque a versão e comece um mundo novo.`;
+  }
+  return `O jogo parou sozinho${d.codigo != null ? `, com o código ${d.codigo}` : ''}. As últimas linhas que ele escreveu estão nos detalhes.`;
 }
 
 // ---------------------------------------------------------------- as formas
@@ -218,16 +262,28 @@ const separador = () => ({ forma: 'separador', estilo: { cor: COR.linha } });
 const chip = (texto, chave, classe = 'chip') => ({ forma: 'distintivo', ...(chave ? { chave } : {}), dentro: String(texto).toUpperCase(), classe });
 const botao = (chave, dentro, extra = {}) => ({ forma: 'botao', chave, dentro, ...extra });
 
-/** O quadro de recusa, com o nome, a frase e os dados. */
+/**
+ * O quadro de recusa: **a frase**, e o nome cru e os dados atrás de DETALHES
+ * (e2e da API 8, 31/10: «O QUE DEU ERRADO» mostrava `pelo-dono` e
+ * `{"pessoa":"2"}`, e a queda do jogo, a pilha inteira).
+ */
 function quadroDeFalha(f, chave) {
-  const dados = !estado.enxuta && f.dados && Object.keys(f.dados).length ? cortar(JSON.stringify(f.dados), 240) : '';
+  const qual = chave ?? `${f.onde ?? ''}:${f.erro}`;
+  const aberto = estado.detalhes.has(qual);
+  const { linhas, ...resto } = f.dados ?? {};
+  const dados = Object.keys(resto).length ? cortar(JSON.stringify(resto), 240) : '';
+  const frase = fraseDaFalha(f) || `Algo falhou aqui, e este MOD não tem uma frase para isso ainda (${f.erro}).`;
   return {
     forma: 'caixa', ...(chave ? { chave } : {}), classe: 'quadro',
     dentro: [pilha([
-      cl(f.erro, 'erro'),
-      fraseDaFalha(f) ? tx(fraseDaFalha(f), { corpo: 14 }) : null,
-      dados ? mono(dados) : null,
-    ], 4)],
+      tx(frase, { corpo: 14 }),
+      estado.enxuta ? null : linhaH([botao('detalhes:' + qual, aberto ? 'ESCONDER OS DETALHES' : 'DETALHES', { variante: 'discreta' })]),
+      aberto && !estado.enxuta ? cl(`${f.erro}${f.onde ? ` · ${f.onde}${f.etapa ? '/' + f.etapa : ''}` : ''}`, 'erro') : null,
+      aberto && !estado.enxuta && dados ? mono(dados) : null,
+      aberto && !estado.enxuta && Array.isArray(linhas) && linhas.length
+        ? { forma: 'pilha', estilo: { intervalo: 2 }, dentro: linhas.slice(-12).map(l => mono(cortar(String(l), 200))) }
+        : null,
+    ], 6)],
   };
 }
 
@@ -244,6 +300,10 @@ const estado = {
   enxuta: false,
   // O que o produto ouviu do `suja` por último (null: não se sabe, e o próximo diz).
   suja: null,
+  // Os quadros de falha com os detalhes abertos.
+  detalhes: new Set(),
+  // A recusa «mundo-mais-novo» espera a escolha: de onde veio, e o envio.
+  retomar: null,
 };
 
 const pode = acao => Boolean(estado.dados?.podem?.includes(acao));
@@ -393,10 +453,10 @@ function tomarDoPack() {
 }
 
 /** O link do Modrinth vira o pack do servidor de jogo atual. */
-async function usarLink() {
+async function usarLink(mundo) {
   const s = servidorAtual();
   if (!s) return;
-  const r = await agir('configurar-servidor-de-jogo', { op: 'pack-link', id: s.id, link: estado.packLink });
+  const r = await agir('configurar-servidor-de-jogo', { op: 'pack-link', id: s.id, link: estado.packLink, ...(mundo ? { mundo } : {}) });
   if (await aposAcao(r, 'pack-link')) {
     estado.packLink = '';
     tomarDoPack();
@@ -435,16 +495,18 @@ async function aposAcao(r, onde) {
   const recusa = recusaDe(r, onde);
   if (recusa) avisar(recusa);
   else estado.aviso = null;
+  estado.retomar = recusa?.erro === 'mundo-mais-novo' ? { onde, token: r.token ?? null } : null;
   await carregar();
   return !recusa;
 }
 
-async function salvar() {
+async function salvar(mundo) {
   const s = servidorAtual();
   if (!s || !estado.rascunho) return;
   const r = await agir('configurar-servidor-de-jogo', {
     op: 'configurar', id: s.id, variante: estado.rascunho.variante, versao: estado.rascunho.versao, quem: estado.rascunho.quem, config: estado.rascunho.config,
     reserva: estado.rascunho.reserva ?? null, intervaloDaCopia: estado.rascunho.intervaloDaCopia ?? 5,
+    ...(mundo ? { mundo } : {}),
   });
   if (r?.ok === false && r.erro === 'config-invalida') {
     estado.erros = r.erros ?? {};
@@ -462,6 +524,30 @@ async function ligarOuDesligar(id, ligar) {
   const r = await agir('ligar-desligar-servidor-de-jogo', { op: ligar ? 'ligar' : 'desligar', id });
   estado.situacao = r?.ok && r.esperando === 'aceite' ? 'Liga assim que a pessoa da máquina aceitar: esperando o aceite.' : null;
   await aposAcao(r, ligar ? 'ligar' : 'desligar');
+  // DESLIGAR sem máquina para ouvir não é calado: o aviso diz o que acontece.
+  if (r?.ok && r.semMaquina) avisar({ erro: 'desligou-sem-maquina', onde: 'desligar', dados: { pessoa: r.semMaquina.quem } });
+}
+
+/**
+ * **A escolha do mundo mais novo** (`mundo-mais-novo`): começar um mundo novo
+ * repete o pedido com `mundo: 'novo'`; manter a versão volta o rascunho à do
+ * mundo (e um pack enviado sai do servidor SEELE).
+ */
+async function escolherOMundo(escolha) {
+  const r0 = estado.retomar;
+  estado.retomar = null;
+  estado.aviso = null;
+  const s = servidorAtual();
+  if (!r0 || !s) return;
+  if (r0.onde === 'salvar') {
+    if (escolha === 'novo') return salvar('novo');
+    if (estado.rascunho) estado.rascunho.versao = s.versao;
+  } else if (r0.onde === 'pack-link') {
+    if (escolha === 'novo') return usarLink('novo');
+  } else if (r0.onde === 'pack-chegou') {
+    const r = await agir('configurar-servidor-de-jogo', { op: 'pack-chegou', id: s.id, token: r0.token, mundo: escolha === 'novo' ? 'novo' : 'manter' });
+    if ((await aposAcao(r, 'pack-chegou')) && escolha === 'novo') tomarDoPack();
+  }
 }
 
 async function tratarBotao(chave) {
@@ -472,6 +558,12 @@ async function tratarBotao(chave) {
     estado.aviso = null;
   } else if (chave === 'fechar-aviso') {
     estado.aviso = null;
+    estado.retomar = null;
+  } else if (nome === 'detalhes') {
+    if (estado.detalhes.has(id)) estado.detalhes.delete(id);
+    else estado.detalhes.add(id);
+  } else if (nome === 'mundo') {
+    await escolherOMundo(id);
   } else if (nome === 'criar') {
     const r = await agir('criar-servidor-de-jogo', { op: 'criar', receita: id });
     if (await aposAcao(r, 'criar')) await abrirConfig(r.servidor.id);
@@ -792,7 +884,7 @@ function camposDaAba(receita, s, aba) {
 /** A cor do chip do estado: verde de pé, laranja no meio do caminho, vermelho caído. */
 const CHIP_DO_ESTADO = Object.freeze({ ligado: 'chipV', caiu: 'chipE', desligado: 'chip' });
 const chipDoEstado = s => CHIP_DO_ESTADO[s.estado] ?? 'chipL';
-const CHIP_DO_ACEITE = Object.freeze({ aceito: 'chipV', esperando: 'chipL', recusado: 'chipE', parado: 'chipE' });
+const CHIP_DO_ACEITE = Object.freeze({ aceito: 'chipV', esperando: 'chipL', recusado: 'chipE', parado: 'chipE', fora: 'chipL' });
 
 function rotuloDoEstado(s) {
   if (s.estado === 'baixando' && s.progresso) return `BAIXANDO ${s.progresso.feitos}/${s.progresso.total}`;
@@ -807,15 +899,27 @@ function rotuloDoAceite(s) {
   if (s.aceite === 'aceito') return 'ACEITO';
   if (s.aceite === 'recusado') return `RECUSADO: ${s.motivo ?? ''}`;
   if (s.aceite === 'parado') return `PARADO: ${s.motivo ?? ''}`;
+  if (s.aceite === 'fora') return `${quem ?? 'A MÁQUINA'} FORA DO SEELE`;
   return String(s.aceite);
 }
 
+/**
+ * **Onde o jogo roda agora**: a máquina da dona. Depois de uma passagem, é a
+ * reserva — o topo da aba dizia «RODA EM <principal>» como se rodasse lá (e2e
+ * da API 8, 31/10, passo 13) —, e a principal fica dita embaixo.
+ */
 function rodaEm(s) {
-  const quem = apelidoDe(s.quem);
-  return bloco('Roda em', [linhaH([
-    tx(quem ? `Máquina de ${quem}` : 'Nenhuma máquina escolhida'),
-    chip(rotuloDoAceite(s), 'chip-aceite', CHIP_DO_ACEITE[s.aceite] ?? 'chip'),
-  ])], { chave: 'roda-em' });
+  const naReserva = s.dona === 'reserva' && Boolean(s.reserva);
+  const quem = apelidoDe(naReserva ? s.reserva.quem : s.quem);
+  const aceite = naReserva ? s.reserva.aceite : s.aceite;
+  return bloco('Roda em', [
+    linhaH([
+      tx(quem ? `Máquina de ${quem}` : 'Nenhuma máquina escolhida'),
+      chip(naReserva ? rotuloDaReserva(s.reserva) : rotuloDoAceite(s), 'chip-aceite', CHIP_DO_ACEITE[aceite] ?? 'chip'),
+      naReserva ? chip('Na reserva', 'chip-roda-na-reserva', 'chipA') : null,
+    ]),
+    naReserva ? apagado(`A principal, a máquina de ${apelidoDe(s.quem)}, espera como reserva até PASSAR À PRINCIPAL.`) : null,
+  ], { chave: 'roda-em' });
 }
 
 // ---- a reserva (parte 7) ----
@@ -906,6 +1010,12 @@ function situacao(s) {
   // e seguia dizendo «esperando» com o servidor LIGADO e depois da revogação.
   if (s.aceite === 'esperando' && (estado.situacao || s.ligar)) linhas.push('Liga assim que a pessoa da máquina aceitar: esperando o aceite.');
   if (s.precisaReiniciar) linhas.push('A configuração nova vale quando o servidor reiniciar.');
+  if (s.chamando) {
+    const fora = [['principal', s.quem, s.aceite], ['reserva', s.reserva?.quem, s.reserva?.aceite]]
+      .filter(([, quem, aceite]) => quem && aceite === 'fora').map(([, quem]) => apelidoDe(quem));
+    linhas.push(`O servidor SEELE subiu de novo às ${hora(s.chamando.quando)} e chamou as máquinas de volta. Um jogo que seguiu rodando numa delas volta sem desligar quando ela responder; o que ninguém chamar de volta em 10 minutos para sozinho, salvo.`);
+    if (fora.length) linhas.push(`Fora do SEELE agora: ${fora.join(' e ')}. A máquina é chamada de novo assim que entrar.`);
+  }
   if (s.falhas.length) linhas.push(`${s.falhas.length} falha(s) registrada(s): veja a aba MÁQUINA.`);
   return pilha([
     linhaH([lb('Estado'), chip(rotuloDoEstado(s), null, chipDoEstado(s))]),
@@ -1076,7 +1186,8 @@ function abaMaquina(receita, s) {
     s.linhas?.length && !estado.enxuta ? bloco('Últimas linhas', [{ forma: 'pilha', chave: 'linhas', estilo: { intervalo: 2 }, dentro: s.linhas.map(l => mono(l)) }]) : null,
     s.falhas?.length
       ? bloco('O que deu errado', s.falhas.slice().reverse().map((f, i) => pilha([
-        mono(`${hora(f.quando)} · ${f.onde}${f.etapa ? '/' + f.etapa : ''}`),
+        // A hora; onde e a etapa ficam nos detalhes, com o nome cru.
+        mono(hora(f.quando)),
         quadroDeFalha(f, 'falha:' + i),
       ], 4)), { chave: 'falhas' })
       : null,
@@ -1113,9 +1224,15 @@ function vistaConfig() {
 }
 
 function avisoDaPagina() {
+  const mundo = estado.aviso?.erro === 'mundo-mais-novo' && estado.retomar;
   return pilha([
     quadroDeFalha(estado.aviso),
-    linhaH([botao('fechar-aviso', 'ENTENDI', { variante: 'discreta' })]),
+    mundo
+      ? linhaH([
+        botao('mundo:novo', 'COMEÇAR UM MUNDO NOVO', { variante: 'secundaria' }),
+        botao('mundo:manter', `MANTER A ${estado.aviso.dados?.mundo ?? 'VERSÃO DO MUNDO'}`, { variante: 'discreta' }),
+      ])
+      : linhaH([botao('fechar-aviso', 'ENTENDI', { variante: 'discreta' })]),
   ], 6, { chave: 'aviso' });
 }
 

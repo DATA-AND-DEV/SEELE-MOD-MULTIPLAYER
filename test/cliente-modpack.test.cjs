@@ -37,8 +37,11 @@ test('o .mrpack escolhido vai ao volume e vira o pack do servidor, e o arquivo �
 test('o pack acima do teto é dito com o tamanho e o teto, e a frase sugere o link do Modrinth', async () => {
   const { j } = await naAbaMods();
   await j.escolher('pack:arquivo', null, { erro: 'arquivo-grande-demais', tamanho: 70 * 1024 * 1024, teto: 64 * 1024 * 1024 });
-  assert.match(j.texto('aviso'), /arquivo-grande-demais/);
   assert.match(j.texto('aviso'), /use o link do Modrinth/);
+  // O nome cru e os números ficam atrás de DETALHES.
+  assert.doesNotMatch(j.texto('aviso'), /arquivo-grande-demais/);
+  await j.apertar('detalhes:pack-escolher:arquivo-grande-demais');
+  assert.match(j.texto('aviso'), /arquivo-grande-demais/);
   assert.match(j.texto('aviso'), /"tamanho":73400320/);
   assert.match(j.texto('aviso'), /"teto":67108864/);
 });

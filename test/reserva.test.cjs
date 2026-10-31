@@ -113,6 +113,7 @@ async function comReserva(opcoes = {}) {
   const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
   const r = a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', reserva: '3' });
   assert.equal(r.ok, true, JSON.stringify(r));
+  opcoes.antes?.(a, id);
   const principal = maquinaFalsa(a, 2, id, opcoes.principal);
   const reserva = maquinaFalsa(a, 3, id, opcoes.reserva);
   const maquinas = [principal, reserva];
@@ -381,4 +382,18 @@ test('religada, a dona serve de novo o túnel que tinha falhado, e não só o qu
   const s = doServidor(a, id);
   assert.ok(!s.falhas.some(f => f.etapa === 'tunel' && f.dados?.religada), JSON.stringify(s.falhas));
   assert.equal(s.religada?.fora, 30);
+});
+
+test('um mundo novo é outra pasta: a cópia agendada empacota a pasta dele, e não a de antes', async () => {
+  const { principal } = await comReserva({
+    antes: (a, id) => {
+      // A versão mais velha que a do mundo (a oferta de 1.21.4), com um mundo novo.
+      const r = a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.20.1', mundo: 'novo' });
+      assert.equal(r.ok, true, JSON.stringify(r));
+    },
+  });
+  const agendada = principal.relogio.find(r => r.ms === 5 * 60000);
+  agendada.resolve();
+  await assentarTudo();
+  assert.deepEqual(principal.empacotados, [['world-2', 'copias/mundo.tar.gz']], 'a cópia levou o mundo de antes');
 });

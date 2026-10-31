@@ -610,7 +610,7 @@ function tunelDaCopia(servidor) {
  * não entra — ela vira texto no `server.properties`, e mudar o nome do
  * servidor não pode pedir aceite novo.
  */
-function montarOferta(receita, { servidor, versao, porta }, resolvido) {
+function montarOferta(receita, { servidor, versao, porta, comCopia = false }, resolvido) {
   // **Cada Java leva os sistemas em que serve** (`plataformas`, API 8 parte 4):
   // a metade de servidor não sabe o sistema da máquina antes do aceite e manda
   // o de cada um; com a marca, a tela da máquina soma só o dela e o produto
@@ -636,11 +636,12 @@ function montarOferta(receita, { servidor, versao, porta }, resolvido) {
     versao_da_receita: receita.versao,
     versao_do_jogo: versao,
     // O jogo, e a cópia do mundo para a reserva (parte 7): a cópia anda pelo
-    // túnel, e só a dona o serve. Sempre na oferta, para escolher uma reserva
-    // depois não pedir à principal um aceite novo.
+    // túnel, e só a dona o serve. **Só com reserva** (e2e da API 8, 31/10): o
+    // aceite mostrava um túnel `-copia` que nada usa. Pôr ou tirar a reserva
+    // muda a oferta da principal, que aceita de novo (com o jogo desligado).
     tuneis: [
       { nome: servidor, protocolo: receita.rede.protocolo, porta },
-      { nome: tunelDaCopia(servidor), protocolo: 'tcp', porta: portaDaCopia(porta) },
+      ...(comCopia ? [{ nome: tunelDaCopia(servidor), protocolo: 'tcp', porta: portaDaCopia(porta) }] : []),
     ],
     artefatos,
     pack: null,
@@ -773,7 +774,7 @@ function escaparPropriedade(texto) {
 }
 
 /** O arquivo de configuração do jogo, a partir da configuração e da porta. */
-function escreverPropriedades(receita, config, porta) {
+function escreverPropriedades(receita, config, porta, nivel = null) {
   const valores = { ...configPadrao(receita), ...config, porta };
   // Uma lista de palavras entra no modelo já com o § de cada cor.
   for (const campo of receita.configuracao.campos) {
@@ -787,6 +788,8 @@ function escreverPropriedades(receita, config, porta) {
     const valor = modelo.replace(/\{([A-Za-z0-9]+)\}/g, (_, nome) => String(valores[nome]));
     linhas.push(`${chave}=${escaparPropriedade(valor)}`);
   }
+  // Um mundo novo é outra pasta (o mundo de antes fica na máquina).
+  if (nivel) linhas.push(`level-name=${escaparPropriedade(nivel)}`);
   return linhas.join('\n') + '\n';
 }
 
@@ -1792,7 +1795,8 @@ function criarMaquina(ad) {
         // **A cópia, com o mundo parado de escrever** (parte 7): entre o
         // save-all flush e o save-on.
         try {
-          pacote = await ad.empacotar(passo.copiar, PACOTE_DA_COPIA);
+          // A pasta do mundo de agora (um mundo novo é outra pasta).
+          pacote = await ad.empacotar(i.plano?.copia?.pasta ?? passo.copiar, PACOTE_DA_COPIA);
         } catch (erro) {
           falhou = { erro: fraseDoErro(erro), dados: { passo, ...dadosDoErro(erro) } };
           break;
@@ -1834,8 +1838,10 @@ function criarMaquina(ad) {
     const plano = await lerPlano(i);
     if (!plano || !plano.dona) return;
     const c = plano.copia;
+    // Sem outra máquina aceita não há para quem copiar — e, sem reserva, a
+    // oferta nem tem o túnel da cópia: a agendada não é falha.
+    if (!final && !c?.comOutra) return;
     if (!c?.tunel) return falha(i, 'copia', 'sem-tunel-de-copia', {});
-    if (!final && !c.comOutra) return;
     let pacote;
     if (final || !i.proc) {
       // **A passagem avisada para o jogo antes**: o stop salva o mundo

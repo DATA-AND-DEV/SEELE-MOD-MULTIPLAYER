@@ -84,7 +84,8 @@ test('escolher a versão e a máquina chama a pessoa com a oferta, e espera o ac
   assert.equal(p.quem, '2');
   assert.equal(p.servidor, id);
   assert.equal(p.oferta.versao_do_jogo, '1.21.4');
-  assert.deepEqual(p.oferta.tuneis, [{ nome: id, protocolo: 'tcp', porta: 25565 }, { nome: id + '-copia', protocolo: 'tcp', porta: 35565 }]);
+  // Sem reserva, o aceite não mostra o túnel da cópia.
+  assert.deepEqual(p.oferta.tuneis, [{ nome: id, protocolo: 'tcp', porta: 25565 }]);
   assert.equal(p.papel, 'principal');
   const s = servidor(a, id);
   assert.equal(s.aceite, 'esperando');
@@ -126,7 +127,7 @@ test('a configuração é conferida pelo esquema da receita, com a frase por cam
   const { a, id } = comUmMinecraft();
   const r = a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { maximo: 0, nome: [{ texto: 'Casa', cor: 'aqua' }] } });
   assert.deepEqual(r, { ok: false, erro: 'config-invalida', erros: { maximo: 'Use um número de 1 a 100.' } });
-  assert.equal(servidor(a, id).config.nome[0].texto, 'Servidor do SEELE', 'meia gravação: o nome entrou com o erro');
+  assert.equal(servidor(a, id).config.nome[0].texto, 'Minecraft 1', 'meia gravação: o nome entrou com o erro');
   assert.equal(a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { maximo: 4, nome: [{ texto: 'Casa', cor: 'aqua' }] } }).ok, true);
   assert.equal(servidor(a, id).config.maximo, 4);
 });

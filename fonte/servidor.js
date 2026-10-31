@@ -113,6 +113,11 @@ function publico(s) {
     voltouRodando: s.voltouRodando ?? 0,
     // Sem quem hospeda: a dona seguiu rodando e foi religada sem desligar.
     religada: s.religada ?? null,
+    // O servidor SEELE subiu de novo e esta metade chamou as máquinas de volta.
+    chamando: s.chamando ?? null,
+    // A versão que rodou este mundo por último, e a pasta dele.
+    versaoDoMundo: versaoDoMundo(s),
+    mundo: s.mundo ?? null,
   };
 }
 
@@ -212,7 +217,9 @@ function pedirAMaquina(servidores, s, papel = 'principal') {
   const quem = quemOpera(s, papel);
   if (!quem) return { ok: true };
   const porta = portaPara(servidores, s, quem);
-  const args = { servidor: s.id, versao: s.versao, porta };
+  // O túnel da cópia só com reserva (e2e da API 8, 31/10): sem ela, o aceite
+  // mostrava um túnel que nada usa.
+  const args = { servidor: s.id, versao: s.versao, porta, comCopia: Boolean(s.reserva) };
   const oferta = comMods ? montarOfertaComMods(receita, args, s.resolvido, s.pack) : montarOferta(receita, args, s.resolvido);
   try {
     mundo.maquinas.pedir({ quem, servidor: s.id, papel, oferta });
@@ -236,6 +243,127 @@ function pedirAsDuas(servidores, s) {
   const r = pedirAMaquina(servidores, s, 'principal');
   if (!r.ok) return r;
   return s.reserva ? pedirAMaquina(servidores, s, 'reserva') : r;
+}
+
+// ---------------------------------------------------------------- o servidor SEELE que sobe
+
+/**
+ * **Chama de volta a máquina de um papel** com a oferta que ela aceitou —
+ * igual, para o app religar a metade de máquina que seguiu rodando sem quem
+ * hospeda (S2 do SEELE) em vez de subir outra —, e diz a dona de novo (a
+ * posse mora na memória do servidor, que nasceu na principal).
+ */
+function chamarDeVolta(servidores, s, papel) {
+  const quem = quemOpera(s, papel);
+  const { oferta } = daOfertaDe(s, papel);
+  if (!oferta) return pedirAMaquina(servidores, s, papel);
+  try {
+    declararADona(s);
+    mundo.maquinas.pedir({ quem, servidor: s.id, papel, oferta });
+  } catch (erro) {
+    return { ok: false, erro: 'oferta-recusada', porque: fraseDoErro(erro) };
+  }
+  marcarAceite(s, papel, 'esperando');
+  return { ok: true };
+}
+
+/**
+ * **A metade de servidor subiu** (`MetadeSubiu`, API 8): o servidor SEELE
+ * reiniciou, ou o código desta metade mudou. O quintal guardou quem rodava,
+ * e `maquinas` é o que o livro do servidor tem agora — vazio num servidor que
+ * reiniciou. Cada papel que o quintal diz aceito (ou esperando) e que o livro
+ * não tem é chamado de volta; até ele responder, o cartão diz «esperando a
+ * máquina», e nunca «ligado». Sem isto, o cartão ficava LIGADO sem jogo em
+ * lugar nenhum, DESLIGAR ia só ao seele.log, PASSAR ficava «passando» para
+ * sempre e trocar a máquina era recusado (e2e da API 8, passo 16).
+ */
+function metadeSubiu(carga) {
+  const servidores = lerServidores();
+  const lugares = Array.isArray(carga.maquinas) ? carga.maquinas : [];
+  const noLivro = (s, papel, quem, aceito) => lugares.some(m => m.servidor === s.id && m.papel === papel && String(m.pessoa) === quem && (!aceito || m.aceita === true));
+  let mudou = false;
+  for (const s of Object.values(servidores)) {
+    let chamou = false;
+    for (const papel of PAPEIS) {
+      const quem = quemOpera(s, papel);
+      const aceite = aceiteDe(s, papel);
+      if (!quem || !['aceito', 'esperando', 'fora'].includes(aceite)) continue;
+      if (noLivro(s, papel, quem, aceite === 'aceito')) continue;
+      const r = chamarDeVolta(servidores, s, papel);
+      if (!r.ok) {
+        marcarAceite(s, papel, 'parado', r.erro);
+        anotarFalha(s, 'aceite', r.erro, { papel, momento: 'chamada', dados: { pessoa: quem } });
+      }
+      if (papel === 'reserva' && s.reserva) s.reserva.estado = null;
+      chamou = true;
+    }
+    if (!chamou) continue;
+    mudou = true;
+    s.chamando = { quando: mundo.agora(), motivo: String(carga.motivo ?? '') };
+    // Uma passagem em curso não sobrevive: as duas máquinas estão sendo chamadas.
+    if (s.passando) {
+      anotarFalha(s, 'reserva', 'passagem-interrompida', { papel: s.passando.para, dados: {} });
+      s.passando = null;
+    }
+    // O que a dona contou antes não vale mais: quem diz agora é ela, ao voltar.
+    if (s.estado !== 'desligado') s.estado = s.ligar ? 'esperando-maquina' : 'desligado';
+    s.jogadores = [];
+    mundo.registrar(`${s.id}: a metade de servidor subiu (${carga.motivo ?? '?'}); chamando as máquinas de volta`);
+  }
+  if (mudou) gravarServidores(servidores);
+}
+
+// ---------------------------------------------------------------- a versão do mundo
+
+/**
+ * A versão que rodou o mundo por último: a que a dona contou ligada. Num
+ * servidor de antes disto, a da última oferta que uma máquina aceitou.
+ */
+function versaoDoMundo(s) {
+  return s.versaoDoMundo ?? (s.oferta?.versao_do_jogo ?? null);
+}
+
+/** Os números de uma versão (`1.21.4`, `26.3`, `1.21.5-pre1`), ou null se não é uma versão numerada. */
+function numerosDaVersao(v) {
+  const m = /^([0-9]+(?:\.[0-9]+)*)/.exec(String(v ?? ''));
+  return m ? m[1].split('.').map(Number) : null;
+}
+
+/** `a` é mais velha que `b`? null quando não dá para comparar (um snapshot). */
+function maisVelha(a, b) {
+  const x = numerosDaVersao(a);
+  const y = numerosDaVersao(b);
+  if (!x || !y) return null;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) {
+    const d = (x[i] ?? 0) - (y[i] ?? 0);
+    if (d) return d < 0;
+  }
+  return false;
+}
+
+/**
+ * **Um mundo não volta para uma versão mais velha** (e2e da API 8, passo 18:
+ * o Fabric 1.21.4 caiu ao abrir o mundo do 26.3). Trocar para uma versão mais
+ * velha que a que rodou o mundo pede uma escolha: `mundo: 'novo'` começa outro
+ * mundo (o de antes fica na máquina, na pasta dele); sem ela, a recusa diz as
+ * duas versões, e a tela oferece começar um mundo novo ou manter a versão.
+ */
+function conferirAVersaoDoMundo(s, versao, escolha) {
+  const doMundo = versaoDoMundo(s);
+  if (!versao || !doMundo || versao === doMundo || maisVelha(versao, doMundo) !== true) return { ok: true };
+  if (escolha === 'novo') return { ok: true, novo: true };
+  return { ok: false, erro: 'mundo-mais-novo', mundo: doMundo, pedida: versao };
+}
+
+/** Começa um mundo novo: outra pasta (o `level-name`), e o de antes fica na máquina. */
+function comecarMundoNovo(s, receita) {
+  const n = (s.mundos ?? 1) + 1;
+  s.mundos = n;
+  s.mundo = `${receita.mundo.pasta}-${n}`;
+  s.versaoDoMundo = null;
+  s.copia = null;
+  s.copiaRecebida = null;
+  mundo.registrar(`${s.id}: mundo novo em ${s.mundo}`);
 }
 
 // ---------------------------------------------------------------- as operações
@@ -279,8 +407,14 @@ function opCriar(pedido, contexto) {
   do { id = `${receita.id}-${++n}`; } while (servidores[id]);
   contador[receita.id] = n;
   dados.contadores = JSON.stringify(contador);
+  // **O nome padrão se distingue** (e2e da API 8, 31/10: três cartões
+  // «Servidor do SEELE»): o nome do jogo e o número do servidor de jogo.
+  const config = configPadrao(receita);
+  const campoDoNome = receita.configuracao.campos.find(c => c.chave === 'nome');
+  if (campoDoNome?.forma === 'segmentos') config.nome = [{ texto: `${receita.nome} ${n}`, cor: campoDoNome.padrao[0]?.cor ?? null }];
+  else if (campoDoNome?.forma === 'texto') config.nome = `${receita.nome} ${n}`;
   const s = {
-    id, receita: receita.id, variante: 'vanilla', versao: null, config: configPadrao(receita),
+    id, receita: receita.id, variante: 'vanilla', versao: null, config,
     quem: null, porta: null, aceite: 'sem-maquina', motivo: null, ligar: false, estado: 'desligado',
     jogadores: [], falhas: [], linhas: [], criadoPor: contexto.person,
   };
@@ -328,14 +462,18 @@ function opConfigurar(s, servidores, pedido) {
     }
     intervalo = n;
   }
-  const mudaOQueRoda = versao !== s.versao || quem !== s.quem || variante !== (s.variante ?? 'vanilla');
-  if (mudaOQueRoda && RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
   const mudaAReserva = reserva !== (s.reserva?.quem ?? null);
+  // Pôr ou tirar a reserva muda a oferta da principal (o túnel da cópia).
+  const mudaOQueRoda = versao !== s.versao || quem !== s.quem || variante !== (s.variante ?? 'vanilla') || (mudaAReserva && (reserva === null) !== (s.reserva == null));
+  if (mudaOQueRoda && RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
+  const versaoDoMundoOk = versao !== s.versao ? conferirAVersaoDoMundo(s, versao, pedido.mundo) : { ok: true };
+  if (!versaoDoMundoOk.ok) return versaoDoMundoOk;
   // A dona não sai de baixo de si mesma: trocar a reserva que é a dona pede passar antes.
   if (mudaAReserva && donaDe(s) === 'reserva') return { ok: false, erro: 'passe-antes', dona: 'reserva' };
   if (mudaOQueRoda && donaDe(s) === 'reserva' && quem !== s.quem) return { ok: false, erro: 'passe-antes', dona: 'reserva' };
 
   const configMudou = JSON.stringify(config) !== JSON.stringify(s.config);
+  if (versaoDoMundoOk.novo) comecarMundoNovo(s, receita);
   s.config = config;
   s.versao = versao;
   s.quem = quem;
@@ -396,9 +534,21 @@ function opLigar(s, servidores) {
 
 function opDesligar(s, servidores) {
   s.ligar = false;
-  if (aceiteDe(s, donaDe(s)) === 'aceito') avisarADona(s, { op: 'desligar' });
+  const dona = donaDe(s);
+  let semMaquina = null;
+  if (aceiteDe(s, dona) === 'aceito') {
+    avisarADona(s, { op: 'desligar' });
+  } else if (!['desligado', 'caiu'].includes(s.estado) || s.chamando) {
+    // **Ninguém no servidor SEELE para ouvir o «desligar»** (a máquina não
+    // respondeu ainda): a ordem fica no plano. A máquina que voltar pergunta
+    // o plano e desliga; a que não voltar para sozinha em até 10 min sem
+    // quem hospeda. A resposta diz isso, em vez de nada.
+    semMaquina = { papel: dona, quem: quemOpera(s, dona) };
+    s.estado = 'desligado';
+    s.jogadores = [];
+  }
   gravarServidores(servidores);
-  return { ok: true, servidor: publico(s) };
+  return { ok: true, ...(semMaquina ? { semMaquina } : {}), servidor: publico(s) };
 }
 
 /**
@@ -411,6 +561,7 @@ function opPassar(s, servidores) {
   const de = donaDe(s);
   const para = outroPapel(de);
   if (!s.reserva) return { ok: false, erro: 'sem-reserva' };
+  if (aceiteDe(s, de) !== 'aceito' && s.chamando) return { ok: false, erro: 'esperando-as-maquinas', papel: de, aceite: aceiteDe(s, de) };
   if (aceiteDe(s, para) !== 'aceito') return { ok: false, erro: 'outra-sem-aceite', papel: para, aceite: aceiteDe(s, para) };
   if (s.passando) return { ok: false, erro: 'ja-passando', para: s.passando.para };
   s.passando = { para, desde: mundo.agora() };
@@ -445,11 +596,13 @@ function opConsole(s, pedido) {
  * pede, e a variante e a versão que ele define. Se já há máquina, pede o
  * aceite de novo: o pack, o loader e os comandos mudaram o que roda.
  */
-function usarPack(s, servidores, pack, texto) {
+function usarPack(s, servidores, pack, texto, escolha) {
   const receita = receitaPorId(s.receita);
   const lido = lerIndice(texto, receita);
   if (!lido.ok) return lido;
   const indice = lido.indice;
+  const doMundo = indice.mc !== s.versao ? conferirAVersaoDoMundo(s, indice.mc, escolha) : { ok: true };
+  if (!doMundo.ok) return doMundo;
   let instalador = null;
   if (indice.loader) {
     const r = instaladorDoLoader(receita, indice.loader, indice.mc, url => mundo.buscar(url));
@@ -459,6 +612,7 @@ function usarPack(s, servidores, pack, texto) {
   const antes = s.pack;
   s.pack = { ...pack, mc: indice.mc, loader: indice.loader, instalador, resumo: resumoDoIndice(indice) };
   if (antes?.caminho && antes.caminho !== s.pack.caminho) volume.apagar(antes.caminho);
+  if (doMundo.novo) comecarMundoNovo(s, receita);
   s.variante = 'com-mods';
   s.versao = indice.mc;
   s.resolvido = s.resolvido?.versao === indice.mc ? s.resolvido : null;
@@ -491,7 +645,7 @@ function opPackLink(s, servidores, pedido) {
   return usarPack(s, servidores, {
     origem: 'link', link: `${receita.modpack.pagina}${link.slug}`, pagina: `${receita.modpack.pagina}${link.slug}/version/${escolhida.versao.id}`,
     url: arquivo.url, sha512: r.sha512, bytes: r.bytes, versaoDoModrinth: escolhida.versao.id,
-  }, r.indice);
+  }, r.indice, pedido.mundo);
 }
 
 /** O envio do .mrpack: a espera no volume (o produto confere os bytes e o teto de 64 MiB). */
@@ -513,12 +667,23 @@ function opPackChegou(s, servidores, pedido) {
   const envio = lerJson(dados['envio:' + String(pedido.token ?? '')]);
   if (!envio || envio.id !== s.id) return { ok: false, erro: 'envio-desconhecido', token: pedido.token ?? null };
   delete dados['envio:' + pedido.token];
+  // Manter a versão: o pack que chegou não é usado, e sai do volume.
+  if (pedido.mundo === 'manter') {
+    volume.apagar(envio.caminho);
+    return { ok: true, descartado: true, servidor: publico(s) };
+  }
   const r = volume.pack(envio.caminho);
   if (!r || r.ok !== true) {
     volume.apagar(envio.caminho);
     return { ok: false, ...(r ?? {}), erro: r?.erro ?? 'pack-nao-chegou' };
   }
-  const usado = usarPack(s, servidores, { origem: 'enviado', caminho: envio.caminho, sha512: r.sha512, bytes: r.bytes }, r.indice);
+  const usado = usarPack(s, servidores, { origem: 'enviado', caminho: envio.caminho, sha512: r.sha512, bytes: r.bytes }, r.indice, pedido.mundo);
+  if (!usado.ok && usado.erro === 'mundo-mais-novo') {
+    // **O pack fica esperando a escolha** (um mundo novo, ou manter a
+    // versão): enviar de novo 64 MiB por uma pergunta seria o custo errado.
+    dados['envio:' + pedido.token] = JSON.stringify(envio);
+    return { ...usado, token: pedido.token };
+  }
   if (!usado.ok) volume.apagar(envio.caminho);
   return usado;
 }
@@ -558,7 +723,7 @@ function planoDe(s, papel = 'principal') {
     porPlataforma: s.resolvido.porPlataforma,
     semJava: s.resolvido.semJava,
     arquivoDeConfig: receita.configuracao.arquivo,
-    propriedades: escreverPropriedades(receita, s.config, porta),
+    propriedades: escreverPropriedades(receita, s.config, porta, s.mundo ?? null),
     termos: receita.termos.filter(t => t.arquivo).map(t => ({ id: t.id, arquivo: t.arquivo, conteudo: t.conteudo })),
     rodar: oferta.rodar,
     // Os comandos de alguns sistemas (decisão W1): a máquina escolhe o par
@@ -574,7 +739,7 @@ function planoDe(s, papel = 'principal') {
       intervalo: s.intervaloDaCopia ?? INTERVALO_DA_COPIA,
       // A dona só copia quando há outra máquina aceita para receber.
       comOutra: aceiteDe(s, outroPapel(papel)) === 'aceito',
-      pasta: receita.mundo.pasta,
+      pasta: s.mundo ?? receita.mundo.pasta,
       // A última cópia que esta máquina recebeu e disse que chegou.
       recebida: s.copiaRecebida?.por === papel ? s.copiaRecebida.sha256 : null,
     },
@@ -632,7 +797,15 @@ function daMaquina(contexto, pedido) {
     if (pedido.progresso !== undefined) s.progresso = pedido.progresso;
     if (Array.isArray(pedido.linhas)) s.linhas = pedido.linhas.map(l => cortar(l, 160)).slice(-TETO_DE_LINHAS);
     if (s.estado === 'ligando' || s.estado === 'desligado') s.precisaReiniciar = false;
-    if (s.estado === 'caiu' && antes !== 'caiu') anotarFalha(s, 'jogo', 'o-jogo-caiu', { dados: pedido.saida ?? {} });
+    if (s.estado === 'caiu' && antes !== 'caiu') {
+      // A queda de um jogo mais velho que o mundo diz isso, além da pilha.
+      const doMundo = versaoDoMundo(s);
+      const velha = doMundo && s.versao && maisVelha(s.versao, doMundo) === true;
+      anotarFalha(s, 'jogo', 'o-jogo-caiu', { dados: { ...(pedido.saida ?? {}), versao: s.versao ?? null, ...(velha ? { versaoDoMundo: doMundo } : {}) } });
+    }
+    // **A versão que rodou o mundo** é a que chegou ao «Done».
+    if (s.estado === 'ligado') s.versaoDoMundo = s.versao;
+    if (s.chamando && s.estado !== 'esperando-maquina') s.chamando = null;
     // **A dona seguiu rodando sem quem hospeda** e foi religada sem desligar:
     // a tela diz quanto tempo, e quando.
     if (pedido.religada) s.religada = { quando: mundo.agora(), fora: Math.max(0, Number(pedido.religada.fora) || 0), papel };
@@ -724,6 +897,10 @@ const QUEDAS = Object.freeze(['saiu', 'metade-falhou']);
 const MOMENTOS = Object.freeze(['MaquinaAceitou', 'MaquinaRecusou', 'MaquinaParou', 'MaquinaSumiu', 'MaquinaVoltou']);
 
 globalThis.aoAcontecer = (momento, textoDaCarga) => {
+  if (momento === 'MetadeSubiu') {
+    metadeSubiu(lerJson(textoDaCarga) ?? {});
+    return;
+  }
   if (!MOMENTOS.includes(momento)) return;
   const carga = lerJson(textoDaCarga) ?? {};
   const servidores = lerServidores();
@@ -747,9 +924,15 @@ globalThis.aoAcontecer = (momento, textoDaCarga) => {
     else mundo.maquinas.avisar({ servidor: s.id, papel, carga: { op: 'preparar' } });
     // A dona não precisa de aviso: a cópia agendada relê o plano a cada vez
     // (e um aviso aqui tomaria o lugar de um «ligar» ainda na fila da taxa).
+  } else if (momento === 'MaquinaRecusou' && carga.motivo === 'nao-esta-aqui' && s.chamando) {
+    // **Chamada de volta, e a pessoa ainda não está no servidor SEELE**: o
+    // SEELE lembra o pedido, e ela ouve de novo ao chegar (MaquinaVoltou). O
+    // «ligar» fica; o cartão diz que a máquina está fora.
+    marcarAceite(s, papel, 'fora', 'nao-esta-aqui');
   } else if (momento === 'MaquinaRecusou') {
     marcarAceite(s, papel, 'recusado', String(carga.motivo ?? ''));
     if (dona) s.ligar = false;
+    if (dona && s.estado === 'esperando-maquina') s.estado = 'desligado';
     // O momento vai junto: «pelo-dono» é o mesmo nome para recusar o pedido e
     // para DESLIGAR depois de aceitar, e a tela diz qual dos dois foi.
     anotarFalha(s, 'aceite', String(carga.motivo ?? ''), { papel, momento: 'recusou', dados: { pessoa } });
@@ -775,7 +958,8 @@ globalThis.aoAcontecer = (momento, textoDaCarga) => {
   } else if (momento === 'MaquinaVoltou') {
     // **A que volta não liga sozinha**: é chamada de novo, e o plano diz a ela
     // quem é a dona. Se não é ela, ela desliga o que tiver de pé.
-    const r = pedirAMaquina(servidores, s, papel);
+    // A oferta guardada, igual à aceita: a metade que seguiu rodando é religada.
+    const r = chamarDeVolta(servidores, s, papel);
     if (!r.ok) anotarFalha(s, 'reserva', r.erro, { papel, dados: r });
   }
   gravarServidores(servidores);

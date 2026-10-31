@@ -213,7 +213,7 @@ function criarAnfitriao(opcoes = {}) {
       }
       // Um pedido a outra pessoa dispensa a máquina de antes daquele papel.
       const antes = livro.get(lugar(p.servidor, p.papel));
-      livro.set(lugar(p.servidor, p.papel), { quem: p.quem, oferta: p.oferta, aceito: false, papel: p.papel });
+      livro.set(lugar(p.servidor, p.papel), { quem: p.quem, oferta: p.oferta, aceito: false, papel: p.papel, servidor: p.servidor });
       if (antes && antes.quem !== p.quem && antes.aceito) {
         momentoInterno('MaquinaParou', { servidor: p.servidor, papel: p.papel, pessoa: antes.quem, motivo: 'outro-pedido' });
       }
@@ -322,6 +322,27 @@ function criarAnfitriao(opcoes = {}) {
       momentoInterno('MaquinaSumiu', { servidor, papel, pessoa: String(pessoa), motivo, segundos });
       escoar();
     },
+    /**
+     * **O servidor SEELE reinicia** (API 8, `MetadeSubiu`): o livro e a posse
+     * nascem vazios na memória do produto, o quintal fica, e a metade de
+     * servidor ouve `MetadeSubiu` com o que o livro tem (nada). `fora` são as
+     * pessoas que ainda não reconectaram.
+     */
+    reiniciar({ fora = [], motivo = 'servidor-subiu' } = {}) {
+      livro.clear();
+      donas.clear();
+      for (const p of fora) conectados.delete(String(p));
+      momentoInterno('MetadeSubiu', { motivo, maquinas: [] });
+      escoar();
+    },
+    /** O código da metade mudou com o servidor de pé: o livro fica, e é dito. */
+    recarregar() {
+      const maquinas = [...livro.values()].map(m => ({ servidor: m.servidor ?? null, papel: m.papel, pessoa: Number(m.quem), aceita: m.aceito }));
+      momentoInterno('MetadeSubiu', { motivo: 'codigo-novo', maquinas });
+      escoar();
+    },
+    /** Uma pessoa que estava fora reconecta. */
+    conectar(pessoa) { conectados.add(String(pessoa)); },
     /** Quem operava caiu e voltou (MaquinaVoltou). */
     voltar(servidor, papel = 'principal', pessoa) {
       momentoInterno('MaquinaVoltou', { servidor, papel, pessoa: String(pessoa) });

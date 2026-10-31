@@ -502,7 +502,8 @@ function criarMaquina(ad) {
         // **A cópia, com o mundo parado de escrever** (parte 7): entre o
         // save-all flush e o save-on.
         try {
-          pacote = await ad.empacotar(passo.copiar, PACOTE_DA_COPIA);
+          // A pasta do mundo de agora (um mundo novo é outra pasta).
+          pacote = await ad.empacotar(i.plano?.copia?.pasta ?? passo.copiar, PACOTE_DA_COPIA);
         } catch (erro) {
           falhou = { erro: fraseDoErro(erro), dados: { passo, ...dadosDoErro(erro) } };
           break;
@@ -544,8 +545,10 @@ function criarMaquina(ad) {
     const plano = await lerPlano(i);
     if (!plano || !plano.dona) return;
     const c = plano.copia;
+    // Sem outra máquina aceita não há para quem copiar — e, sem reserva, a
+    // oferta nem tem o túnel da cópia: a agendada não é falha.
+    if (!final && !c?.comOutra) return;
     if (!c?.tunel) return falha(i, 'copia', 'sem-tunel-de-copia', {});
-    if (!final && !c.comOutra) return;
     let pacote;
     if (final || !i.proc) {
       // **A passagem avisada para o jogo antes**: o stop salva o mundo

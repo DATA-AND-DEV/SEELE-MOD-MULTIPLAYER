@@ -77,7 +77,7 @@ test('criar abre a configuração, na aba GERAL, com Vanilla e Com mods no topo'
   assert.match(j.texto('variante:com-mods'), /modpack do Modrinth define a versão, o loader e os mods/);
   // O nome do servidor é o título do modal; no corpo, só o rótulo miúdo.
   assert.equal(j.texto('titulo'), 'MINECRAFT · VANILLA');
-  assert.equal(j.pagina().titulo, 'Servidor do SEELE');
+  assert.equal(j.pagina().titulo, 'Minecraft 1');
 });
 
 test('a aba GERAL monta os campos da receita, com as três regras lado a lado', async () => {
@@ -210,9 +210,10 @@ test('a recusa do túnel fica no cartão, com o nome e a frase', async () => {
   const { a, id } = servidorLigado();
   const { j } = await aberta({ anfitriao: a, pessoa: 3, portaOcupada: true });
   await j.apertar('entrar:' + id);
-  const cartao = j.texto('cartao:' + id);
-  assert.match(cartao, /porta-local-ocupada/);
-  assert.match(cartao, /ocupadas/);
+  assert.match(j.texto('cartao:' + id), /ocupadas/);
+  assert.doesNotMatch(j.texto('cartao:' + id), /porta-local-ocupada/, 'o nome cru fora dos detalhes');
+  await j.apertar('detalhes:entrar:porta-local-ocupada');
+  assert.match(j.texto('cartao:' + id), /porta-local-ocupada/);
 });
 
 test('um servidor desligado não oferece entrar', async () => {
@@ -250,9 +251,11 @@ test('a falha da máquina aparece na tela de quem configura, com os dados', asyn
   const { j } = await aberta({ anfitriao: a });
   await j.apertar('configurar:' + id);
   await j.mudar('aba', 'aba', 'aba-maquina');
+  assert.match(j.texto('falhas'), /O hash do arquivo baixado não bate/);
+  assert.doesNotMatch(j.texto('falhas'), /hash-diferente|ffff/, 'o nome e os dados crus fora dos detalhes');
+  await j.apertar('detalhes:falha:0');
   const falhas = j.texto('falhas');
   assert.match(falhas, /hash-diferente/);
-  assert.match(falhas, /O hash do arquivo baixado não bate/);
   assert.match(falhas, /server\.jar/);
   assert.match(falhas, /ffff/);
 });
@@ -263,12 +266,16 @@ test('a recusa de quem não tem a permissão é dita na tela, e não some', asyn
   // Quem só joga não vê o botão; se a tela pedir mesmo assim, a recusa aparece.
   j.emitir({ nome: 'botao', chave: 'desligar:' + id });
   await new Promise(r => setTimeout(r, 5));
+  assert.match(j.texto('aviso'), /não tem a permissão/);
+  await j.apertar('detalhes:desligar:sem-permissao');
   assert.match(j.texto('aviso'), /sem-permissao/);
 });
 
 test('uma ponte caída é dita na página, com o nome', async () => {
   const j = criarJanela(criarAnfitriao(), { ponteCaida: true });
   await j.abrir();
+  assert.match(j.texto('aviso'), /A sessão acabou antes da resposta/);
+  await j.apertar('detalhes:estado:sessao-encerrada');
   assert.match(j.texto('aviso'), /sessao-encerrada/);
 });
 
