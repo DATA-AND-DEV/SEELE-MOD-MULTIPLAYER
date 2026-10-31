@@ -1469,8 +1469,9 @@ function blocoDaReserva(s, opcoes) {
 
 function situacao(s) {
   const linhas = [];
-  if (estado.situacao) linhas.push(estado.situacao);
-  else if (s.ligar && s.aceite === 'esperando') linhas.push('Liga assim que a pessoa da máquina aceitar: esperando o aceite.');
+  // Só enquanto o aceite espera de verdade: a resposta do LIGAR ficava guardada
+  // e seguia dizendo «esperando» com o servidor LIGADO e depois da revogação.
+  if (s.aceite === 'esperando' && (estado.situacao || s.ligar)) linhas.push('Liga assim que a pessoa da máquina aceitar: esperando o aceite.');
   if (s.precisaReiniciar) linhas.push('A configuração nova vale quando o servidor reiniciar.');
   if (s.falhas.length) linhas.push(`${s.falhas.length} falha(s) registrada(s): veja a aba MÁQUINA.`);
   return pilha([
@@ -1695,6 +1696,11 @@ const comModsNoCartao = s => s.variante === 'com-mods' && Boolean(s.pack);
 function cartao(s) {
   const receita = receitaPorId(s.receita);
   const ligado = s.estado === 'ligado';
+  // **A porta vale enquanto o jogo está de pé.** Quando a máquina para, o
+  // SEELE fecha o túnel desta pessoa («a máquina parou de servir este jogo»), e
+  // o endereço que ficasse no cartão seria uma porta que recusa a conexão; ao
+  // religar, é um ENTRAR novo que a abre (e2e da API 8, 31/10).
+  if (!ligado) delete estado.portas[s.id];
   const porta = estado.portas[s.id];
   const recusa = estado.entradas[s.id];
   const configura = pode('configurar-servidor-de-jogo') || pode('ligar-desligar-servidor-de-jogo') || pode('criar-servidor-de-jogo');
@@ -1719,7 +1725,7 @@ function cartao(s) {
       comModsNoCartao(s) ? apagado(`Com mods: ${s.pack.nome || 'modpack'} (${s.pack.loader ? s.pack.loader.id : 'sem loader'}). Importe o mesmo pack no app do Modrinth para entrar.`) : null,
       estado.salvos[s.id]?.bytes ? apagado(`Pack salvo: ${(estado.salvos[s.id].bytes / 1048576).toFixed(1).replace('.', ',')} MiB.`) : null,
       estado.salvos[s.id]?.falha ? quadroDeFalha(estado.salvos[s.id].falha) : null,
-      configura && s.falhas?.length ? apagado(`Última falha: ${s.falhas.at(-1).erro}`) : null,
+      configura && s.falhas?.length ? apagado(`Última falha: ${fraseDe(s.falhas.at(-1).erro) || s.falhas.at(-1).erro}`) : null,
       {
         forma: 'acoes',
         dentro: [

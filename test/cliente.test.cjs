@@ -174,6 +174,23 @@ test('a porta trocada pelo produto é a que o cartão mostra', async () => {
   assert.match(j.texto('cartao:' + id), /localhost:25570/);
 });
 
+test('a máquina que desliga tira o endereço do cartão e diz a parada em frase, e não pelo código', async () => {
+  // O e2e da API 8 (31/10), no app de verdade: depois do DESLIGAR na máquina, o
+  // cartão de quem hospeda dizia DESLIGADO, seguia mostrando localhost:25566 — a
+  // porta que o SEELE já tinha fechado — e «Última falha: pelo-dono», o código cru.
+  const { a, id } = servidorLigado();
+  const { j } = await aberta({ anfitriao: a });
+  await j.apertar('entrar:' + id);
+  assert.match(j.texto('cartao:' + id), /localhost:25565/);
+  a.parar(id, 'pelo-dono');
+  await j.avisoDoServidor({ revisao: 999 });
+  const cartao = j.texto('cartao:' + id);
+  assert.match(cartao, /DESLIGADO/);
+  assert.doesNotMatch(cartao, /localhost:/, 'o cartão do servidor desligado seguiu mostrando a porta que fechou');
+  assert.doesNotMatch(cartao, /pelo-dono/, 'a parada apareceu pelo código cru');
+  assert.match(cartao, /A pessoa da máquina disse não, ou desligou/);
+});
+
 test('a recusa do túnel fica no cartão, com o nome e a frase', async () => {
   const { a, id } = servidorLigado();
   const { j } = await aberta({ anfitriao: a, pessoa: 3, portaOcupada: true });
@@ -203,7 +220,13 @@ test('ligar pede a ação, e a resposta «esperando o aceite» é dita', async (
   await j.apertar('ligar');
   assert.equal(j.acoes.at(-1).acao, 'ligar-desligar-servidor-de-jogo');
   assert.match(j.texto('situacao'), /esperando o aceite/i);
-  void a;
+  // E a frase sai quando o aceite chega: ela ficava de pé com o servidor já
+  // LIGADO, e seguia lá depois da revogação (e2e da API 8, 31/10).
+  const { id } = j.acoes.at(-1).valor;
+  a.aceitar(id);
+  a.daMaquina(2, id, { op: 'estado', estado: 'ligado', jogadores: [] });
+  await j.avisoDoServidor({ revisao: 999 });
+  assert.doesNotMatch(j.texto('situacao'), /esperando o aceite/i, 'a frase do aceite ficou de pé com o aceite dado');
 });
 
 test('a falha da máquina aparece na tela de quem configura, com os dados', async () => {
