@@ -72,3 +72,28 @@ test('o cartão de um pack pelo link leva à página do Modrinth, e não ao salv
   assert.equal(j.no('salvar-pack:' + id), null);
   assert.match(j.no('pack-link:' + id).endereco, /^https:\/\/modrinth\.com\/modpack\/prova-do-seele\/version\//);
 });
+
+test('trocar o pack não apaga o que a pessoa escreveu e não salvou (M11)', async () => {
+  const { a, j, id } = await naAbaMods();
+  const geral = () => j.mudar('aba', 'aba', 'aba-geral');
+  const mods = () => j.mudar('aba', 'aba', 'aba-mods');
+  await geral();
+  await j.mudar('numero', 'cfg:maximo', 7);
+  await j.mudar('campo', 'cfg:nome:0:texto', 'Casa com mods');
+  await mods();
+  await j.mudar('campo', 'pack:link-texto', 'https://modrinth.com/modpack/prova-do-seele');
+  await j.apertar('pack:link');
+  await geral();
+  assert.equal(j.no('cfg:maximo').valor, 7, 'o pack pelo link apagou o rascunho');
+  assert.equal(j.no('cfg:nome:0:texto').valor, 'Casa com mods');
+  // E pelo envio também.
+  await j.mudar('numero', 'cfg:maximo', 8);
+  await mods();
+  await j.escolher('pack:arquivo', PACK);
+  await geral();
+  assert.equal(j.no('cfg:maximo').valor, 8, 'o pack enviado apagou o rascunho');
+  // O que o pack define (a variante e a versão) vem dele, e salvar grava os dois lados.
+  await j.apertar('salvar');
+  const s = a.pedir(1, { op: 'estado' }).servidores.find(x => x.id === id);
+  assert.deepEqual([s.variante, s.versao, s.config.maximo, s.config.nome[0].texto], ['com-mods', '1.21.4', 8, 'Casa com mods']);
+});

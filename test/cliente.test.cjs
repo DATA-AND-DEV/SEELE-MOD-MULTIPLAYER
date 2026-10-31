@@ -358,3 +358,56 @@ test('a recusa do nome volta ao campo dele, dita com a palavra', async () => {
   await j.mudar('campo', 'cfg:nome:0:texto', 'vermelho');
   assert.equal(j.no('erro:nome'), null, 'mexer na palavra tira a recusa');
 });
+
+// ---- revisão final (31/10): fechar, descartar e o modal que não abre ----
+
+test('o rascunho que difere do gravado suja o modal, e voltar ao gravado o limpa (M1)', async () => {
+  const { j } = await aberta();
+  await j.apertar('criar:minecraft');
+  assert.equal(Boolean(j.pagina().suja), false, 'o modal nasceu sujo');
+  const gravado = j.no('cfg:maximo').inicial;
+  await j.mudar('numero', 'cfg:maximo', 7);
+  assert.equal(j.pagina().suja, true, 'um campo mudado não sujou o modal');
+  await j.mudar('numero', 'cfg:maximo', gravado);
+  assert.equal(j.pagina().suja, false);
+  // A variante é um botão: o produto não a vê como campo, e só o `suja` do MOD a conta.
+  await j.apertar('variante:com-mods');
+  assert.equal(j.pagina().suja, true, 'a variante mudada não sujou o modal');
+});
+
+test('DESCARTAR E FECHAR descarta o rascunho: reabrir mostra o gravado, limpo (M1)', async () => {
+  const { j } = await aberta();
+  await j.apertar('criar:minecraft');
+  const gravado = j.no('cfg:maximo').inicial;
+  await j.mudar('numero', 'cfg:maximo', 7);
+  await j.apertar('variante:com-mods');
+  // O produto perguntou «FECHAR SEM GRAVAR?», e a pessoa disse DESCARTAR E FECHAR.
+  j.pagina().visivel = false;
+  j.emitir({ nome: 'fechar', superficie: 'multiplayer', porque: 'fechar', descartou: true });
+  await new Promise(r => setImmediate(r));
+  await j.abrir();
+  assert.equal(j.pagina().visivel, true);
+  assert.equal(j.no('cfg:maximo').valor, gravado, 'o rascunho descartado voltou');
+  assert.match(j.texto('titulo'), /VANILLA/, 'a variante descartada voltou');
+  assert.equal(j.pagina().suja, false, 'o modal reabriu sujo');
+});
+
+test('fechar sem descartar (nada sujo) não mexe no rascunho', async () => {
+  const { j } = await aberta();
+  await j.apertar('criar:minecraft');
+  await j.mudar('numero', 'cfg:maximo', 7);
+  j.pagina().visivel = false;
+  j.emitir({ nome: 'fechar', superficie: 'multiplayer', porque: 'fechar' });
+  await new Promise(r => setImmediate(r));
+  await j.abrir();
+  assert.equal(j.no('cfg:maximo').valor, 7);
+});
+
+test('o modal que não abre é dito no aviso do produto e no log (M10)', async () => {
+  const a = criarAnfitriao();
+  const j = criarJanela(a, { criarFalha: 'superficies-demais' });
+  await j.abrir();
+  await new Promise(r => setImmediate(r));
+  assert.deepEqual(j.avisos.map(x => [x.texto, x.tom]), [['O multiplayer não abriu: superficies-demais', 'erro']]);
+  assert.ok(j.erros.some(e => /^error: multiplayer: o modal não abriu: superficies-demais/.test(e)), JSON.stringify(j.erros));
+});

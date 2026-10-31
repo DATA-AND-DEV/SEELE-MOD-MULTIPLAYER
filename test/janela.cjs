@@ -120,7 +120,7 @@ function criarJanela(anfitriao, opcoes = {}) {
       fechar: async () => { s.visivel = false; },
       descartar: async () => { j.superficies.delete(id); },
       classes: async () => true,
-      suja: async () => true,
+      suja: async valor => { s.suja = valor !== false; s.sujas = (s.sujas ?? 0) + 1; return true; },
       formulario: { erros: async () => true },
     };
   }
@@ -131,6 +131,7 @@ function criarJanela(anfitriao, opcoes = {}) {
     superficies: {
       criar: async descricao => {
         medir('superficie-criar', { descricao });
+        if (opcoes.criarFalha) throw recusa(opcoes.criarFalha, { superficie: descricao.id });
         const tipo = descricao.tipo ?? 'dialogo';
         if (!TIPOS.has(tipo)) throw recusa('tipo-desconhecido', { tipoPedido: tipo });
         if (!j.superficies.has(descricao.id)) j.superficies.set(descricao.id, { descricao, arvore: [], titulo: descricao.titulo, visivel: descricao.visivel !== false, montagens: 0 });

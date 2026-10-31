@@ -737,6 +737,8 @@ const estado = {
   packLink: '', enviando: null, salvos: {},
   // A página passou do teto de uma montagem: o resumo, sem os dados longos.
   enxuta: false,
+  // O que o produto ouviu do `suja` por último (null: não se sabe, e o próximo diz).
+  suja: null,
 };
 
 const pode = acao => Boolean(estado.dados?.podem?.includes(acao));
@@ -873,6 +875,18 @@ function salvarPack(id) {
   ).then(pintar);
 }
 
+/**
+ * **O pack define a variante e a versão, e só elas** (revisão final, M11): o
+ * resto do rascunho é o que a pessoa escreveu e ainda não salvou, e trocar o
+ * rascunho inteiro pelo gravado o apagava.
+ */
+function tomarDoPack() {
+  const novo = servidorAtual();
+  if (!novo) return;
+  if (!estado.rascunho) estado.rascunho = rascunhoDe(novo);
+  else estado.rascunho = { ...estado.rascunho, variante: novo.variante ?? 'com-mods', versao: novo.versao };
+}
+
 /** O link do Modrinth vira o pack do servidor de jogo atual. */
 async function usarLink() {
   const s = servidorAtual();
@@ -880,8 +894,7 @@ async function usarLink() {
   const r = await agir('configurar-servidor-de-jogo', { op: 'pack-link', id: s.id, link: estado.packLink });
   if (await aposAcao(r, 'pack-link')) {
     estado.packLink = '';
-    const novo = servidorAtual();
-    if (novo) estado.rascunho = rascunhoDe(novo);
+    tomarDoPack();
   }
 }
 
@@ -904,10 +917,7 @@ async function enviarPack(arquivo) {
       return void avisar({ erro: erro?.erro ?? fraseDoErro(erro), onde: 'pack-enviar', dados: dadosDoErro(erro) });
     }
     const r = await agir('configurar-servidor-de-jogo', { op: 'pack-chegou', id: s.id, token: espera.token });
-    if (await aposAcao(r, 'pack-chegou')) {
-      const novo = servidorAtual();
-      if (novo) estado.rascunho = rascunhoDe(novo);
-    }
+    if (await aposAcao(r, 'pack-chegou')) tomarDoPack();
   } finally {
     estado.enviando = null;
     SeeleUI.soltar?.(arquivo.id)?.catch?.(() => {});
@@ -1058,13 +1068,66 @@ function tratarCampo(evento) {
   return chave === 'quem' || chave === 'reserva';
 }
 
+/**
+ * **O modal que não abre é dito** (revisão final, M10), como a página que não
+ * monta: no aviso do produto e no log. O aviso dentro da página não serve —
+ * sem modal, não há página.
+ */
+async function naoAbriu(erro) {
+  const nome = erro?.erro ?? fraseDoErro(erro);
+  console.error(`multiplayer: o modal não abriu: ${nome} ${JSON.stringify(dadosDoErro(erro))}`);
+  try {
+    await SeeleUI.superficies.avisar(`O multiplayer não abriu: ${nome}`, 'erro');
+  } catch (e) {
+    console.error('multiplayer: nem o aviso saiu: ' + fraseDoErro(e));
+  }
+}
+
+/**
+ * **O rascunho difere do gravado?** O produto já vê o campo que difere do
+ * inicial, mas não a variante (um botão) nem o que uma remontagem fez inicial;
+ * o MOD diz (`suja`), e fechar pergunta (revisão final, M1).
+ */
+function rascunhoMudou() {
+  const s = servidorAtual();
+  if (estado.vista !== 'config' || !s || !estado.rascunho) return false;
+  const gravado = rascunhoDe(s);
+  // A versão que a página propõe a um servidor sem versão não é uma mudança da pessoa.
+  if (gravado.versao === null) gravado.versao = Array.isArray(estado.versoes[s.receita]) ? estado.versoes[s.receita][0] ?? null : null;
+  return emOrdem(estado.rascunho) !== emOrdem(gravado);
+}
+
+/** JSON com as chaves em ordem: o mesmo rascunho escrito em outra ordem é o mesmo. */
+function emOrdem(v) {
+  if (Array.isArray(v)) return '[' + v.map(emOrdem).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + emOrdem(v[k])).join(',') + '}';
+  return JSON.stringify(v ?? null);
+}
+
+async function marcarSuja() {
+  if (!estado.punho || !estado.aberta) return;
+  const suja = rascunhoMudou();
+  if (suja === estado.suja) return;
+  estado.suja = suja;
+  try {
+    await estado.punho.suja?.(suja);
+  } catch (erro) {
+    console.warn(`multiplayer: suja: ${erro?.erro ?? fraseDoErro(erro)}`);
+  }
+}
+
 async function tratar(evento) {
   if (evento.nome === 'acao' && evento.acao === 'abrir-multiplayer') {
     if (!estado.punho) {
       // Um modal sobre a sessão, e não uma página no lugar do chat: a
       // conversa fica atrás, e fechar volta a ela. 720 px é um cartão no
       // meio do véu; de 800 px em diante o produto o desenharia como tela.
-      estado.punho = await SeeleUI.superficies.criar({ id: 'multiplayer', tipo: 'dialogo', titulo: 'Multiplayer', tamanho: { largura: 720 } });
+      try {
+        estado.punho = await SeeleUI.superficies.criar({ id: 'multiplayer', tipo: 'dialogo', titulo: 'Multiplayer', tamanho: { largura: 720 } });
+      } catch (erro) {
+        return void (await naoAbriu(erro));
+      }
+      estado.suja = false;
       // Recusadas, as classes que serviram valem e a página abre do mesmo
       // jeito, mais crua; a recusa é dita.
       try {
@@ -1073,7 +1136,13 @@ async function tratar(evento) {
         avisar({ erro: erro?.erro ?? fraseDoErro(erro), onde: 'classes', dados: dadosDoErro(erro) });
       }
     } else {
-      await estado.punho.mostrar();
+      try {
+        await estado.punho.mostrar();
+      } catch (erro) {
+        // O punho que o produto já não reconhece é esquecido: o próximo clique cria outro.
+        estado.punho = null;
+        return void (await naoAbriu(erro));
+      }
     }
     estado.aberta = true;
     if (!estado.retrato) estado.retrato = await SeeleUI.retrato();
@@ -1085,6 +1154,18 @@ async function tratar(evento) {
     estado.retrato = await SeeleUI.retrato();
   } else if (evento.nome === 'fechar' && evento.superficie === 'multiplayer') {
     estado.aberta = false;
+    // DESCARTAR E FECHAR (o produto pergunta, e diz `descartou`): o rascunho
+    // volta ao gravado, e reabrir não o desenha de novo (revisão final, M1).
+    if (evento.descartou === true) {
+      const s = servidorAtual();
+      estado.rascunho = s ? rascunhoDe(s) : null;
+      if (s && estado.rascunho.versao === null && Array.isArray(estado.versoes[s.receita])) estado.rascunho.versao = estado.versoes[s.receita][0] ?? null;
+      estado.erros = {};
+      estado.palavra = {};
+      estado.packLink = '';
+      // O produto guarda o `suja` da superfície: a reabertura diz que está limpa.
+      estado.suja = null;
+    }
     return;
   } else if (evento.nome === 'aba' && evento.chave === 'aba') {
     estado.aba = evento.valor;
@@ -1097,11 +1178,14 @@ async function tratar(evento) {
       avisar({ erro: erro ?? 'falhou', onde: 'pack-escolher', dados });
     } else return;
   } else if (['campo', 'escolha', 'numero', 'marca', 'cor'].includes(evento.nome)) {
-    if (!tratarCampo(evento)) return;
+    const repintar = tratarCampo(evento);
+    await marcarSuja();
+    if (!repintar) return;
   } else {
     return;
   }
   await pintar();
+  await marcarSuja();
 }
 
 SeeleUI.aoEvento(evento => {
