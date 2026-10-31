@@ -152,3 +152,34 @@ test('cada servidor de jogo novo tem um nome padrão que se distingue', () => {
   assert.equal(um.config.nome[0].texto, 'Minecraft 1');
   assert.equal(dois.config.nome[0].texto, 'Minecraft 2');
 });
+
+test('o servidor que para derruba a dona (saiu): o ligar fica, o cartão espera a máquina, e a subida a chama de volta', () => {
+  // Medido no app (31/10): PARAR DE HOSPEDAR com o jogo de pé — a metade de
+  // servidor ouve MaquinaParou com saiu antes de o servidor descer.
+  const { a, id } = ligado();
+  const aceita = a.pedidosDeMaquina.at(-1).oferta;
+  a.parar(id, 'saiu');
+  let s = servidor(a, id);
+  assert.equal(s.ligar, true, 'a queda da conexão desligou o servidor de jogo');
+  assert.equal(s.estado, 'esperando-maquina');
+  const antes = a.pedidosDeMaquina.length;
+  a.reiniciar({ fora: ['2'] });
+  assert.equal(a.pedidosDeMaquina.length, antes + 1, 'a dona que caiu não foi chamada de volta na subida');
+  assert.deepEqual(a.pedidosDeMaquina.at(-1).oferta, aceita);
+  s = servidor(a, id);
+  assert.equal(s.aceite, 'fora');
+  a.conectar('2');
+  a.voltar(id, 'principal', '2');
+  a.aceitar(id);
+  assert.equal(a.avisosAMaquinas.at(-1).carga.op, 'ligar');
+});
+
+test('a pessoa que desliga na máquina dela (pelo-dono) segue desligando, e a subida não a chama', () => {
+  const { a, id } = ligado();
+  a.parar(id, 'pelo-dono');
+  assert.equal(servidor(a, id).ligar, false);
+  assert.equal(servidor(a, id).estado, 'desligado');
+  const antes = a.pedidosDeMaquina.length;
+  a.reiniciar();
+  assert.equal(a.pedidosDeMaquina.length, antes, 'chamou de volta quem desligou');
+});

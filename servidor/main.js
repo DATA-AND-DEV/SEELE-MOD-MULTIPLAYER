@@ -1451,7 +1451,10 @@ function metadeSubiu(carga) {
     for (const papel of PAPEIS) {
       const quem = quemOpera(s, papel);
       const aceite = aceiteDe(s, papel);
-      if (!quem || !['aceito', 'esperando', 'fora'].includes(aceite)) continue;
+      // A que caiu (saiu) também: o servidor que para derruba a conexão de
+      // todos, e o MOD ouve MaquinaParou com saiu antes de ele descer.
+      const caiu = aceite === 'parado' && QUEDAS.includes(papel === 'reserva' ? s.reserva?.motivo : s.motivo);
+      if (!quem || !(['aceito', 'esperando', 'fora'].includes(aceite) || caiu)) continue;
       if (noLivro(s, papel, quem, aceite === 'aceito')) continue;
       const r = chamarDeVolta(servidores, s, papel);
       if (!r.ok) {
@@ -2111,8 +2114,14 @@ globalThis.aoAcontecer = (momento, textoDaCarga) => {
       const temReserva = aceiteDe(s, outroPapel(papel)) === 'aceito';
       // A metade que falhou (metade-falhou) também não foi a pessoa parando:
       // com reserva, o prazo corre do mesmo jeito (revisão final, M12).
-      if (!(QUEDAS.includes(motivo) && temReserva)) s.ligar = false;
-      s.estado = 'desligado';
+      // **A dona que saiu sem reserva também não desliga** (e2e da API 8,
+      // 31/10): «saiu» é a conexão que caiu — inclusive a de todo mundo quando
+      // o servidor SEELE para —, e a metade de máquina segue rodando órfã até
+      // 10 min. O «ligar» fica, ela é chamada de volta (MaquinaVoltou, ou
+      // MetadeSubiu num servidor que reiniciou), e o cartão espera a máquina.
+      const caiu = motivo === 'saiu';
+      if (!(caiu || (QUEDAS.includes(motivo) && temReserva))) s.ligar = false;
+      s.estado = caiu && s.ligar ? 'esperando-maquina' : 'desligado';
       s.jogadores = [];
     } else if (papel === 'reserva' && s.reserva) {
       s.reserva.estado = null;
