@@ -83,7 +83,7 @@ async function entregar(a, f, pessoa) {
 async function montado(opcoes = {}) {
   const a = criarAnfitriao();
   const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
-  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', config: { nome: 'Casa do Alê', maximo: 6 } });
+  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', config: { nome: [{ texto: 'Casa do Alê', cor: 'aqua' }], maximo: 6 } });
   const f = adaptadorFalso(a, 2, opcoes);
   criarMaquina(f.ad);
   if (opcoes.semAceite) return { a, f, id };

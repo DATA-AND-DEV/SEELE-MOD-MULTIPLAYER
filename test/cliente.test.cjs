@@ -7,6 +7,8 @@ const assert = require('node:assert/strict');
 const { criarAnfitriao } = require('./anfitriao.cjs');
 const { criarJanela, nos } = require('./janela.cjs');
 
+const CASA_DO_ALE = [{ texto: 'Casa', cor: 'aqua' }, { texto: 'do Alê', cor: 'gold' }];
+
 async function aberta(opcoes = {}) {
   const a = opcoes.anfitriao ?? criarAnfitriao();
   const j = criarJanela(a, opcoes);
@@ -19,7 +21,7 @@ async function aberta(opcoes = {}) {
 function servidorLigado() {
   const a = criarAnfitriao();
   const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
-  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', config: { nome: 'Casa do Alê' } });
+  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', config: { nome: CASA_DO_ALE } });
   a.aceitar(id);
   a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
   a.daMaquina(2, id, { op: 'estado', estado: 'ligado', jogadores: ['Bia', 'Ze'] });
@@ -65,7 +67,7 @@ test('criar abre a configuração, na aba GERAL, com Vanilla e Com mods no topo'
 test('a aba GERAL monta os campos da receita, com as três regras lado a lado', async () => {
   const { j } = await aberta();
   await j.apertar('criar:minecraft');
-  for (const chave of ['versao', 'cfg:nome', 'cfg:cor', 'cfg:maximo', 'cfg:dificuldade', 'cfg:modo', 'cfg:pvp', 'so-seele']) {
+  for (const chave of ['versao', 'cfg:nome:0:texto', 'cfg:nome:cor', 'amostra:nome:0', 'cfg:maximo', 'cfg:dificuldade', 'cfg:modo', 'cfg:pvp', 'so-seele']) {
     assert.ok(j.no(chave), `falta «${chave}» na aba GERAL`);
   }
   const grade = nos(j.pagina().arvore).find(n => n.chave === 'grupo:regras');
@@ -85,7 +87,7 @@ test('salvar manda a configuração pela ação, e a recusa volta ao campo dela'
   const { a, j } = await aberta();
   await j.apertar('criar:minecraft');
   await j.mudar('numero', 'cfg:maximo', 500);
-  await j.mudar('campo', 'cfg:nome', 'Casa do Alê');
+  await j.mudar('campo', 'cfg:nome:0:texto', 'Casa do Alê');
   await j.apertar('salvar');
   const pedido = j.acoes.at(-1);
   assert.equal(pedido.acao, 'configurar-servidor-de-jogo');
@@ -96,7 +98,7 @@ test('salvar manda a configuração pela ação, e a recusa volta ao campo dela'
   assert.equal(j.no('cfg:maximo').erro, undefined);
   const s = a.pedir(1, { op: 'estado' }).servidores[0];
   assert.equal(s.config.maximo, 6);
-  assert.equal(s.config.nome, 'Casa do Alê');
+  assert.deepEqual(s.config.nome, [{ texto: 'Casa do Alê', cor: 'aqua' }]);
 });
 
 test('escolher a máquina na aba MÁQUINA mostra o aceite que se espera', async () => {
@@ -229,7 +231,7 @@ test('nenhuma montagem passa de 12 KiB, nem com oito servidores cheios de falhas
   const a = criarAnfitriao();
   for (let n = 0; n < 8; n++) {
     const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
-    a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', config: { nome: 'É'.repeat(59) } });
+    a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', config: { nome: Array.from({ length: 6 }, (_, i) => ({ texto: 'É'.repeat(8), cor: ['aqua', 'gold', 'red', 'dark_green', 'light_purple', 'gray'][i] })) } });
     a.aceitar(id);
     for (let k = 0; k < 6; k++) a.daMaquina(2, id, { op: 'falha', etapa: 'baixar', erro: 'hash-diferente', dados: { arquivo: 'x'.repeat(200), url: 'https://piston-data.mojang.com/' + 'y'.repeat(300) } });
     a.daMaquina(2, id, { op: 'estado', estado: 'ligado', jogadores: Array.from({ length: 30 }, (_, i) => 'Jogador' + i), linhas: Array.from({ length: 8 }, () => 'z'.repeat(160)) });
@@ -265,4 +267,62 @@ test('a página que passaria do teto monta o resumo, e diz que é resumo', async
   assert.ok(j.no('resumo'), 'a página não disse que é resumo');
   assert.ok(j.no('falhas'), 'o resumo tirou as falhas');
   assert.deepEqual(j.erros, []);
+});
+
+// ---- o nome, uma cor por palavra (o desenho: «Casa» ciano, «do Alê» dourado) ----
+
+test('a aba GERAL dá uma amostra de cor a cada palavra do nome, com as cores do Minecraft', async () => {
+  const { a, id } = servidorLigado();
+  const { j } = await aberta({ anfitriao: a });
+  await j.apertar('configurar:' + id);
+  assert.equal(j.no('cfg:nome:0:texto').valor, 'Casa');
+  assert.equal(j.no('cfg:nome:1:texto').valor, 'do Alê');
+  assert.equal(j.no('amostra:nome:0').estilo.cor, '#55FFFF');
+  assert.equal(j.no('amostra:nome:1').estilo.cor, '#FFAA00');
+  assert.match(j.texto('amostra:nome:0'), /Ciano/);
+  assert.equal(j.no('amostra:nome:2'), null, 'uma amostra por palavra, e só');
+  assert.equal(j.no('cfg:nome:cor').opcoes.length, 16, 'as 16 cores');
+  assert.match(j.texto('titulo'), /MINECRAFT · CASA DO ALÊ/);
+});
+
+test('escolher uma palavra mostra a cor dela; trocá-la repinta só a amostra dela, e salvar manda a lista', async () => {
+  const { a, id } = servidorLigado();
+  const { j } = await aberta({ anfitriao: a });
+  await j.apertar('configurar:' + id);
+  assert.equal(j.no('cfg:nome:cor').valor, 'aqua', 'começa na primeira palavra');
+  await j.apertar('amostra:nome:1');
+  assert.equal(j.no('cfg:nome:cor').valor, 'gold');
+  assert.match(j.no('cfg:nome:cor').rotulo, /palavra 2/);
+  await j.mudar('escolha', 'cfg:nome:cor', 'red');
+  assert.equal(j.no('amostra:nome:1').estilo.cor, '#FF5555');
+  assert.equal(j.no('amostra:nome:0').estilo.cor, '#55FFFF', 'a outra palavra não mudou');
+  await j.mudar('campo', 'cfg:nome:0:texto', 'Lar');
+  await j.apertar('salvar');
+  const esperado = [{ texto: 'Lar', cor: 'aqua' }, { texto: 'do Alê', cor: 'red' }];
+  assert.deepEqual(j.acoes.at(-1).valor.config.nome, esperado);
+  assert.deepEqual(a.pedir(1, { op: 'estado' }).servidores[0].config.nome, esperado);
+});
+
+test('palavras entram e saem até o teto, e a última não sai', async () => {
+  const { j } = await aberta();
+  await j.apertar('criar:minecraft');
+  assert.equal(j.no('palavra-tirar:nome').desligado, true, 'a única palavra não sai');
+  for (let n = 2; n <= 6; n++) await j.apertar('palavra-mais:nome');
+  assert.ok(j.no('cfg:nome:5:texto'));
+  assert.equal(j.no('palavra-mais:nome').desligado, true, 'o teto é seis');
+  assert.match(j.no('cfg:nome:cor').rotulo, /palavra 6/, 'a nova palavra fica escolhida');
+  await j.apertar('palavra-tirar:nome');
+  assert.equal(j.no('cfg:nome:5:texto'), null);
+  assert.ok(j.no('cfg:nome:4:texto'));
+  assert.equal(j.no('palavra-mais:nome').desligado, false);
+});
+
+test('a recusa do nome volta ao campo dele, dita com a palavra', async () => {
+  const { j } = await aberta();
+  await j.apertar('criar:minecraft');
+  await j.mudar('campo', 'cfg:nome:0:texto', '§4vermelho');
+  await j.apertar('salvar');
+  assert.equal(j.texto('erro:nome'), 'A palavra 1 tem § ou uma quebra de linha, que não valem num nome.');
+  await j.mudar('campo', 'cfg:nome:0:texto', 'vermelho');
+  assert.equal(j.no('erro:nome'), null, 'mexer na palavra tira a recusa');
 });

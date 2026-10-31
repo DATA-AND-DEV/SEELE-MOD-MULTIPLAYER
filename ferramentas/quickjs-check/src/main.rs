@@ -197,7 +197,7 @@ fn maquina_e_servidor(srv: &Context) -> Result<String, Erro> {
     let r = pedir(srv, &de(Some("criar-servidor-de-jogo")), &json!({ "op": "criar", "receita": "minecraft" }))?;
     let id = r["servidor"]["id"].as_str().ok_or_else(|| format!("criar: {r}"))?.to_owned();
     let r = pedir(srv, &de(Some("configurar-servidor-de-jogo")),
-        &json!({ "op": "configurar", "id": id, "versao": "1.21.4", "quem": "2", "config": { "nome": "Casa do Alê", "maximo": 6 } }))?;
+        &json!({ "op": "configurar", "id": id, "versao": "1.21.4", "quem": "2", "config": { "nome": [{ "texto": "Casa", "cor": "aqua" }, { "texto": "do Alê", "cor": "gold" }], "maximo": 6 } }))?;
     if r["ok"] != true { return Err(format!("configurar: {r}").into()); }
     let pedidos: Vec<Value> = serde_json::from_str(&texto(srv, "JSON.stringify(__pedidosDeMaquina)")?)?;
     if pedidos.len() != 1 || pedidos[0]["oferta"]["versao_do_jogo"] != "1.21.4" {

@@ -8,10 +8,11 @@ const { carregar, receitaDoDisco, buscarDasFixtures, fixture } = require('./carr
 
 const m = carregar('servidor', [
   'listarVersoes', 'resolverVersao', 'montarOferta', 'validarConfig', 'configPadrao',
-  'escreverPropriedades', 'casarSaida', 'sha1Hex',
+  'escreverPropriedades', 'casarSaida', 'sha1Hex', 'escaparPropriedade', 'nomeEmTexto',
 ]);
 const local = v => JSON.parse(JSON.stringify(v));
 const mc = receitaDoDisco('minecraft');
+const CASA_DO_ALE = [{ texto: 'Casa', cor: 'aqua' }, { texto: 'do Alê', cor: 'gold' }];
 
 test('as versões vêm do version_manifest_v2, só as releases, as mais novas primeiro', () => {
   const buscar = buscarDasFixtures();
@@ -143,27 +144,27 @@ test('a oferta não muda quando só a configuração muda', () => {
   // O aceite prende a oferta; um campo do esquema de configuração não pede aceite novo.
   const resolvido = m.resolverVersao(mc, '1.21.4', buscarDasFixtures());
   const a = JSON.stringify(m.montarOferta(mc, { servidor: 'minecraft-1', versao: '1.21.4', porta: 25565 }, resolvido));
-  const b = JSON.stringify(m.montarOferta(mc, { servidor: 'minecraft-1', versao: '1.21.4', porta: 25565, config: { nome: 'Outro', maximo: 3 } }, resolvido));
+  const b = JSON.stringify(m.montarOferta(mc, { servidor: 'minecraft-1', versao: '1.21.4', porta: 25565, config: { nome: [{ texto: 'Outro', cor: 'red' }], maximo: 3 } }, resolvido));
   assert.equal(a, b);
 });
 
 test('a configuração padrão sai dos padrões da receita', () => {
   assert.deepEqual(local(m.configPadrao(mc)), {
-    nome: 'Servidor do SEELE', cor: 'b', maximo: 10, dificuldade: 'normal', modo: 'survival',
+    nome: [{ texto: 'Servidor do SEELE', cor: 'aqua' }], maximo: 10, dificuldade: 'normal', modo: 'survival',
     pvp: true, hardcore: false, protecao: 16, inativo: 0,
   });
 });
 
 test('a configuração é conferida contra o esquema da receita, com a frase por campo', () => {
-  const r = local(m.validarConfig(mc, { nome: '', maximo: 500, dificuldade: 'pesadelo', pvp: 'sim', cor: 'b', modo: 'creative' }));
+  const r = local(m.validarConfig(mc, { nome: [], maximo: 500, dificuldade: 'pesadelo', pvp: 'sim', modo: 'creative' }));
   assert.deepEqual(r.erros, {
-    nome: 'Preencha este campo.',
+    nome: 'Preencha o nome com ao menos uma palavra.',
     maximo: 'Use um número de 1 a 100.',
     dificuldade: 'Escolha uma das opções.',
     pvp: 'Use ligado ou desligado.',
   });
-  const s = local(m.validarConfig(mc, { nome: 'x'.repeat(60) }));
-  assert.deepEqual(s.erros, { nome: 'Use até 59 caracteres; este tem 60.' });
+  const s = local(m.validarConfig(mc, { nome: [{ texto: 'x'.repeat(60), cor: 'aqua' }] }));
+  assert.deepEqual(s.erros, { nome: 'Use até 59 caracteres no nome todo; este tem 60.' });
   const t = local(m.validarConfig(mc, { semente: '42' }));
   assert.deepEqual(t.erros, { semente: 'A receita não tem o campo «semente».' });
   const u = local(m.validarConfig(mc, { maximo: 2.5 }));
@@ -171,18 +172,17 @@ test('a configuração é conferida contra o esquema da receita, com a frase por
 });
 
 test('o que não veio fica com o que estava, e o que veio certo entra', () => {
-  const r = local(m.validarConfig(mc, { maximo: 4 }, { ...m.configPadrao(mc), nome: 'Casa do Alê' }));
+  const r = local(m.validarConfig(mc, { maximo: 4 }, { ...m.configPadrao(mc), nome: CASA_DO_ALE }));
   assert.deepEqual(r.erros, {});
   assert.equal(r.config.maximo, 4);
-  assert.equal(r.config.nome, 'Casa do Alê');
+  assert.deepEqual(local(r.config.nome), CASA_DO_ALE);
 });
 
 test('o server.properties sai do esquema, com a porta e o nome escapados', () => {
-  const config = { ...local(m.configPadrao(mc)), nome: 'Casa do Alê', cor: '6', maximo: 4, pvp: false };
+  const config = { ...local(m.configPadrao(mc)), nome: CASA_DO_ALE, maximo: 4, pvp: false };
   const texto = m.escreverPropriedades(mc, config, 25566);
   const linhas = texto.split('\n');
   assert.ok(linhas[0].startsWith('#'), 'o arquivo diz quem o escreveu');
-  assert.ok(linhas.includes('motd=\\u00a76Casa do Al\\u00ea'), texto);
   assert.ok(linhas.includes('max-players=4'));
   assert.ok(linhas.includes('pvp=false'));
   assert.ok(linhas.includes('server-port=25566'));
@@ -193,11 +193,69 @@ test('o server.properties sai do esquema, com a porta e o nome escapados', () =>
   assert.ok(texto.endsWith('\n'));
 });
 
-test('um nome não escreve uma segunda propriedade no arquivo', () => {
-  const config = { ...local(m.configPadrao(mc)), nome: 'a\nserver-ip=0.0.0.0' };
+test('o motd do desenho aprovado: «Casa» em ciano (§b) e «do Alê» em dourado (§6)', () => {
+  const texto = m.escreverPropriedades(mc, { ...local(m.configPadrao(mc)), nome: CASA_DO_ALE }, 25565);
+  // § é U+00A7: num .properties, \u00a7; o ê, \u00ea.
+  assert.ok(texto.split('\n').includes('motd=\\u00a7bCasa \\u00a76do Al\\u00ea'), texto);
+  assert.equal(m.nomeEmTexto(CASA_DO_ALE), 'Casa do Alê');
+});
+
+test('o padrão escreve uma cor só, e três palavras escrevem três códigos', () => {
+  assert.ok(m.escreverPropriedades(mc, local(m.configPadrao(mc)), 25565).includes('motd=\\u00a7bServidor do SEELE\n'));
+  const nome = [{ texto: 'A', cor: 'red' }, { texto: 'B', cor: 'dark_gray' }, { texto: 'C', cor: 'light_purple' }];
+  assert.ok(m.escreverPropriedades(mc, { ...local(m.configPadrao(mc)), nome }, 25565).includes('motd=\\u00a7cA \\u00a78B \\u00a7dC\n'));
+});
+
+test('o arquivo .properties escapa a barra, os dois-pontos, o igual, o cerquilha, a exclamação, a quebra e o que não é ASCII', () => {
+  assert.equal(m.escaparPropriedade('a\\b'), 'a\\\\b');
+  assert.equal(m.escaparPropriedade('a:b'), 'a\\:b');
+  assert.equal(m.escaparPropriedade('a=b'), 'a\\=b');
+  assert.equal(m.escaparPropriedade('a#b!c'), 'a\\#b\\!c');
+  assert.equal(m.escaparPropriedade('a\nb\rc\td'), 'a\\nb\\rc\\td');
+  assert.equal(m.escaparPropriedade('§Ê😀'), '\\u00a7\\u00ca\\ud83d\\ude00');
+  assert.equal(m.escaparPropriedade(' começo'), '\\ come\\u00e7o');
+  // Um valor com tudo isso não escreve uma segunda propriedade.
+  const config = { ...local(m.configPadrao(mc)), nome: [{ texto: 'a:b=c\\d', cor: 'aqua' }] };
   const texto = m.escreverPropriedades(mc, config, 25565);
-  assert.ok(!texto.split('\n').includes('server-ip=0.0.0.0'), texto);
-  assert.ok(texto.includes('motd=\\u00a7ba\\nserver-ip=0.0.0.0'));
+  assert.ok(texto.includes('motd=\\u00a7ba\\:b\\=c\\\\d\n'), texto);
+  const direto = m.escaparPropriedade('a\nserver-ip=0.0.0.0');
+  assert.equal(direto, 'a\\nserver-ip\\=0.0.0.0');
+});
+
+test('uma cor fora das 16 é recusada, com a palavra e a cor', () => {
+  for (const cor of ['roxinho', '#55FFFF', 'b', '', null, 7]) {
+    const r = local(m.validarConfig(mc, { nome: [{ texto: 'Casa', cor: 'aqua' }, { texto: 'do Alê', cor }] }));
+    assert.deepEqual(r.erros, { nome: `A palavra 2 usa a cor ${typeof cor === 'string' ? '«' + cor + '»' : JSON.stringify(cor)}, que não é uma das 16 do Minecraft.` }, String(cor));
+    assert.deepEqual(local(r.config.nome), local(m.configPadrao(mc)).nome, 'a recusa não gravou nada');
+  }
+  assert.deepEqual(local(m.validarConfig(mc, { nome: CASA_DO_ALE })).erros, {});
+});
+
+test('a lista de palavras tem teto: seis', () => {
+  const seis = Array.from({ length: 6 }, (_, i) => ({ texto: 'p' + i, cor: 'gold' }));
+  assert.deepEqual(local(m.validarConfig(mc, { nome: seis })).erros, {});
+  const sete = [...seis, { texto: 'p6', cor: 'gold' }];
+  assert.deepEqual(local(m.validarConfig(mc, { nome: sete })).erros, { nome: 'Use até 6 palavras; são 7.' });
+  const mil = Array.from({ length: 1000 }, () => ({ texto: 'x', cor: 'gold' }));
+  assert.deepEqual(local(m.validarConfig(mc, { nome: mil })).erros, { nome: 'Use até 6 palavras; são 1000.' });
+});
+
+test('uma palavra não carrega § nem quebra de linha, nem vem vazia ou torta', () => {
+  const erro = nome => local(m.validarConfig(mc, { nome })).erros.nome;
+  assert.equal(erro([{ texto: '§4Vermelho', cor: 'aqua' }]), 'A palavra 1 tem § ou uma quebra de linha, que não valem num nome.');
+  assert.equal(erro([{ texto: 'a\nserver-ip=0.0.0.0', cor: 'aqua' }]), 'A palavra 1 tem § ou uma quebra de linha, que não valem num nome.');
+  assert.equal(erro([{ texto: '   ', cor: 'aqua' }]), 'A palavra 1 está vazia.');
+  assert.equal(erro([{ texto: 'a' }]), 'A palavra 1 está mal formada: use {texto, cor}.');
+  assert.equal(erro([{ texto: 'a', cor: 'aqua', extra: 1 }]), 'A palavra 1 está mal formada: use {texto, cor}.');
+  assert.equal(erro(['Casa']), 'A palavra 1 está mal formada: use {texto, cor}.');
+  assert.equal(erro('Casa do Alê'), 'Use uma lista de palavras, cada uma com texto e cor.');
+});
+
+test('o tamanho do nome conta as palavras e os espaços entre elas', () => {
+  const quase = [{ texto: 'a'.repeat(30), cor: 'aqua' }, { texto: 'b'.repeat(28), cor: 'gold' }]; // 30 + 1 + 28 = 59
+  assert.deepEqual(local(m.validarConfig(mc, { nome: quase })).erros, {});
+  quase[1].texto += 'b';
+  assert.deepEqual(local(m.validarConfig(mc, { nome: quase })).erros, { nome: 'Use até 59 caracteres no nome todo; este tem 60.' });
 });
 
 test('a saída do jogo diz quando ele está pronto, e quem entrou e saiu', () => {

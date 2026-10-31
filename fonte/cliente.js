@@ -168,7 +168,7 @@ function quadroDeFalha(f, chave) {
 const estado = {
   aberta: false, punho: null, dados: null, retrato: null,
   vista: 'seletor', atual: null, aba: 'aba-geral',
-  rascunho: null, erros: {}, aviso: null, versoes: {},
+  rascunho: null, palavra: {}, erros: {}, aviso: null, versoes: {},
   portas: {}, entradas: {}, consoleTexto: '', situacao: null,
   // A página passou do teto de uma montagem: o resumo, sem os dados longos.
   enxuta: false,
@@ -241,7 +241,7 @@ async function carregarVersoes(receita) {
 }
 
 function rascunhoDe(s) {
-  return { versao: s.versao, quem: s.quem, config: { ...s.config }, variante: s.variante ?? 'vanilla' };
+  return { versao: s.versao, quem: s.quem, config: JSON.parse(JSON.stringify(s.config ?? {})), variante: s.variante ?? 'vanilla' };
 }
 
 async function abrirConfig(id) {
@@ -249,6 +249,7 @@ async function abrirConfig(id) {
   estado.atual = id;
   estado.aba = 'aba-geral';
   estado.erros = {};
+  estado.palavra = {};
   estado.situacao = null;
   const s = servidorAtual();
   if (!s) return;
@@ -332,6 +333,8 @@ async function tratarBotao(chave) {
     const v = receitaPorId(s?.receita)?.variantes[id];
     if (v && v.disponivel !== false && estado.rascunho) estado.rascunho.variante = id;
     else avisar({ erro: 'variante-indisponivel', onde: 'variante', dados: { variante: id, porque: v?.porque ?? null } });
+  } else if (nome === 'palavra-mais' || nome === 'palavra-tirar' || nome === 'amostra') {
+    mexerNasPalavras(nome, id);
   } else if (chave === 'salvar') {
     await salvar();
   } else if (chave === 'ligar' || chave === 'desligar') {
@@ -352,6 +355,26 @@ async function tratarBotao(chave) {
   }
 }
 
+/** Põe uma palavra no fim do nome, tira a escolhida, ou escolhe a de índice `i` (`amostra:nome:2`). */
+function mexerNasPalavras(botaoNome, id) {
+  if (!estado.rascunho) return;
+  const [chave, indice] = id.split(':');
+  const campo = receitaPorId(servidorAtual()?.receita)?.configuracao.campos.find(c => c.chave === chave && c.forma === 'segmentos');
+  const lista = estado.rascunho.config[chave];
+  if (!campo || !Array.isArray(lista)) return;
+  const atual = Math.min(estado.palavra[chave] ?? 0, lista.length - 1);
+  if (botaoNome === 'palavra-mais' && lista.length < campo.maximoSegmentos) {
+    lista.push({ texto: '', cor: lista[atual].cor });
+    estado.palavra[chave] = lista.length - 1;
+  } else if (botaoNome === 'palavra-tirar' && lista.length > 1) {
+    lista.splice(atual, 1);
+    estado.palavra[chave] = Math.min(atual, lista.length - 1);
+  } else if (botaoNome === 'amostra' && lista[Number(indice)]) {
+    estado.palavra[chave] = Number(indice);
+  }
+  delete estado.erros[chave];
+}
+
 function tratarCampo(evento) {
   const { chave, valor } = evento;
   if (chave === 'console:texto') {
@@ -362,11 +385,28 @@ function tratarCampo(evento) {
   if (chave === 'versao') estado.rascunho.versao = valor || null;
   else if (chave === 'quem') estado.rascunho.quem = valor ? String(valor) : null;
   else if (chave.startsWith('cfg:')) {
-    estado.rascunho.config[chave.slice(4)] = valor;
-    delete estado.erros[chave.slice(4)];
+    // `cfg:nome` é um campo; `cfg:nome:2:texto` é o texto da palavra 3 de uma lista;
+    // `cfg:nome:cor` é a cor da palavra escolhida.
+    const [campo, a, b] = chave.slice(4).split(':');
+    const lista = estado.rascunho.config[campo];
+    let parte = null;
+    if (a === undefined) {
+      estado.rascunho.config[campo] = valor;
+    } else if (a === 'cor' && Array.isArray(lista)) {
+      parte = 'cor';
+      const palavra = lista[Math.min(estado.palavra[campo] ?? 0, lista.length - 1)];
+      if (!palavra) return false;
+      palavra.cor = valor;
+    } else if (b === 'texto' && lista?.[Number(a)]) {
+      parte = 'texto';
+      lista[Number(a)].texto = valor;
+    } else return false;
+    const tinhaErro = campo in estado.erros;
+    delete estado.erros[campo];
+    // Repinta a amostra da cor e tira a recusa; o resto o produto já mostra.
+    return parte === 'cor' || tinhaErro;
   } else return false;
-  // Só a amostra da cor muda o desenho; o resto o produto já mostra.
-  return chave === 'cfg:cor' || chave === 'quem';
+  return chave === 'quem';
 }
 
 async function tratar(evento) {
@@ -420,8 +460,45 @@ SeeleUI.aoEvento(evento => {
 
 // ---------------------------------------------------------------- o desenho
 
+/**
+ * O nome em palavras, como o desenho: uma linha por palavra, com o texto dela
+ * e a amostra da cor dela (o botão que a escolhe); embaixo, as 16 cores do
+ * Minecraft para a palavra escolhida. Uma lista de 16 opções por palavra
+ * passava dos 12 KiB da página com seis palavras; uma só lista basta.
+ */
+function controleSegmentos(campo, s) {
+  const lista = estado.rascunho?.config[campo.chave] ?? campo.padrao;
+  const gravada = s.config?.[campo.chave] ?? campo.padrao;
+  const livre = pode('configurar-servidor-de-jogo');
+  const atual = Math.min(estado.palavra[campo.chave] ?? 0, lista.length - 1);
+  const linhas = lista.map((p, i) => {
+    const cor = campo.opcoes.find(o => o.valor === p.cor);
+    const escolhida = i === atual;
+    return linhaH([
+      { forma: 'campo', chave: 'cfg:' + campo.chave + ':' + i + ':texto', rotulo: 'Palavra ' + (i + 1), valor: String(p.texto), inicial: String(gravada[i]?.texto ?? ''), tamanhoMaximo: campo.tamanhoMaximo, desligado: !livre },
+      botao('amostra:' + campo.chave + ':' + i, '■ ' + (cor?.rotulo ?? p.cor), {
+        variante: 'discreta',
+        estilo: { cor: cor?.amostra ?? COR.apagado, borda: { largura: 1, estilo: 'solida', cor: escolhida ? COR.acento : COR.borda }, raio: 6, preenchimento: 8 },
+      }),
+    ], { chave: 'palavra:' + campo.chave + ':' + i });
+  });
+  const dela = lista[atual];
+  return pilha([
+    cl(campo.rotulo, 'lb'),
+    ...linhas,
+    { forma: 'escolha', chave: 'cfg:' + campo.chave + ':cor', rotulo: 'Cor da palavra ' + (atual + 1), valor: String(dela.cor), inicial: String(gravada[atual]?.cor ?? dela.cor), opcoes: campo.opcoes.map(o => ({ valor: o.valor, dentro: o.rotulo })), desligado: !livre },
+    linhaH([
+      botao('palavra-mais:' + campo.chave, '+ PALAVRA', { variante: 'discreta', desligado: !livre || lista.length >= campo.maximoSegmentos }),
+      botao('palavra-tirar:' + campo.chave, 'TIRAR A PALAVRA ' + (atual + 1), { variante: 'discreta', desligado: !livre || lista.length <= 1 }),
+    ]),
+    estado.erros[campo.chave] ? tx(estado.erros[campo.chave], { cor: COR.erro, corpo: 14 }, { chave: 'erro:' + campo.chave }) : null,
+    campo.ajuda ? apagado(campo.ajuda) : null,
+  ], 6);
+}
+
 /** Um controle da receita, com o valor do rascunho, o gravado como inicial e a frase do servidor. */
 function controle(campo, s) {
+  if (campo.forma === 'segmentos') return controleSegmentos(campo, s);
   const chave = 'cfg:' + campo.chave;
   const valor = estado.rascunho?.config[campo.chave] ?? campo.padrao;
   const inicial = s.config?.[campo.chave] ?? campo.padrao;
@@ -631,7 +708,7 @@ function hora(segundos) {
 function vistaConfig() {
   const s = servidorAtual();
   const receita = receitaPorId(s.receita);
-  const nome = estado.rascunho?.config?.nome ?? s.config?.nome ?? s.id;
+  const nome = nomeEmTexto(estado.rascunho?.config?.nome ?? s.config?.nome) || s.id;
   const conteudo = {
     'aba-geral': () => abaGeral(receita, s),
     'aba-mods': () => abaMods(),
@@ -669,7 +746,7 @@ function cartao(s) {
     dentro: [pilha([
       linhaH([
         cl(receita?.icone ?? '?', 'erro'),
-        cl(s.config?.nome ?? s.id, 'grande'),
+        cl(nomeEmTexto(s.config?.nome) || s.id, 'grande'),
         chip(rotuloDoEstado(s)),
       ]),
       apagado(`${receita?.nome ?? s.receita} ${s.versao ?? '(sem versão)'} · ${s.quem ? 'na máquina de ' + apelidoDe(s.quem) : 'sem máquina'}`),

@@ -196,10 +196,58 @@ function montarOferta(receita, { servidor, versao, porta }, resolvido) {
 
 // ---------------------------------------------------------------- configuração
 
+/** Uma cópia da lista de palavras, para o padrão da receita nunca ser o que se edita. */
+function copiarSegmentos(lista) {
+  return lista.map(p => ({ texto: p.texto, cor: p.cor }));
+}
+
+/** O nome como texto simples, as palavras separadas por um espaço. */
+function nomeEmTexto(segmentos) {
+  return Array.isArray(segmentos) ? segmentos.map(p => p?.texto ?? '').join(' ') : String(segmentos ?? '');
+}
+
+/**
+ * Confere uma lista de palavras `{texto, cor}` de um campo `segmentos`.
+ * Devolve `{ lista }` com as palavras já aparadas, ou `{ erro }` com a frase.
+ *
+ * O `texto` nunca carrega `§` (uma palavra não escolhe a cor de outra por
+ * fora do campo `cor`) nem quebra de linha, e a `cor` é uma das opções da
+ * receita — as 16 do Minecraft.
+ */
+function conferirSegmentos(campo, valor) {
+  if (!Array.isArray(valor)) return { erro: 'Use uma lista de palavras, cada uma com texto e cor.' };
+  if (valor.length === 0) return { erro: 'Preencha o nome com ao menos uma palavra.' };
+  if (valor.length > campo.maximoSegmentos) return { erro: `Use até ${campo.maximoSegmentos} palavras; são ${valor.length}.` };
+  const lista = [];
+  for (let i = 0; i < valor.length; i++) {
+    const p = valor[i];
+    const n = i + 1;
+    const chaves = p && typeof p === 'object' && !Array.isArray(p) ? Object.keys(p) : [];
+    if (chaves.length !== 2 || !chaves.includes('texto') || !chaves.includes('cor') || typeof p.texto !== 'string') {
+      return { erro: `A palavra ${n} está mal formada: use {texto, cor}.` };
+    }
+    if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029§]/.test(p.texto)) return { erro: `A palavra ${n} tem § ou uma quebra de linha, que não valem num nome.` };
+    const texto = p.texto.trim();
+    if (texto === '') return { erro: `A palavra ${n} está vazia.` };
+    if (!campo.opcoes.some(o => o.valor === p.cor)) {
+      return { erro: `A palavra ${n} usa a cor ${typeof p.cor === 'string' ? '«' + p.cor + '»' : JSON.stringify(p.cor)}, que não é uma das 16 do Minecraft.` };
+    }
+    lista.push({ texto, cor: p.cor });
+  }
+  const tamanho = [...nomeEmTexto(lista)].length;
+  if (campo.tamanhoMaximo && tamanho > campo.tamanhoMaximo) return { erro: `Use até ${campo.tamanhoMaximo} caracteres no nome todo; este tem ${tamanho}.` };
+  return { lista };
+}
+
+/** O nome com o `§` de cada cor antes da palavra dela: o que o `motd` lê. */
+function motdDe(campo, segmentos) {
+  return segmentos.map(p => '§' + campo.opcoes.find(o => o.valor === p.cor).codigo + p.texto).join(' ');
+}
+
 /** A configuração com os padrões da receita. */
 function configPadrao(receita) {
   const config = {};
-  for (const campo of receita.configuracao.campos) config[campo.chave] = campo.padrao;
+  for (const campo of receita.configuracao.campos) config[campo.chave] = campo.forma === 'segmentos' ? copiarSegmentos(campo.padrao) : campo.padrao;
   return config;
 }
 
@@ -220,7 +268,12 @@ function validarConfig(receita, entrada, atual = configPadrao(receita)) {
       continue;
     }
     let erro = null;
-    if (campo.forma === 'campo') {
+    let valorFinal = valor;
+    if (campo.forma === 'segmentos') {
+      const c = conferirSegmentos(campo, valor);
+      if (c.erro) erro = c.erro;
+      else valorFinal = c.lista;
+    } else if (campo.forma === 'campo') {
       if (typeof valor !== 'string') erro = 'Use um texto.';
       else if (campo.obrigatorio && valor.trim() === '') erro = 'Preencha este campo.';
       else if (campo.tamanhoMaximo && [...valor].length > campo.tamanhoMaximo) erro = `Use até ${campo.tamanhoMaximo} caracteres; este tem ${[...valor].length}.`;
@@ -234,17 +287,21 @@ function validarConfig(receita, entrada, atual = configPadrao(receita)) {
       if (typeof valor !== 'boolean') erro = 'Use ligado ou desligado.';
     }
     if (erro) erros[chave] = erro;
-    else config[chave] = valor;
+    else config[chave] = valorFinal;
   }
   return { config, erros };
 }
 
-/** Um valor de `.properties`: `\`, quebras e tudo fora do ASCII escapados. */
+/**
+ * Um valor de `.properties`: `\`, `:`, `=`, `#`, `!`, as quebras e tudo fora
+ * do ASCII escapados (o `§` sai `\u00a7`, que é como o Java o lê).
+ */
 function escaparPropriedade(texto) {
   let saida = '';
   for (const c of String(texto)) {
     const p = c.codePointAt(0);
     if (c === '\\') saida += '\\\\';
+    else if (c === ':' || c === '=' || c === '#' || c === '!') saida += '\\' + c;
     else if (c === '\n') saida += '\\n';
     else if (c === '\r') saida += '\\r';
     else if (c === '\t') saida += '\\t';
@@ -260,6 +317,10 @@ function escaparPropriedade(texto) {
 /** O arquivo de configuração do jogo, a partir da configuração e da porta. */
 function escreverPropriedades(receita, config, porta) {
   const valores = { ...configPadrao(receita), ...config, porta };
+  // Uma lista de palavras entra no modelo já com o § de cada cor.
+  for (const campo of receita.configuracao.campos) {
+    if (campo.forma === 'segmentos') valores[campo.chave] = motdDe(campo, valores[campo.chave]);
+  }
   const linhas = [
     `# Escrito pelo MOD de multiplayer do SEELE (receita ${receita.id} ${receita.versao}).`,
     '# Mude pela tela do SEELE: o que mudar aqui é reescrito ao ligar.',

@@ -25,8 +25,8 @@ test('uma chave desconhecida no topo é recusada pelo nome', () => {
 
 test('uma chave desconhecida lá dentro é recusada com o caminho até ela', () => {
   const r = minecraft();
-  r.configuracao.campos[2].maxmo = 50;
-  assert.deepEqual(erros(r), ['receita.configuracao.campos[2]: chave desconhecida «maxmo»']);
+  r.configuracao.campos[1].maxmo = 50;
+  assert.deepEqual(erros(r), ['receita.configuracao.campos[1]: chave desconhecida «maxmo»']);
   const s = minecraft();
   s.artefatos[1].plataformas[0].sistema = 'windows';
   assert.deepEqual(erros(s), ['receita.artefatos[1].plataformas[0]: chave desconhecida «sistema»']);
@@ -72,33 +72,33 @@ test('o modelo de uma propriedade só usa campos declarados e a porta', () => {
 
 test('o padrão de cada campo tem de servir à forma dele', () => {
   const r = minecraft();
-  r.configuracao.campos[3].padrao = 'impossivel';
-  r.configuracao.campos[2].padrao = 500;
-  r.configuracao.campos[5].padrao = 'sim';
+  r.configuracao.campos[2].padrao = 'impossivel';
+  r.configuracao.campos[1].padrao = 500;
+  r.configuracao.campos[4].padrao = 'sim';
   assert.deepEqual(erros(r), [
-    'receita.configuracao.campos[2].padrao: 500 fora de 1 a 100',
-    'receita.configuracao.campos[3].padrao: «impossivel» não é uma das opções',
-    'receita.configuracao.campos[5].padrao: um interruptor tem padrão true ou false',
+    'receita.configuracao.campos[1].padrao: 500 fora de 1 a 100',
+    'receita.configuracao.campos[2].padrao: «impossivel» não é uma das opções',
+    'receita.configuracao.campos[4].padrao: um interruptor tem padrão true ou false',
   ]);
 });
 
 test('uma escolha sem opções e um número sem limites são recusados', () => {
   const r = minecraft();
-  delete r.configuracao.campos[1].opcoes;
-  delete r.configuracao.campos[2].minimo;
+  delete r.configuracao.campos[2].opcoes;
+  delete r.configuracao.campos[1].minimo;
   assert.deepEqual(erros(r), [
-    'receita.configuracao.campos[1]: uma escolha precisa de «opcoes»',
-    'receita.configuracao.campos[2]: um número precisa de «minimo» e «maximo»',
+    'receita.configuracao.campos[1]: um número precisa de «minimo» e «maximo»',
+    'receita.configuracao.campos[2]: uma escolha precisa de «opcoes»',
   ]);
 });
 
 test('chaves de campo repetidas são recusadas', () => {
   const r = minecraft();
-  r.configuracao.campos[4].chave = 'modoDeJogo';
   r.configuracao.campos[3].chave = 'modoDeJogo';
+  r.configuracao.campos[2].chave = 'modoDeJogo';
   r.configuracao.propriedades.difficulty = '{modoDeJogo}';
   r.configuracao.propriedades.gamemode = '{modoDeJogo}';
-  assert.deepEqual(erros(r), ['receita.configuracao.campos[4].chave: «modoDeJogo» repetida']);
+  assert.deepEqual(erros(r), ['receita.configuracao.campos[3].chave: «modoDeJogo» repetida']);
 });
 
 test('as expressões da saída compilam, e entrou e saiu têm um grupo só', () => {
@@ -170,4 +170,38 @@ test('o validador não lança com qualquer lixo, e diz o que achou', () => {
 test('a receita do disco é a que o build embute', () => {
   const { RECEITAS } = carregar('servidor', ['RECEITAS']);
   assert.deepEqual(JSON.parse(JSON.stringify(RECEITAS)), [minecraft()]);
+});
+
+test('o nome é uma lista de palavras coloridas, e a lista tem de servir à forma', () => {
+  const campo = r => r.configuracao.campos[0];
+  const r = minecraft();
+  assert.equal(campo(r).forma, 'segmentos');
+  assert.equal(campo(r).opcoes.length, 16, 'são as 16 cores do Minecraft');
+  campo(r).padrao = [{ texto: 'Casa', cor: 'roxinho' }];
+  assert.deepEqual(erros(r), ['receita.configuracao.campos[0].padrao: a palavra 1 usa a cor «roxinho», que não é uma das 16 do Minecraft']);
+  const s = minecraft();
+  delete campo(s).opcoes;
+  assert.deepEqual(erros(s), ['receita.configuracao.campos[0]: uma lista de palavras precisa de «opcoes»']);
+  const t = minecraft();
+  delete campo(t).opcoes[3].codigo;
+  assert.deepEqual(erros(t), ['receita.configuracao.campos[0].opcoes[3]: falta o «codigo» do § desta cor']);
+  const u = minecraft();
+  campo(u).opcoes[3].codigo = campo(u).opcoes[4].codigo;
+  assert.deepEqual(erros(u), [`receita.configuracao.campos[0].opcoes[4]: o código «${campo(u).opcoes[4].codigo}» repete o de outra cor`]);
+  const v = minecraft();
+  campo(v).maximoSegmentos = 2;
+  campo(v).padrao = [{ texto: 'a', cor: 'aqua' }, { texto: 'b', cor: 'gold' }, { texto: 'c', cor: 'gold' }];
+  assert.deepEqual(erros(v), ['receita.configuracao.campos[0].padrao: use até 2 palavras; são 3']);
+  const w = minecraft();
+  campo(w).opcoes[0].codigo = 'x';
+  assert.deepEqual(erros(w), ['receita.configuracao.campos[0].opcoes[0].codigo: «x» não tem a forma pedida']);
+});
+
+test('só a lista de palavras tem «maximoSegmentos» e «codigo»', () => {
+  const r = minecraft();
+  r.configuracao.campos[1].maximoSegmentos = 3;
+  assert.deepEqual(erros(r), ['receita.configuracao.campos[1]: só uma lista de palavras tem «maximoSegmentos»']);
+  const s = minecraft();
+  s.configuracao.campos[2].opcoes[0].codigo = 'f';
+  assert.deepEqual(erros(s), ['receita.configuracao.campos[2].opcoes[0]: só a lista de palavras usa «codigo»']);
 });

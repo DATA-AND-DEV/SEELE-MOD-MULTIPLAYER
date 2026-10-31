@@ -1,7 +1,7 @@
 /* Gerado por ferramentas/build.mjs a partir de fonte/ e receitas/. API 8. Não edite aqui. */
 (() => {
 "use strict";
-const RECEITAS = [{"formato":1,"id":"minecraft","nome":"Minecraft","edicao":"Java Edition","icone":"MC","versao":"1.0.0","descricao":"O servidor oficial da Mojang, com o Java que cada versão pede.","variantes":{"vanilla":{"nome":"Vanilla","descricao":"Minecraft puro, sem mods. Você escolhe só a versão."},"com-mods":{"nome":"Com mods","descricao":"Um modpack do Modrinth define a versão, o loader e os mods.","disponivel":false,"porque":"Com mods chega na próxima versão."}},"versoes":{"fonte":"mojang","manifesto":"https://piston-meta.mojang.com/mc/game/version_manifest_v2.json","tipos":["release"],"quantas":24},"artefatos":[{"id":"servidor","fonte":"mojang-servidor","destino":"server.jar"},{"id":"java","fonte":"adoptium","destino":"java","consulta":"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?image_type=jre&vendor=eclipse","majorPadrao":8,"plataformas":[{"plataforma":"windows-x64","os":"windows","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"mac-aarch64","os":"mac","arquitetura":"aarch64","raiz":"{release}-jre/Contents/Home","senaoHouver":"mac-x64"},{"plataforma":"mac-x64","os":"mac","arquitetura":"x64","raiz":"{release}-jre/Contents/Home"},{"plataforma":"linux-x64","os":"linux","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"linux-aarch64","os":"linux","arquitetura":"aarch64","raiz":"{release}-jre"}]}],"origens":["piston-data.mojang.com","github.com","objects.githubusercontent.com","release-assets.githubusercontent.com"],"dominiosDoJogo":["sessionserver.mojang.com","api.minecraftservices.com","api.mojang.com"],"rodar":{"comando":"java/bin/java","argumentos":["-Xms1G","-Xmx2G","-jar","server.jar","nogui"]},"rede":{"protocolo":"tcp","portaPadrao":25565},"disco":{"mundoMaximo":8589934592},"termos":[{"id":"eula","titulo":"EULA do Minecraft (Mojang)","url":"https://aka.ms/MinecraftEULA","arquivo":"eula.txt","conteudo":"eula=true\n"}],"configuracao":{"arquivo":"server.properties","formato":"properties","campos":[{"chave":"nome","aba":"geral","forma":"campo","rotulo":"Nome que aparece na lista do jogo","padrao":"Servidor do SEELE","obrigatorio":true,"tamanhoMaximo":59},{"chave":"cor","aba":"geral","forma":"escolha","rotulo":"Cor do nome","padrao":"b","opcoes":[{"valor":"f","rotulo":"Branco","amostra":"#FFFFFF"},{"valor":"7","rotulo":"Cinza","amostra":"#AAAAAA"},{"valor":"8","rotulo":"Cinza-escuro","amostra":"#555555"},{"valor":"0","rotulo":"Preto","amostra":"#000000"},{"valor":"e","rotulo":"Amarelo","amostra":"#FFFF55"},{"valor":"6","rotulo":"Dourado","amostra":"#FFAA00"},{"valor":"c","rotulo":"Vermelho","amostra":"#FF5555"},{"valor":"4","rotulo":"Vermelho-escuro","amostra":"#AA0000"},{"valor":"d","rotulo":"Rosa","amostra":"#FF55FF"},{"valor":"5","rotulo":"Roxo","amostra":"#AA00AA"},{"valor":"9","rotulo":"Azul","amostra":"#5555FF"},{"valor":"1","rotulo":"Azul-escuro","amostra":"#0000AA"},{"valor":"b","rotulo":"Ciano","amostra":"#55FFFF"},{"valor":"3","rotulo":"Ciano-escuro","amostra":"#00AAAA"},{"valor":"a","rotulo":"Verde","amostra":"#55FF55"},{"valor":"2","rotulo":"Verde-escuro","amostra":"#00AA00"}]},{"chave":"maximo","aba":"geral","grupo":"regras","forma":"numero","rotulo":"Máx. jogadores","padrao":10,"minimo":1,"maximo":100},{"chave":"dificuldade","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Dificuldade","padrao":"normal","opcoes":[{"valor":"peaceful","rotulo":"Pacífica"},{"valor":"easy","rotulo":"Fácil"},{"valor":"normal","rotulo":"Normal"},{"valor":"hard","rotulo":"Difícil"}]},{"chave":"modo","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Modo","padrao":"survival","opcoes":[{"valor":"survival","rotulo":"Sobrevivência"},{"valor":"creative","rotulo":"Criativo"},{"valor":"adventure","rotulo":"Aventura"},{"valor":"spectator","rotulo":"Espectador"}]},{"chave":"pvp","aba":"geral","forma":"interruptor","rotulo":"PvP","padrao":true},{"chave":"hardcore","aba":"jogadores","forma":"interruptor","rotulo":"Hardcore","ajuda":"Quem morre vira espectador até o mundo acabar.","padrao":false},{"chave":"protecao","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Proteção em volta do nascimento","ajuda":"Em blocos. Só quem é operador constrói ali.","padrao":16,"minimo":0,"maximo":64},{"chave":"inativo","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Tirar quem fica parado","ajuda":"Em minutos. Zero é nunca.","padrao":0,"minimo":0,"maximo":120}],"propriedades":{"motd":"§{cor}{nome}","max-players":"{maximo}","difficulty":"{dificuldade}","gamemode":"{modo}","pvp":"{pvp}","hardcore":"{hardcore}","spawn-protection":"{protecao}","player-idle-timeout":"{inativo}","server-ip":"127.0.0.1","server-port":"{porta}","online-mode":"true","enable-rcon":"false","enable-query":"false"}},"mundo":{"pasta":"world","salvar":[{"console":"save-off"},{"console":"save-all flush","esperar":"\\]: Saved the game","prazo":60},{"copiar":"world"},{"console":"save-on"}]},"saida":{"pronto":"\\]: Done \\(","entrou":"\\]: ([A-Za-z0-9_]{1,16}) joined the game$","saiu":"\\]: ([A-Za-z0-9_]{1,16}) left the game$","parar":{"console":"stop","esperar":"\\]: Stopping the server","prazo":60}}}];
+const RECEITAS = [{"formato":1,"id":"minecraft","nome":"Minecraft","edicao":"Java Edition","icone":"MC","versao":"1.0.0","descricao":"O servidor oficial da Mojang, com o Java que cada versão pede.","variantes":{"vanilla":{"nome":"Vanilla","descricao":"Minecraft puro, sem mods. Você escolhe só a versão."},"com-mods":{"nome":"Com mods","descricao":"Um modpack do Modrinth define a versão, o loader e os mods.","disponivel":false,"porque":"Com mods chega na próxima versão."}},"versoes":{"fonte":"mojang","manifesto":"https://piston-meta.mojang.com/mc/game/version_manifest_v2.json","tipos":["release"],"quantas":24},"artefatos":[{"id":"servidor","fonte":"mojang-servidor","destino":"server.jar"},{"id":"java","fonte":"adoptium","destino":"java","consulta":"https://api.adoptium.net/v3/assets/latest/{major}/hotspot?image_type=jre&vendor=eclipse","majorPadrao":8,"plataformas":[{"plataforma":"windows-x64","os":"windows","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"mac-aarch64","os":"mac","arquitetura":"aarch64","raiz":"{release}-jre/Contents/Home","senaoHouver":"mac-x64"},{"plataforma":"mac-x64","os":"mac","arquitetura":"x64","raiz":"{release}-jre/Contents/Home"},{"plataforma":"linux-x64","os":"linux","arquitetura":"x64","raiz":"{release}-jre"},{"plataforma":"linux-aarch64","os":"linux","arquitetura":"aarch64","raiz":"{release}-jre"}]}],"origens":["piston-data.mojang.com","github.com","objects.githubusercontent.com","release-assets.githubusercontent.com"],"dominiosDoJogo":["sessionserver.mojang.com","api.minecraftservices.com","api.mojang.com"],"rodar":{"comando":"java/bin/java","argumentos":["-Xms1G","-Xmx2G","-jar","server.jar","nogui"]},"rede":{"protocolo":"tcp","portaPadrao":25565},"disco":{"mundoMaximo":8589934592},"termos":[{"id":"eula","titulo":"EULA do Minecraft (Mojang)","url":"https://aka.ms/MinecraftEULA","arquivo":"eula.txt","conteudo":"eula=true\n"}],"configuracao":{"arquivo":"server.properties","formato":"properties","campos":[{"chave":"nome","aba":"geral","forma":"segmentos","rotulo":"Nome que aparece na lista do jogo","ajuda":"Cada palavra tem a sua cor, entre as 16 do Minecraft.","padrao":[{"texto":"Servidor do SEELE","cor":"aqua"}],"tamanhoMaximo":59,"maximoSegmentos":6,"opcoes":[{"valor":"white","rotulo":"Branco","amostra":"#FFFFFF","codigo":"f"},{"valor":"gray","rotulo":"Cinza","amostra":"#AAAAAA","codigo":"7"},{"valor":"dark_gray","rotulo":"Cinza-escuro","amostra":"#555555","codigo":"8"},{"valor":"black","rotulo":"Preto","amostra":"#000000","codigo":"0"},{"valor":"yellow","rotulo":"Amarelo","amostra":"#FFFF55","codigo":"e"},{"valor":"gold","rotulo":"Dourado","amostra":"#FFAA00","codigo":"6"},{"valor":"red","rotulo":"Vermelho","amostra":"#FF5555","codigo":"c"},{"valor":"dark_red","rotulo":"Vermelho-escuro","amostra":"#AA0000","codigo":"4"},{"valor":"light_purple","rotulo":"Rosa","amostra":"#FF55FF","codigo":"d"},{"valor":"dark_purple","rotulo":"Roxo","amostra":"#AA00AA","codigo":"5"},{"valor":"blue","rotulo":"Azul","amostra":"#5555FF","codigo":"9"},{"valor":"dark_blue","rotulo":"Azul-escuro","amostra":"#0000AA","codigo":"1"},{"valor":"aqua","rotulo":"Ciano","amostra":"#55FFFF","codigo":"b"},{"valor":"dark_aqua","rotulo":"Ciano-escuro","amostra":"#00AAAA","codigo":"3"},{"valor":"green","rotulo":"Verde","amostra":"#55FF55","codigo":"a"},{"valor":"dark_green","rotulo":"Verde-escuro","amostra":"#00AA00","codigo":"2"}]},{"chave":"maximo","aba":"geral","grupo":"regras","forma":"numero","rotulo":"Máx. jogadores","padrao":10,"minimo":1,"maximo":100},{"chave":"dificuldade","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Dificuldade","padrao":"normal","opcoes":[{"valor":"peaceful","rotulo":"Pacífica"},{"valor":"easy","rotulo":"Fácil"},{"valor":"normal","rotulo":"Normal"},{"valor":"hard","rotulo":"Difícil"}]},{"chave":"modo","aba":"geral","grupo":"regras","forma":"escolha","rotulo":"Modo","padrao":"survival","opcoes":[{"valor":"survival","rotulo":"Sobrevivência"},{"valor":"creative","rotulo":"Criativo"},{"valor":"adventure","rotulo":"Aventura"},{"valor":"spectator","rotulo":"Espectador"}]},{"chave":"pvp","aba":"geral","forma":"interruptor","rotulo":"PvP","padrao":true},{"chave":"hardcore","aba":"jogadores","forma":"interruptor","rotulo":"Hardcore","ajuda":"Quem morre vira espectador até o mundo acabar.","padrao":false},{"chave":"protecao","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Proteção em volta do nascimento","ajuda":"Em blocos. Só quem é operador constrói ali.","padrao":16,"minimo":0,"maximo":64},{"chave":"inativo","aba":"jogadores","grupo":"convivio","forma":"numero","rotulo":"Tirar quem fica parado","ajuda":"Em minutos. Zero é nunca.","padrao":0,"minimo":0,"maximo":120}],"propriedades":{"motd":"{nome}","max-players":"{maximo}","difficulty":"{dificuldade}","gamemode":"{modo}","pvp":"{pvp}","hardcore":"{hardcore}","spawn-protection":"{protecao}","player-idle-timeout":"{inativo}","server-ip":"127.0.0.1","server-port":"{porta}","online-mode":"true","enable-rcon":"false","enable-query":"false"}},"mundo":{"pasta":"world","salvar":[{"console":"save-off"},{"console":"save-all flush","esperar":"\\]: Saved the game","prazo":60},{"copiar":"world"},{"console":"save-on"}]},"saida":{"pronto":"\\]: Done \\(","entrou":"\\]: ([A-Za-z0-9_]{1,16}) joined the game$","saiu":"\\]: ([A-Za-z0-9_]{1,16}) left the game$","parar":{"console":"stop","esperar":"\\]: Stopping the server","prazo":60}}}];
 const ESQUEMA_DA_RECEITA = null;
 // ---- comum.js: o que as três metades usam igual ----
 //
@@ -320,10 +320,58 @@ function montarOferta(receita, { servidor, versao, porta }, resolvido) {
 
 // ---------------------------------------------------------------- configuração
 
+/** Uma cópia da lista de palavras, para o padrão da receita nunca ser o que se edita. */
+function copiarSegmentos(lista) {
+  return lista.map(p => ({ texto: p.texto, cor: p.cor }));
+}
+
+/** O nome como texto simples, as palavras separadas por um espaço. */
+function nomeEmTexto(segmentos) {
+  return Array.isArray(segmentos) ? segmentos.map(p => p?.texto ?? '').join(' ') : String(segmentos ?? '');
+}
+
+/**
+ * Confere uma lista de palavras `{texto, cor}` de um campo `segmentos`.
+ * Devolve `{ lista }` com as palavras já aparadas, ou `{ erro }` com a frase.
+ *
+ * O `texto` nunca carrega `§` (uma palavra não escolhe a cor de outra por
+ * fora do campo `cor`) nem quebra de linha, e a `cor` é uma das opções da
+ * receita — as 16 do Minecraft.
+ */
+function conferirSegmentos(campo, valor) {
+  if (!Array.isArray(valor)) return { erro: 'Use uma lista de palavras, cada uma com texto e cor.' };
+  if (valor.length === 0) return { erro: 'Preencha o nome com ao menos uma palavra.' };
+  if (valor.length > campo.maximoSegmentos) return { erro: `Use até ${campo.maximoSegmentos} palavras; são ${valor.length}.` };
+  const lista = [];
+  for (let i = 0; i < valor.length; i++) {
+    const p = valor[i];
+    const n = i + 1;
+    const chaves = p && typeof p === 'object' && !Array.isArray(p) ? Object.keys(p) : [];
+    if (chaves.length !== 2 || !chaves.includes('texto') || !chaves.includes('cor') || typeof p.texto !== 'string') {
+      return { erro: `A palavra ${n} está mal formada: use {texto, cor}.` };
+    }
+    if (/[\u0000-\u001f\u007f-\u009f\u2028\u2029§]/.test(p.texto)) return { erro: `A palavra ${n} tem § ou uma quebra de linha, que não valem num nome.` };
+    const texto = p.texto.trim();
+    if (texto === '') return { erro: `A palavra ${n} está vazia.` };
+    if (!campo.opcoes.some(o => o.valor === p.cor)) {
+      return { erro: `A palavra ${n} usa a cor ${typeof p.cor === 'string' ? '«' + p.cor + '»' : JSON.stringify(p.cor)}, que não é uma das 16 do Minecraft.` };
+    }
+    lista.push({ texto, cor: p.cor });
+  }
+  const tamanho = [...nomeEmTexto(lista)].length;
+  if (campo.tamanhoMaximo && tamanho > campo.tamanhoMaximo) return { erro: `Use até ${campo.tamanhoMaximo} caracteres no nome todo; este tem ${tamanho}.` };
+  return { lista };
+}
+
+/** O nome com o `§` de cada cor antes da palavra dela: o que o `motd` lê. */
+function motdDe(campo, segmentos) {
+  return segmentos.map(p => '§' + campo.opcoes.find(o => o.valor === p.cor).codigo + p.texto).join(' ');
+}
+
 /** A configuração com os padrões da receita. */
 function configPadrao(receita) {
   const config = {};
-  for (const campo of receita.configuracao.campos) config[campo.chave] = campo.padrao;
+  for (const campo of receita.configuracao.campos) config[campo.chave] = campo.forma === 'segmentos' ? copiarSegmentos(campo.padrao) : campo.padrao;
   return config;
 }
 
@@ -344,7 +392,12 @@ function validarConfig(receita, entrada, atual = configPadrao(receita)) {
       continue;
     }
     let erro = null;
-    if (campo.forma === 'campo') {
+    let valorFinal = valor;
+    if (campo.forma === 'segmentos') {
+      const c = conferirSegmentos(campo, valor);
+      if (c.erro) erro = c.erro;
+      else valorFinal = c.lista;
+    } else if (campo.forma === 'campo') {
       if (typeof valor !== 'string') erro = 'Use um texto.';
       else if (campo.obrigatorio && valor.trim() === '') erro = 'Preencha este campo.';
       else if (campo.tamanhoMaximo && [...valor].length > campo.tamanhoMaximo) erro = `Use até ${campo.tamanhoMaximo} caracteres; este tem ${[...valor].length}.`;
@@ -358,17 +411,21 @@ function validarConfig(receita, entrada, atual = configPadrao(receita)) {
       if (typeof valor !== 'boolean') erro = 'Use ligado ou desligado.';
     }
     if (erro) erros[chave] = erro;
-    else config[chave] = valor;
+    else config[chave] = valorFinal;
   }
   return { config, erros };
 }
 
-/** Um valor de `.properties`: `\`, quebras e tudo fora do ASCII escapados. */
+/**
+ * Um valor de `.properties`: `\`, `:`, `=`, `#`, `!`, as quebras e tudo fora
+ * do ASCII escapados (o `§` sai `\u00a7`, que é como o Java o lê).
+ */
 function escaparPropriedade(texto) {
   let saida = '';
   for (const c of String(texto)) {
     const p = c.codePointAt(0);
     if (c === '\\') saida += '\\\\';
+    else if (c === ':' || c === '=' || c === '#' || c === '!') saida += '\\' + c;
     else if (c === '\n') saida += '\\n';
     else if (c === '\r') saida += '\\r';
     else if (c === '\t') saida += '\\t';
@@ -384,6 +441,10 @@ function escaparPropriedade(texto) {
 /** O arquivo de configuração do jogo, a partir da configuração e da porta. */
 function escreverPropriedades(receita, config, porta) {
   const valores = { ...configPadrao(receita), ...config, porta };
+  // Uma lista de palavras entra no modelo já com o § de cada cor.
+  for (const campo of receita.configuracao.campos) {
+    if (campo.forma === 'segmentos') valores[campo.chave] = motdDe(campo, valores[campo.chave]);
+  }
   const linhas = [
     `# Escrito pelo MOD de multiplayer do SEELE (receita ${receita.id} ${receita.versao}).`,
     '# Mude pela tela do SEELE: o que mudar aqui é reescrito ao ligar.',
@@ -583,7 +644,7 @@ function quadroDeFalha(f, chave) {
 const estado = {
   aberta: false, punho: null, dados: null, retrato: null,
   vista: 'seletor', atual: null, aba: 'aba-geral',
-  rascunho: null, erros: {}, aviso: null, versoes: {},
+  rascunho: null, palavra: {}, erros: {}, aviso: null, versoes: {},
   portas: {}, entradas: {}, consoleTexto: '', situacao: null,
   // A página passou do teto de uma montagem: o resumo, sem os dados longos.
   enxuta: false,
@@ -656,7 +717,7 @@ async function carregarVersoes(receita) {
 }
 
 function rascunhoDe(s) {
-  return { versao: s.versao, quem: s.quem, config: { ...s.config }, variante: s.variante ?? 'vanilla' };
+  return { versao: s.versao, quem: s.quem, config: JSON.parse(JSON.stringify(s.config ?? {})), variante: s.variante ?? 'vanilla' };
 }
 
 async function abrirConfig(id) {
@@ -664,6 +725,7 @@ async function abrirConfig(id) {
   estado.atual = id;
   estado.aba = 'aba-geral';
   estado.erros = {};
+  estado.palavra = {};
   estado.situacao = null;
   const s = servidorAtual();
   if (!s) return;
@@ -747,6 +809,8 @@ async function tratarBotao(chave) {
     const v = receitaPorId(s?.receita)?.variantes[id];
     if (v && v.disponivel !== false && estado.rascunho) estado.rascunho.variante = id;
     else avisar({ erro: 'variante-indisponivel', onde: 'variante', dados: { variante: id, porque: v?.porque ?? null } });
+  } else if (nome === 'palavra-mais' || nome === 'palavra-tirar' || nome === 'amostra') {
+    mexerNasPalavras(nome, id);
   } else if (chave === 'salvar') {
     await salvar();
   } else if (chave === 'ligar' || chave === 'desligar') {
@@ -767,6 +831,26 @@ async function tratarBotao(chave) {
   }
 }
 
+/** Põe uma palavra no fim do nome, tira a escolhida, ou escolhe a de índice `i` (`amostra:nome:2`). */
+function mexerNasPalavras(botaoNome, id) {
+  if (!estado.rascunho) return;
+  const [chave, indice] = id.split(':');
+  const campo = receitaPorId(servidorAtual()?.receita)?.configuracao.campos.find(c => c.chave === chave && c.forma === 'segmentos');
+  const lista = estado.rascunho.config[chave];
+  if (!campo || !Array.isArray(lista)) return;
+  const atual = Math.min(estado.palavra[chave] ?? 0, lista.length - 1);
+  if (botaoNome === 'palavra-mais' && lista.length < campo.maximoSegmentos) {
+    lista.push({ texto: '', cor: lista[atual].cor });
+    estado.palavra[chave] = lista.length - 1;
+  } else if (botaoNome === 'palavra-tirar' && lista.length > 1) {
+    lista.splice(atual, 1);
+    estado.palavra[chave] = Math.min(atual, lista.length - 1);
+  } else if (botaoNome === 'amostra' && lista[Number(indice)]) {
+    estado.palavra[chave] = Number(indice);
+  }
+  delete estado.erros[chave];
+}
+
 function tratarCampo(evento) {
   const { chave, valor } = evento;
   if (chave === 'console:texto') {
@@ -777,11 +861,28 @@ function tratarCampo(evento) {
   if (chave === 'versao') estado.rascunho.versao = valor || null;
   else if (chave === 'quem') estado.rascunho.quem = valor ? String(valor) : null;
   else if (chave.startsWith('cfg:')) {
-    estado.rascunho.config[chave.slice(4)] = valor;
-    delete estado.erros[chave.slice(4)];
+    // `cfg:nome` é um campo; `cfg:nome:2:texto` é o texto da palavra 3 de uma lista;
+    // `cfg:nome:cor` é a cor da palavra escolhida.
+    const [campo, a, b] = chave.slice(4).split(':');
+    const lista = estado.rascunho.config[campo];
+    let parte = null;
+    if (a === undefined) {
+      estado.rascunho.config[campo] = valor;
+    } else if (a === 'cor' && Array.isArray(lista)) {
+      parte = 'cor';
+      const palavra = lista[Math.min(estado.palavra[campo] ?? 0, lista.length - 1)];
+      if (!palavra) return false;
+      palavra.cor = valor;
+    } else if (b === 'texto' && lista?.[Number(a)]) {
+      parte = 'texto';
+      lista[Number(a)].texto = valor;
+    } else return false;
+    const tinhaErro = campo in estado.erros;
+    delete estado.erros[campo];
+    // Repinta a amostra da cor e tira a recusa; o resto o produto já mostra.
+    return parte === 'cor' || tinhaErro;
   } else return false;
-  // Só a amostra da cor muda o desenho; o resto o produto já mostra.
-  return chave === 'cfg:cor' || chave === 'quem';
+  return chave === 'quem';
 }
 
 async function tratar(evento) {
@@ -835,8 +936,45 @@ SeeleUI.aoEvento(evento => {
 
 // ---------------------------------------------------------------- o desenho
 
+/**
+ * O nome em palavras, como o desenho: uma linha por palavra, com o texto dela
+ * e a amostra da cor dela (o botão que a escolhe); embaixo, as 16 cores do
+ * Minecraft para a palavra escolhida. Uma lista de 16 opções por palavra
+ * passava dos 12 KiB da página com seis palavras; uma só lista basta.
+ */
+function controleSegmentos(campo, s) {
+  const lista = estado.rascunho?.config[campo.chave] ?? campo.padrao;
+  const gravada = s.config?.[campo.chave] ?? campo.padrao;
+  const livre = pode('configurar-servidor-de-jogo');
+  const atual = Math.min(estado.palavra[campo.chave] ?? 0, lista.length - 1);
+  const linhas = lista.map((p, i) => {
+    const cor = campo.opcoes.find(o => o.valor === p.cor);
+    const escolhida = i === atual;
+    return linhaH([
+      { forma: 'campo', chave: 'cfg:' + campo.chave + ':' + i + ':texto', rotulo: 'Palavra ' + (i + 1), valor: String(p.texto), inicial: String(gravada[i]?.texto ?? ''), tamanhoMaximo: campo.tamanhoMaximo, desligado: !livre },
+      botao('amostra:' + campo.chave + ':' + i, '■ ' + (cor?.rotulo ?? p.cor), {
+        variante: 'discreta',
+        estilo: { cor: cor?.amostra ?? COR.apagado, borda: { largura: 1, estilo: 'solida', cor: escolhida ? COR.acento : COR.borda }, raio: 6, preenchimento: 8 },
+      }),
+    ], { chave: 'palavra:' + campo.chave + ':' + i });
+  });
+  const dela = lista[atual];
+  return pilha([
+    cl(campo.rotulo, 'lb'),
+    ...linhas,
+    { forma: 'escolha', chave: 'cfg:' + campo.chave + ':cor', rotulo: 'Cor da palavra ' + (atual + 1), valor: String(dela.cor), inicial: String(gravada[atual]?.cor ?? dela.cor), opcoes: campo.opcoes.map(o => ({ valor: o.valor, dentro: o.rotulo })), desligado: !livre },
+    linhaH([
+      botao('palavra-mais:' + campo.chave, '+ PALAVRA', { variante: 'discreta', desligado: !livre || lista.length >= campo.maximoSegmentos }),
+      botao('palavra-tirar:' + campo.chave, 'TIRAR A PALAVRA ' + (atual + 1), { variante: 'discreta', desligado: !livre || lista.length <= 1 }),
+    ]),
+    estado.erros[campo.chave] ? tx(estado.erros[campo.chave], { cor: COR.erro, corpo: 14 }, { chave: 'erro:' + campo.chave }) : null,
+    campo.ajuda ? apagado(campo.ajuda) : null,
+  ], 6);
+}
+
 /** Um controle da receita, com o valor do rascunho, o gravado como inicial e a frase do servidor. */
 function controle(campo, s) {
+  if (campo.forma === 'segmentos') return controleSegmentos(campo, s);
   const chave = 'cfg:' + campo.chave;
   const valor = estado.rascunho?.config[campo.chave] ?? campo.padrao;
   const inicial = s.config?.[campo.chave] ?? campo.padrao;
@@ -1046,7 +1184,7 @@ function hora(segundos) {
 function vistaConfig() {
   const s = servidorAtual();
   const receita = receitaPorId(s.receita);
-  const nome = estado.rascunho?.config?.nome ?? s.config?.nome ?? s.id;
+  const nome = nomeEmTexto(estado.rascunho?.config?.nome ?? s.config?.nome) || s.id;
   const conteudo = {
     'aba-geral': () => abaGeral(receita, s),
     'aba-mods': () => abaMods(),
@@ -1084,7 +1222,7 @@ function cartao(s) {
     dentro: [pilha([
       linhaH([
         cl(receita?.icone ?? '?', 'erro'),
-        cl(s.config?.nome ?? s.id, 'grande'),
+        cl(nomeEmTexto(s.config?.nome) || s.id, 'grande'),
         chip(rotuloDoEstado(s)),
       ]),
       apagado(`${receita?.nome ?? s.receita} ${s.versao ?? '(sem versão)'} · ${s.quem ? 'na máquina de ' + apelidoDe(s.quem) : 'sem máquina'}`),

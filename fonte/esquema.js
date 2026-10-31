@@ -175,7 +175,31 @@ function conferirSentido(r, erros) {
     chaves.add(campo.chave);
     if (campo.chave === 'porta') erros.push(`${cc}.chave: «porta» é da receita, e não de um campo`);
     const p = campo.padrao;
-    if (campo.forma === 'escolha') {
+    if (campo.maximoSegmentos !== undefined && campo.forma !== 'segmentos') erros.push(`${cc}: só uma lista de palavras tem «maximoSegmentos»`);
+    if (campo.forma !== 'segmentos') {
+      (campo.opcoes ?? []).forEach((o, k) => {
+        if (o.codigo !== undefined) erros.push(`${cc}.opcoes[${k}]: só a lista de palavras usa «codigo»`);
+      });
+    }
+    if (campo.forma === 'segmentos') {
+      if (!campo.opcoes) {
+        erros.push(`${cc}: uma lista de palavras precisa de «opcoes»`);
+        return;
+      }
+      if (campo.maximoSegmentos === undefined) {
+        erros.push(`${cc}: uma lista de palavras precisa de «maximoSegmentos»`);
+        return;
+      }
+      const codigos = new Set();
+      campo.opcoes.forEach((o, k) => {
+        if (o.codigo === undefined) erros.push(`${cc}.opcoes[${k}]: falta o «codigo» do § desta cor`);
+        else if (codigos.has(o.codigo)) erros.push(`${cc}.opcoes[${k}]: o código «${o.codigo}» repete o de outra cor`);
+        else codigos.add(o.codigo);
+      });
+      if (campo.opcoes.some(o => o.codigo === undefined)) return;
+      const c = conferirSegmentos(campo, p);
+      if (c.erro) erros.push(`${cc}.padrao: ${c.erro.charAt(0).toLowerCase()}${c.erro.slice(1).replace(/\.$/, '')}`);
+    } else if (campo.forma === 'escolha') {
       if (!campo.opcoes) {
         erros.push(`${cc}: uma escolha precisa de «opcoes»`);
         return;
@@ -194,7 +218,7 @@ function conferirSentido(r, erros) {
       if (typeof p !== 'string') erros.push(`${cc}.padrao: um campo tem padrão em texto`);
       else if (campo.tamanhoMaximo && p.length > campo.tamanhoMaximo) erros.push(`${cc}.padrao: passa de ${campo.tamanhoMaximo} caracteres`);
     }
-    if (campo.opcoes && campo.forma !== 'escolha') erros.push(`${cc}: só uma escolha tem «opcoes»`);
+    if (campo.opcoes && campo.forma !== 'escolha' && campo.forma !== 'segmentos') erros.push(`${cc}: só uma escolha tem «opcoes»`);
   });
   for (const [prop, modelo] of Object.entries(r.configuracao.propriedades)) {
     for (const v of variaveisDe(modelo)) {

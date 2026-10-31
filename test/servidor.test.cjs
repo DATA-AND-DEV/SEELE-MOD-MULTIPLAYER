@@ -123,17 +123,17 @@ test('a oferta que a Mojang não deixou montar não vira pedido, e a falha vai �
 
 test('a configuração é conferida pelo esquema da receita, com a frase por campo', () => {
   const { a, id } = comUmMinecraft();
-  const r = a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { maximo: 0, nome: 'Casa' } });
+  const r = a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { maximo: 0, nome: [{ texto: 'Casa', cor: 'aqua' }] } });
   assert.deepEqual(r, { ok: false, erro: 'config-invalida', erros: { maximo: 'Use um número de 1 a 100.' } });
-  assert.equal(servidor(a, id).config.nome, 'Servidor do SEELE', 'meia gravação: o nome entrou com o erro');
-  assert.equal(a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { maximo: 4, nome: 'Casa' } }).ok, true);
+  assert.equal(servidor(a, id).config.nome[0].texto, 'Servidor do SEELE', 'meia gravação: o nome entrou com o erro');
+  assert.equal(a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { maximo: 4, nome: [{ texto: 'Casa', cor: 'aqua' }] } }).ok, true);
   assert.equal(servidor(a, id).config.maximo, 4);
 });
 
 test('mudar só a configuração não pede aceite novo', () => {
   const { a, id } = aceito();
   const antes = a.pedidosDeMaquina.length;
-  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { nome: 'Outro nome', pvp: false } });
+  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { nome: [{ texto: 'Outro nome', cor: 'red' }], pvp: false } });
   assert.equal(a.pedidosDeMaquina.length, antes);
   assert.equal(servidor(a, id).aceite, 'aceito');
 });
@@ -181,7 +181,7 @@ test('trocar de máquina com o jogo desligado chama a nova, e a antiga é dispen
 
 test('o plano só vai à máquina aceita, com tudo o que ela precisa para rodar', () => {
   const { a, id } = aceito();
-  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { nome: 'Casa do Alê', maximo: 6 } });
+  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, config: { nome: [{ texto: 'Casa do Alê', cor: 'aqua' }], maximo: 6 } });
   const r = a.daMaquina(2, id, { op: 'plano' });
   assert.equal(r.ok, true, JSON.stringify(r));
   const p = r.plano;
