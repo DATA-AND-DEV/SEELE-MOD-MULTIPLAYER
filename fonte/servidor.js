@@ -750,11 +750,13 @@ globalThis.aoAcontecer = (momento, textoDaCarga) => {
   } else if (momento === 'MaquinaRecusou') {
     marcarAceite(s, papel, 'recusado', String(carga.motivo ?? ''));
     if (dona) s.ligar = false;
-    anotarFalha(s, 'aceite', String(carga.motivo ?? ''), { papel, dados: { pessoa } });
+    // O momento vai junto: «pelo-dono» é o mesmo nome para recusar o pedido e
+    // para DESLIGAR depois de aceitar, e a tela diz qual dos dois foi.
+    anotarFalha(s, 'aceite', String(carga.motivo ?? ''), { papel, momento: 'recusou', dados: { pessoa } });
   } else if (momento === 'MaquinaParou') {
     const motivo = String(carga.motivo ?? '');
     marcarAceite(s, papel, 'parado', motivo);
-    anotarFalha(s, 'aceite', motivo, { papel, dados: { pessoa } });
+    anotarFalha(s, 'aceite', motivo, { papel, momento: 'parou', dados: { pessoa } });
     if (dona) {
       // **A dona que caiu (saiu) com uma reserva de pé não desliga o servidor
       // de jogo**: o prazo corre, e MaquinaSumiu decide. Uma parada da pessoa

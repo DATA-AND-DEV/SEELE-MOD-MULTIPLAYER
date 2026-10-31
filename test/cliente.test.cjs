@@ -192,7 +192,18 @@ test('a máquina que desliga tira o endereço do cartão e diz a parada em frase
   assert.match(cartao, /DESLIGADO/);
   assert.doesNotMatch(cartao, /localhost:/, 'o cartão do servidor desligado seguiu mostrando a porta que fechou');
   assert.doesNotMatch(cartao, /pelo-dono/, 'a parada apareceu pelo código cru');
-  assert.match(cartao, /A pessoa da máquina disse não, ou desligou/);
+  assert.match(cartao, /desligou o jogo na máquina dela/);
+  assert.doesNotMatch(cartao, /disse não, ou desligou/, 'o servidor sabe que foi DESLIGAR e a tela disse «disse não, ou desligou»');
+});
+
+test('a recusa do pedido de máquina é dita como recusa, e não como «disse não, ou desligou»', async () => {
+  const { a, id } = servidorLigado();
+  const { j } = await aberta({ anfitriao: a });
+  a.recusar(id, 'pelo-dono');
+  await j.avisoDoServidor({ revisao: 999 });
+  const cartao = j.texto('cartao:' + id);
+  assert.match(cartao, /recusou o pedido de máquina/);
+  assert.doesNotMatch(cartao, /disse não, ou desligou/);
 });
 
 test('a recusa do túnel fica no cartão, com o nome e a frase', async () => {

@@ -742,6 +742,21 @@ const ROTULO_DO_ESTADO = Object.freeze({
 
 const fraseDe = erro => FRASES[erro] ?? '';
 
+/**
+ * A frase de uma falha anotada: a parada ou a recusa pela pessoa da máquina é
+ * dita com o nome dela e com o que ela fez. O servidor sabe se foi recusar o
+ * pedido ou DESLIGAR depois de aceitar (o momento), e «disse não, ou desligou»
+ * escondia qual dos dois — visto no e2e da API 8, no app de verdade.
+ */
+function fraseDaFalha(f) {
+  const quem = f?.dados?.pessoa != null ? apelidoDe(f.dados.pessoa) : null;
+  const pessoa = quem ?? 'A pessoa da máquina';
+  if (f?.erro === 'pelo-dono' && f.momento === 'parou') return `${pessoa} desligou o jogo na máquina dela.`;
+  if (f?.erro === 'pelo-dono' && f.momento === 'recusou') return `${pessoa} recusou o pedido de máquina.`;
+  if (f?.erro === 'revogada' && quem) return `${pessoa} revogou a autorização.`;
+  return fraseDe(f?.erro);
+}
+
 // ---------------------------------------------------------------- as formas
 
 /**
@@ -794,7 +809,7 @@ function quadroDeFalha(f, chave) {
     forma: 'caixa', ...(chave ? { chave } : {}), classe: 'quadro',
     dentro: [pilha([
       cl(f.erro, 'erro'),
-      fraseDe(f.erro) ? tx(fraseDe(f.erro), { corpo: 14 }) : null,
+      fraseDaFalha(f) ? tx(fraseDaFalha(f), { corpo: 14 }) : null,
       dados ? mono(dados) : null,
     ], 4)],
   };
@@ -1723,7 +1738,7 @@ function cartao(s) {
       comModsNoCartao(s) ? apagado(`Com mods: ${s.pack.nome || 'modpack'} (${s.pack.loader ? s.pack.loader.id : 'sem loader'}). Importe o mesmo pack no app do Modrinth para entrar.`) : null,
       estado.salvos[s.id]?.bytes ? apagado(`Pack salvo: ${(estado.salvos[s.id].bytes / 1048576).toFixed(1).replace('.', ',')} MiB.`) : null,
       estado.salvos[s.id]?.falha ? quadroDeFalha(estado.salvos[s.id].falha) : null,
-      configura && s.falhas?.length ? apagado(`Última falha: ${fraseDe(s.falhas.at(-1).erro) || s.falhas.at(-1).erro}`) : null,
+      configura && s.falhas?.length ? apagado(`Última falha: ${fraseDaFalha(s.falhas.at(-1)) || s.falhas.at(-1).erro}`) : null,
       {
         forma: 'acoes',
         dentro: [
