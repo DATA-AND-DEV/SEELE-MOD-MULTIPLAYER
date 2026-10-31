@@ -559,6 +559,41 @@ function criarMaquina(ad) {
     }
   }
 
+  /**
+   * **A volta de quem hospeda** (maquina.aoReconectar): sem ele a metade
+   * seguiu rodando — a dona com o jogo de pé —, e o pedido igual ao aceito a
+   * religou, sem subir de novo. Quem hospeda esqueceu o túnel dela; a posse
+   * pode ter mudado enquanto ela estava fora (a reserva assumiu numa queda só
+   * desta máquina). Ela pergunta o plano: sem a posse e com o jogo de pé,
+   * desliga e diz (`perdeuAPosse`, em `lerPlano`); dona, serve de novo o
+   * túnel do jogo, esquece o da cópia (servido de novo na próxima) e conta o
+   * estado.
+   */
+  async function religar(i, volta) {
+    const fora = Number(volta?.fora) || 0;
+    ad.registrar(`${i.servidor}: religada depois de ${fora} s sem quem hospeda`);
+    i.tunelDaCopia = null;
+    const plano = await lerPlano(i);
+    if (!plano) {
+      // O aceite que o app mandou de novo ainda não chegou à metade de
+      // servidor: o aviso que ela manda ao vê-lo (ligar ou preparar) religa.
+      i.religarAoAceite = { fora };
+      return;
+    }
+    i.religarAoAceite = null;
+    if (!i.dona || !i.proc) return;
+    if (i.tunel && plano.tunel) {
+      const t = plano.tunel;
+      try {
+        i.tunel = await ad.servirPorta({ nome: t.nome, protocolo: t.protocolo, porta: t.porta });
+      } catch (erro) {
+        i.tunel = null;
+        await falha(i, 'tunel', erro, { nome: t.nome, protocolo: t.protocolo, porta: t.porta, religada: true, ...dadosDoErro(erro) });
+      }
+    }
+    await contar(i, i.estado, { religada: { fora } });
+  }
+
   async function console_(i, comando) {
     if (!i.proc) {
       await falha(i, 'console', 'servidor-desligado', { comando });
@@ -605,6 +640,15 @@ function criarMaquina(ad) {
       falha(i, 'aviso', 'aviso-desconhecido', { op: carga?.op ?? null });
       return;
     }
+    // **A religada que esperava o aceite**: o aviso que vem dele (ligar ou
+    // preparar) termina a volta — perguntar a posse, servir de novo —, e não
+    // sobe um jogo que já está de pé.
+    if (i.religarAoAceite && (carga.op === 'ligar' || carga.op === 'preparar')) {
+      const volta = i.religarAoAceite;
+      i.religarAoAceite = null;
+      enfileirar(i, () => religar(i, volta));
+      return;
+    }
     // Desligar e o console não esperam o que está na fila (um download longo).
     if (carga.op === 'console') op(i, carga).catch(erro => falha(i, 'console', erro));
     else enfileirar(i, () => op(i, carga));
@@ -626,6 +670,12 @@ function criarMaquina(ad) {
       parando.push(Promise.race([saiu, ad.esperar(PRAZO_DA_PARADA_DA_METADE)]));
     }
     await Promise.all(parando);
+  });
+
+  // **A volta de quem hospeda**: cada servidor de jogo desta metade religa
+  // na fila dele, depois do que já estava andando.
+  ad.aoReconectar?.(volta => {
+    for (const i of instancias.values()) enfileirar(i, () => religar(i, volta));
   });
 
   // **Ao subir, a máquina pergunta o plano**, em vez de esperar um aviso: o

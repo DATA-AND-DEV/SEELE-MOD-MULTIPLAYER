@@ -59,6 +59,6 @@ test('o contrato copiado é o api/v8.json lido para escrever este MOD', () => {
   const hash = require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(__dirname, 'contrato', 'api-v8.json'))).digest('hex');
   // A v8 ainda emenda até sair (api/README.md): copie de novo e atualize o número.
   // A da fusão com a 0.19 (desenho/api-8-sobre-0.19): imagem e som até 100 MiB.
-  // E a da reserva (parte 7) por cima.
-  assert.equal(hash, '185af9ca79a24b5254500bfe51da1e96eea38d4c98ff776292f341397b799770');
+  // E a da reserva (parte 7) por cima, e a de «sem quem hospeda» (aoReconectar).
+  assert.equal(hash, '812ac6bdf80834e9f0297d7089ccd82ab2accb894f9d091caa40c791df60673f');
 });

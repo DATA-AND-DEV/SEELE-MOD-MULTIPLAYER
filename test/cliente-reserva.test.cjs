@@ -68,3 +68,17 @@ test('o cartão diz a todos quanto tempo de jogo se perdeu quando a reserva assu
   assert.equal(j.no('chip-na-reserva').classe, 'chipA');
   assert.match(j.texto('cartao:' + id), /na máquina de Bia /, 'o cartão diz a máquina da principal, e roda a da reserva');
 });
+
+test('a dona religada sem quem hospeda aparece na aba MÁQUINA, com quanto tempo ficou sem ele', async () => {
+  const a = criarAnfitriao();
+  const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
+  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2' });
+  a.aceitar(id, 'principal');
+  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
+  a.daMaquina(2, id, { op: 'estado', estado: 'ligado', religada: { fora: 90 } });
+  const j = await aberta(a);
+  await j.apertar('configurar:' + id);
+  await j.mudar('aba', 'aba', 'aba-maquina');
+  assert.equal(j.no('chip-religada').classe, 'chipV');
+  assert.match(j.texto('reserva'), /Seguiu 2 min sem quem hospeda o SEELE e foi religada às .*, sem desligar o jogo/);
+});

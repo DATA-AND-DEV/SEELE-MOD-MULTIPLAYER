@@ -111,6 +111,8 @@ function publico(s) {
     perdido: s.perdido ?? null,
     passando: s.passando ?? null,
     voltouRodando: s.voltouRodando ?? 0,
+    // Sem quem hospeda: a dona seguiu rodando e foi religada sem desligar.
+    religada: s.religada ?? null,
   };
 }
 
@@ -628,6 +630,9 @@ function daMaquina(contexto, pedido) {
     if (Array.isArray(pedido.linhas)) s.linhas = pedido.linhas.map(l => cortar(l, 160)).slice(-TETO_DE_LINHAS);
     if (s.estado === 'ligando' || s.estado === 'desligado') s.precisaReiniciar = false;
     if (s.estado === 'caiu' && antes !== 'caiu') anotarFalha(s, 'jogo', 'o-jogo-caiu', { dados: pedido.saida ?? {} });
+    // **A dona seguiu rodando sem quem hospeda** e foi religada sem desligar:
+    // a tela diz quanto tempo, e quando.
+    if (pedido.religada) s.religada = { quando: mundo.agora(), fora: Math.max(0, Number(pedido.religada.fora) || 0), papel };
     gravarServidores(servidores);
     // O jogo de pé quando ninguém o quer de pé desliga.
     if (RODANDO.has(s.estado) && !s.ligar && s.estado !== 'parando' && !s.passando) return { ok: true, ordem: 'desligar' };

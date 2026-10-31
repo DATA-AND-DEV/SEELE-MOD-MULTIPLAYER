@@ -6,7 +6,7 @@
 //
 //   maquina.servidor, maquina.oferta, maquina.plataforma
 //   maquina.pedir(valor) -> Promise<texto>       maquina.aoAviso(fn(carga em texto))
-//   maquina.aoParar(fn(motivo))
+//   maquina.aoParar(fn(motivo))                 maquina.aoReconectar(fn({ fora }))
 //   maquina.porta.servir({ nome, protocolo, porta }) / parar(nome) / quedas(nome)
 //   maquina.programa.baixar({ url, sha1|sha256|sha512, tamanho, destino, aoProgresso })
 //   maquina.programa.escrever({ destino, texto })
@@ -42,6 +42,7 @@
 //   pedir(valor)                                    -> Promise<resposta da metade de servidor, já lida>
 //   aoAviso(fn(servidor, carga já lida))
 //   aoParar(fn(motivo))
+//   aoReconectar(fn({ fora }))                      -> a volta de quem hospeda (sem ela, nada)
 //   recusas()                                       -> Promise<{ nome: vezes }>
 //   esperar(ms)                                     -> Promise
 //   registrar(texto)
@@ -114,6 +115,10 @@ function criarAdaptador(g = globalThis) {
     pedir: valor => promessa(() => m.pedir(valor)).then(lido),
     aoAviso: fn => m.aoAviso(carga => fn(String(m.servidor ?? ''), lido(carga))),
     aoParar: fn => m.aoParar(fn),
+    // **A volta de quem hospeda**: a metade seguiu rodando sem ele e foi
+    // religada sem subir de novo. Um SEELE sem o nome não religa (a metade
+    // para e sobe de novo, como antes), e não há o que ouvir.
+    aoReconectar: fn => (typeof m.aoReconectar === 'function' ? m.aoReconectar(fn) : undefined),
     recusas: () => promessa(() => m.programa.recusas()),
 
     // O relógio do executor (o mesmo `setTimeout` das outras metades).

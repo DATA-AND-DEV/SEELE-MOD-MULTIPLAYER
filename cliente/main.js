@@ -1293,6 +1293,10 @@ function blocoDaReserva(s, opcoes) {
     { forma: 'numero', chave: 'intervaloDaCopia', rotulo: 'Copiar o mundo a cada (minutos)', valor: estado.rascunho?.intervaloDaCopia ?? 5, inicial: s.intervaloDaCopia ?? 5, minimo: 1, maximo: 60, inteiro: true, desligado: !pode('configurar-servidor-de-jogo') },
     linhaH([chipDaCopia(s), apagado(ultima)]),
     avisoDaQueda(s, 'aviso-da-queda'),
+    s.religada ? linhaH([
+      chip('Religada', 'chip-religada', 'chipV'),
+      apagado(`Seguiu ${tempoPerdido(s.religada.fora)} sem quem hospeda o SEELE e foi religada às ${hora(s.religada.quando)}, sem desligar o jogo.`),
+    ]) : null,
     s.voltouRodando ? linhaH([
       chip(`Voltou rodando · ${s.voltouRodando}`, 'chip-voltou', 'chipL'),
       apagado(`A máquina que voltou com o jogo de pé sem ser a dona foi desligada ${s.voltouRodando} vez(es).`),

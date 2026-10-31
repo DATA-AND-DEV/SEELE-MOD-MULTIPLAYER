@@ -78,12 +78,15 @@ function maquinaFalsa(a, pessoa, id, opcoes = {}) {
     pedir: async valor => a.daMaquina(pessoa, id, valor),
     aoAviso: fn => { f.ouvinte = fn; },
     aoParar: () => {},
+    aoReconectar: fn => { f.aoReconectar = fn; },
     esperar: ms => new Promise(resolve => f.relogio.push({ ms, resolve })),
     registrar: () => {},
   };
   f.papel = () => (a.livro.get(id)?.quem === f.pessoa ? 'principal' : 'reserva');
   f.vencerPrazos = () => { for (const r of f.relogio.splice(0)) r.resolve(); };
   f.vivo = () => f.processos.some(p => !p.saiu);
+  /** A volta de quem hospeda: o produto religou esta metade, sem subir de novo. */
+  f.reconectar = async fora => { f.aoReconectar?.({ fora }); await assentarTudo(); };
   return f;
 }
 
@@ -275,4 +278,58 @@ test('o intervalo da cópia é configurável, entre 1 e 60 minutos', () => {
   const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
   assert.equal(a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, intervaloDaCopia: 15 }).servidor.intervaloDaCopia, 15);
   assert.deepEqual(local(a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, intervaloDaCopia: 0 })), { ok: false, erro: 'intervalo-invalido', minimo: 1, maximo: 60 });
+});
+
+// ---- sem quem hospeda: a metade religada (maquina.aoReconectar) ----
+
+test('sem quem hospeda a dona segue de pé, e religada serve de novo o túnel sem subir o jogo outra vez', async () => {
+  const { a, id, principal, reserva, entregar } = await comReserva();
+  const p = principal.processos[0];
+  assert.equal(principal.portas.filter(t => t.nome === id).length, 1, 'o túnel do jogo não foi servido');
+  // Quem hospeda cai: a conexão da principal cai com ele, o processo não. Sem
+  // ele, ninguém decide: nada de MaquinaSumiu, nada muda de dona.
+  a.parar(id, 'saiu', 'principal');
+  await entregar();
+  assert.equal(p.saiu, false);
+  assert.equal(reserva.rodados.length, 0, 'a reserva ligou sem quem hospeda');
+  // Ele volta: chama a principal de novo, o app religa a metade (aoReconectar)
+  // e manda o aceite, que chega à metade de servidor depois da pergunta.
+  a.voltar(id, 'principal', 2);
+  await principal.reconectar(42);
+  a.aceitar(id, 'principal');
+  await entregar();
+  assert.equal(principal.rodados.length, 1, 'o jogo subiu de novo');
+  assert.equal(p.saiu, false, 'o jogo da dona parou na volta');
+  assert.equal(principal.portas.filter(t => t.nome === id).length, 2, 'a religada não serviu de novo o túnel');
+  const s = doServidor(a, id);
+  assert.equal(s.dona, 'principal');
+  assert.deepEqual(local(s.religada), { quando: s.religada.quando, fora: 42, papel: 'principal' });
+  assert.equal(s.voltouRodando, 0);
+});
+
+test('a principal religada que perdeu a posse enquanto estava fora desliga o jogo, e a volta é contada', async () => {
+  const { a, id, principal, reserva, entregar } = await comReserva();
+  principal.relogio.find(r => r.ms === 5 * 60000).resolve();
+  await assentarTudo();
+  await entregar();
+  const p = principal.processos[0];
+  // Só a principal cai (quem hospeda segue): passado o prazo, a reserva assume.
+  a.parar(id, 'saiu', 'principal');
+  a.sumir(id, 'principal', 2, 60);
+  await entregar();
+  assert.equal(reserva.rodados.length, 1);
+  assert.equal(p.saiu, false, 'o caso que a prova quer: dois de pé');
+  // A volta, pelo caminho do app de hoje: religada, e não subida de novo.
+  a.voltar(id, 'principal', 2);
+  await principal.reconectar(75);
+  a.aceitar(id, 'principal');
+  await entregar();
+  assert.equal(principal.rodados.length, 1, 'a metade subiu o jogo de novo');
+  assert.equal(p.entrada.at(-1), 'stop\n', 'a principal sem a posse não desligou o jogo');
+  assert.ok(p.saiu, 'o jogo de quem não é a dona segue de pé');
+  const s = doServidor(a, id);
+  assert.equal(s.voltouRodando, 1);
+  assert.equal(s.falhas.at(-1).erro, 'voltou-rodando-sem-a-posse');
+  assert.equal(s.dona, 'reserva');
+  assert.equal(s.religada, null, 'quem não é a dona contou-se religada');
 });
