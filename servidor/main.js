@@ -1745,8 +1745,8 @@ globalThis.aoAcontecer = (momento, textoDaCarga) => {
     marcarAceite(s, papel, 'aceito');
     if (dona) avisarADona(s, { op: s.ligar ? 'ligar' : 'preparar' });
     else mundo.maquinas.avisar({ servidor: s.id, papel, carga: { op: 'preparar' } });
-    // A dona passa a ter para quem copiar: ela relê o plano.
-    if (!dona && aceiteDe(s, outroPapel(papel)) === 'aceito') avisarADona(s, { op: 'configurar' });
+    // A dona não precisa de aviso: a cópia agendada relê o plano a cada vez
+    // (e um aviso aqui tomaria o lugar de um «ligar» ainda na fila da taxa).
   } else if (momento === 'MaquinaRecusou') {
     marcarAceite(s, papel, 'recusado', String(carga.motivo ?? ''));
     if (dona) s.ligar = false;

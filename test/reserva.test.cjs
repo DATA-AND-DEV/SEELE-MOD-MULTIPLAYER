@@ -40,7 +40,7 @@ function processoFalso() {
 function maquinaFalsa(a, pessoa, id, opcoes = {}) {
   const f = {
     pessoa: String(pessoa), baixados: [], abertos: [], escritos: new Map(), rodados: [], portas: [], fechadas: [],
-    processos: [], empacotados: [], ofertas: [], recebidas: [], ouvinte: null, relogio: [],
+    processos: [], empacotados: [], vivoAoEmpacotar: [], ofertas: [], recebidas: [], ouvinte: null, relogio: [],
   };
   f.ad = {
     servidor: id,
@@ -62,6 +62,8 @@ function maquinaFalsa(a, pessoa, id, opcoes = {}) {
     },
     empacotar: async (origem, arquivo) => {
       f.empacotados.push([origem, arquivo]);
+      // O jogo estava de pé quando o pacote foi feito?
+      f.vivoAoEmpacotar.push(f.processos.some(p => !p.saiu));
       return { arquivo, tamanho: 4096, sha256: opcoes.sha ?? 'c'.repeat(64), arquivos: 3, bytes: 9000, linksPulados: 0 };
     },
     oferecerCopia: async (arquivo, porta) => {
@@ -153,6 +155,7 @@ test('de cinco em cinco minutos a dona salva com segurança, empacota no meio, e
   // O salvamento seguro da receita, com o pacote entre o flush e o save-on.
   assert.deepEqual(p.entrada, ['save-off\n', 'save-all flush\n', 'save-on\n']);
   assert.deepEqual(principal.empacotados, [['world', 'copias/mundo.tar.gz']]);
+  assert.deepEqual(principal.vivoAoEmpacotar, [true], 'a cópia agendada parou o jogo');
   assert.deepEqual(principal.ofertas, [['copias/mundo.tar.gz', 35565]]);
   assert.deepEqual(principal.portas.at(-1), { nome: id + '-copia', protocolo: 'tcp', porta: 35565 });
   await entregar();
@@ -171,6 +174,7 @@ test('a passagem avisada para o jogo, manda a cópia final, a reserva liga e a p
   // A principal parou o jogo inteiro (o stop salva) **antes** da cópia final.
   assert.deepEqual(p.entrada, ['stop\n']);
   assert.deepEqual(principal.empacotados, [['world', 'copias/mundo.tar.gz']]);
+  assert.deepEqual(principal.vivoAoEmpacotar, [false], 'a cópia final foi feita com o jogo escrevendo');
   await entregar();
   assert.equal(reserva.recebidas.length, 1);
   // A posse passou, a reserva abriu a cópia e ligou.
