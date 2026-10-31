@@ -63,5 +63,6 @@ test('o contrato copiado é o api/v8.json lido para escrever este MOD', () => {
   // E a da revisão final (I1): reservado-ao-aceite e pasta-fora-do-aceite.
   // E a do Windows (decisões W1 e W7): oferta.por_sistema e os travados do empacotar.
   // E a do servidor que reinicia (SEELE fc9af2a0): o momento MetadeSubiu.
-  assert.equal(hash, '3da6947f30d7791de78efc2f769d7ebe1760341becfb51003f7ed383d7c4eb8e');
+  // E a do papel no pedido: a tela diz que é a reserva, e o resumo o amarra.
+  assert.equal(hash, 'b980efbbec57784a030997a64dabd02a65c2dbfc0530593dccfb39ec7b04234f');
 });
