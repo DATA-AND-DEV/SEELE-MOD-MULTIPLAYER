@@ -55,6 +55,8 @@ const FRASES = Object.freeze({
   'url-fora-das-origens': 'Uma URL de download não está nas origens da receita.',
   'versao-sem-servidor': 'Esta versão não tem servidor oficial.',
   'versao-desconhecida': 'A origem não conhece esta versão.',
+  'sha1-diferente': 'O arquivo da versão não bate com o sha1 que a Mojang publica; não foi usado.',
+  'manifesto-sem-sha1': 'O manifesto da Mojang não traz o sha1 desta versão; não dá para conferir.',
   // a metade de servidor
   'pede-a-acao': 'Isto só vale pela ação com permissão.',
   'acao-nao-serve': 'Esta permissão não serve para isso.',

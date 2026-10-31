@@ -75,6 +75,53 @@ function hostNasOrigens(host, origens) {
   return origens.some(o => o.startsWith('*.') ? host.endsWith(o.slice(1)) : host === o);
 }
 
+/** Os bytes UTF-8 de um texto. */
+function utf8De(texto) {
+  const bytes = [];
+  for (const c of String(texto)) {
+    const p = c.codePointAt(0);
+    if (p < 0x80) bytes.push(p);
+    else if (p < 0x800) bytes.push(0xc0 | (p >> 6), 0x80 | (p & 63));
+    else if (p < 0x10000) bytes.push(0xe0 | (p >> 12), 0x80 | ((p >> 6) & 63), 0x80 | (p & 63));
+    else bytes.push(0xf0 | (p >> 18), 0x80 | ((p >> 12) & 63), 0x80 | ((p >> 6) & 63), 0x80 | (p & 63));
+  }
+  return bytes;
+}
+
+/**
+ * O SHA-1 (hexadecimal) dos bytes UTF-8 de um texto, em JS puro: o QuickJS do
+ * SEELE não traz `crypto`. Serve para conferir o que a Mojang publica com
+ * sha1; não é escolha de segurança nossa.
+ */
+function sha1Hex(texto) {
+  const bytes = utf8De(texto);
+  const bits = bytes.length * 8;
+  bytes.push(0x80);
+  while (bytes.length % 64 !== 56) bytes.push(0);
+  // O tamanho em bits, 64 bits big-endian (o alto cabe em 32 bits para o que cabe na memória).
+  const alto = Math.floor(bits / 0x100000000), baixo = bits >>> 0;
+  for (const w of [alto, baixo]) bytes.push((w >>> 24) & 255, (w >>> 16) & 255, (w >>> 8) & 255, w & 255);
+  let h0 = 0x67452301, h1 = 0xefcdab89, h2 = 0x98badcfe, h3 = 0x10325476, h4 = 0xc3d2e1f0;
+  const w = new Array(80);
+  const rot = (x, n) => ((x << n) | (x >>> (32 - n))) >>> 0;
+  for (let i = 0; i < bytes.length; i += 64) {
+    for (let t = 0; t < 16; t++) w[t] = ((bytes[i + 4 * t] << 24) | (bytes[i + 4 * t + 1] << 16) | (bytes[i + 4 * t + 2] << 8) | bytes[i + 4 * t + 3]) >>> 0;
+    for (let t = 16; t < 80; t++) w[t] = rot(w[t - 3] ^ w[t - 8] ^ w[t - 14] ^ w[t - 16], 1);
+    let a = h0, b = h1, c = h2, d = h3, e = h4;
+    for (let t = 0; t < 80; t++) {
+      let f, k;
+      if (t < 20) { f = (b & c) | (~b & d); k = 0x5a827999; }
+      else if (t < 40) { f = b ^ c ^ d; k = 0x6ed9eba1; }
+      else if (t < 60) { f = (b & c) | (b & d) | (c & d); k = 0x8f1bbcdc; }
+      else { f = b ^ c ^ d; k = 0xca62c1d6; }
+      const tmp = (rot(a, 5) + (f >>> 0) + e + k + w[t]) >>> 0;
+      e = d; d = c; c = rot(b, 30); b = a; a = tmp;
+    }
+    h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0; h4 = (h4 + e) >>> 0;
+  }
+  return [h0, h1, h2, h3, h4].map(x => x.toString(16).padStart(8, '0')).join('');
+}
+
 // ---- esquema.js: o validador de receitas ----
 //
 // Duas passadas. A primeira lê `receitas/esquema.json` — um pedaço do JSON
@@ -334,8 +381,12 @@ function validarReceita(receita, esquema = ESQUEMA_DA_RECEITA) {
 // `buscar(url)` devolve o texto ou `null`: no servidor é `mundo.buscar`, e nos
 // testes, as fixtures.
 
-/** Busca e lê um JSON, ou diz por que não deu. */
-function buscarJson(buscar, url) {
+/**
+ * Busca e lê um JSON, ou diz por que não deu. Com `sha1`, o texto que veio
+ * tem de ter esse hash (o que a Mojang publica no manifesto): se não tem, é
+ * recusado com a URL, o esperado e o obtido, antes de ser lido.
+ */
+function buscarJson(buscar, url, sha1) {
   let texto;
   try {
     texto = buscar(url);
@@ -343,6 +394,10 @@ function buscarJson(buscar, url) {
     return { ok: false, erro: 'origem-nao-respondeu', url, porque: fraseDoErro(erro) };
   }
   if (texto === null || texto === undefined) return { ok: false, erro: 'origem-nao-respondeu', url };
+  if (sha1 !== undefined) {
+    const obtido = sha1Hex(texto);
+    if (obtido !== sha1) return { ok: false, erro: 'sha1-diferente', url, esperado: sha1, obtido };
+  }
   const json = lerJson(texto);
   if (json === null) return { ok: false, erro: 'origem-ilegivel', url };
   return { ok: true, json };
@@ -356,7 +411,7 @@ function versoesDoManifesto(receita, buscar) {
   if (!lista) return { ok: false, erro: 'origem-ilegivel', url: receita.versoes.manifesto };
   const versoes = lista
     .filter(v => v && typeof v.id === 'string' && typeof v.url === 'string' && receita.versoes.tipos.includes(v.type))
-    .map(v => ({ id: v.id, url: v.url }));
+    .map(v => ({ id: v.id, url: v.url, sha1: v.sha1 }));
   return { ok: true, versoes };
 }
 
@@ -438,7 +493,9 @@ function resolverVersao(receita, versao, buscar) {
     const entrada = todas.versoes.find(v => v.id === versao);
     if (!entrada) return { ok: false, erro: 'versao-desconhecida', versao };
     urlDaVersao = entrada.url;
-    const lido = buscarJson(buscar, entrada.url);
+    // Sem o sha1 do manifesto a conferência passaria em branco: recusa-se, dizendo.
+    if (!/^[0-9a-f]{40}$/.test(String(entrada.sha1))) return { ok: false, erro: 'manifesto-sem-sha1', versao, url: entrada.url };
+    const lido = buscarJson(buscar, entrada.url, entrada.sha1);
     if (!lido.ok) return lido;
     versaoJson = lido.json;
   } else if (!receita.versoes.lista.some(v => v.id === versao)) {

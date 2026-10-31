@@ -13,8 +13,12 @@
 // `buscar(url)` devolve o texto ou `null`: no servidor é `mundo.buscar`, e nos
 // testes, as fixtures.
 
-/** Busca e lê um JSON, ou diz por que não deu. */
-function buscarJson(buscar, url) {
+/**
+ * Busca e lê um JSON, ou diz por que não deu. Com `sha1`, o texto que veio
+ * tem de ter esse hash (o que a Mojang publica no manifesto): se não tem, é
+ * recusado com a URL, o esperado e o obtido, antes de ser lido.
+ */
+function buscarJson(buscar, url, sha1) {
   let texto;
   try {
     texto = buscar(url);
@@ -22,6 +26,10 @@ function buscarJson(buscar, url) {
     return { ok: false, erro: 'origem-nao-respondeu', url, porque: fraseDoErro(erro) };
   }
   if (texto === null || texto === undefined) return { ok: false, erro: 'origem-nao-respondeu', url };
+  if (sha1 !== undefined) {
+    const obtido = sha1Hex(texto);
+    if (obtido !== sha1) return { ok: false, erro: 'sha1-diferente', url, esperado: sha1, obtido };
+  }
   const json = lerJson(texto);
   if (json === null) return { ok: false, erro: 'origem-ilegivel', url };
   return { ok: true, json };
@@ -35,7 +43,7 @@ function versoesDoManifesto(receita, buscar) {
   if (!lista) return { ok: false, erro: 'origem-ilegivel', url: receita.versoes.manifesto };
   const versoes = lista
     .filter(v => v && typeof v.id === 'string' && typeof v.url === 'string' && receita.versoes.tipos.includes(v.type))
-    .map(v => ({ id: v.id, url: v.url }));
+    .map(v => ({ id: v.id, url: v.url, sha1: v.sha1 }));
   return { ok: true, versoes };
 }
 
@@ -117,7 +125,9 @@ function resolverVersao(receita, versao, buscar) {
     const entrada = todas.versoes.find(v => v.id === versao);
     if (!entrada) return { ok: false, erro: 'versao-desconhecida', versao };
     urlDaVersao = entrada.url;
-    const lido = buscarJson(buscar, entrada.url);
+    // Sem o sha1 do manifesto a conferência passaria em branco: recusa-se, dizendo.
+    if (!/^[0-9a-f]{40}$/.test(String(entrada.sha1))) return { ok: false, erro: 'manifesto-sem-sha1', versao, url: entrada.url };
+    const lido = buscarJson(buscar, entrada.url, entrada.sha1);
     if (!lido.ok) return lido;
     versaoJson = lido.json;
   } else if (!receita.versoes.lista.some(v => v.id === versao)) {

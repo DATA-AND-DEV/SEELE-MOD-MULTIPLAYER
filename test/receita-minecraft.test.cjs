@@ -4,11 +4,11 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { carregar, receitaDoDisco, buscarDasFixtures } = require('./carregar.cjs');
+const { carregar, receitaDoDisco, buscarDasFixtures, fixture } = require('./carregar.cjs');
 
 const m = carregar('servidor', [
   'listarVersoes', 'resolverVersao', 'montarOferta', 'validarConfig', 'configPadrao',
-  'escreverPropriedades', 'casarSaida',
+  'escreverPropriedades', 'casarSaida', 'sha1Hex',
 ]);
 const local = v => JSON.parse(JSON.stringify(v));
 const mc = receitaDoDisco('minecraft');
@@ -86,13 +86,21 @@ test('uma versão que a Mojang não tem é dita pelo nome', () => {
   assert.deepEqual(r, { ok: false, erro: 'versao-desconhecida', versao: '9.9.9' });
 });
 
+/** Um `buscar` em que a Mojang publica `texto` como o JSON da versão, com o sha1 do manifesto de acordo. */
+function buscarComVersaoPublicada(id, texto) {
+  const manifesto = JSON.parse(fixture('mojang-version_manifest_v2.json'));
+  const entrada = manifesto.versions.find(v => v.id === id);
+  entrada.sha1 = m.sha1Hex(texto);
+  return buscarDasFixtures({ [mc.versoes.manifesto]: JSON.stringify(manifesto), [entrada.url]: texto });
+}
+
 test('uma URL fora das origens da receita é recusada antes de chegar à oferta', () => {
   const buscar = buscarDasFixtures();
   const manifesto = JSON.parse(buscar(mc.versoes.manifesto));
   const url = manifesto.versions.find(v => v.id === '1.21.4').url;
   const versao = JSON.parse(buscar(url));
   versao.downloads.server.url = 'https://espelho.qualquer.net/server.jar';
-  const r = local(m.resolverVersao(mc, '1.21.4', buscarDasFixtures({ [url]: JSON.stringify(versao) })));
+  const r = local(m.resolverVersao(mc, '1.21.4', buscarComVersaoPublicada('1.21.4', JSON.stringify(versao))));
   assert.deepEqual(r, { ok: false, erro: 'url-fora-das-origens', url: 'https://espelho.qualquer.net/server.jar', host: 'espelho.qualquer.net' });
 });
 
@@ -102,7 +110,7 @@ test('uma versão sem servidor oficial é dita, e não vira oferta sem jar', () 
   const url = manifesto.versions.find(v => v.id === '1.21.4').url;
   const versao = JSON.parse(buscar(url));
   delete versao.downloads.server;
-  const r = local(m.resolverVersao(mc, '1.21.4', buscarDasFixtures({ [url]: JSON.stringify(versao) })));
+  const r = local(m.resolverVersao(mc, '1.21.4', buscarComVersaoPublicada('1.21.4', JSON.stringify(versao))));
   assert.deepEqual(r, { ok: false, erro: 'versao-sem-servidor', versao: '1.21.4', url });
 });
 
@@ -199,4 +207,47 @@ test('a saída do jogo diz quando ele está pronto, e quem entrou e saiu', () =>
   assert.deepEqual(local(casar('[12:05:09] [Server thread/INFO]: Alexandre left the game')), { tipo: 'saiu', jogador: 'Alexandre' });
   assert.equal(casar('[12:05:10] [Server thread/INFO]: <Alexandre> Done (brincadeira)'), null, 'o chat não liga o servidor');
   assert.equal(casar('[12:05:11] [Server thread/INFO]: <Bia> Ze joined the game'), null, 'o chat não põe ninguém dentro');
+});
+
+// ---- o sha1 do JSON de cada versão ----
+
+const crypto = require('node:crypto');
+const URL_1_21_4 = 'https://piston-meta.mojang.com/v1/packages/64843a304d7747da779448f853323962233f39ff/1.21.4.json';
+
+test('o sha1 em JS puro dá o mesmo que o do Node, inclusive com acentos e além de um bloco', () => {
+  const casos = ['', 'abc', 'é', 'Casa do Alê §', '😀 emoji', 'x'.repeat(55), 'x'.repeat(56), 'x'.repeat(64), 'y'.repeat(1000)];
+  for (const texto of casos) {
+    assert.equal(m.sha1Hex(texto), crypto.createHash('sha1').update(texto, 'utf8').digest('hex'), JSON.stringify(texto.slice(0, 20)));
+  }
+  assert.equal(m.sha1Hex('abc'), 'a9993e364706816aba3e25717850c26c9cd0d89d');
+});
+
+test('o JSON de cada versão bate com o sha1 do manifesto, nas três fixtures gravadas', () => {
+  for (const id of ['26.3', '1.21.4', '1.16.5']) {
+    const r = local(m.resolverVersao(mc, id, buscarDasFixtures()));
+    assert.equal(r.ok, true, id + ' ' + JSON.stringify(r));
+  }
+});
+
+test('um JSON de versão adulterado é recusado com a URL, o sha1 esperado e o obtido', () => {
+  const original = fixture('mojang-1.21.4.json');
+  const adulterado = original.replace('"majorVersion": 21', '"majorVersion": 8');
+  assert.notEqual(adulterado, original, 'o teste não adulterou nada');
+  const r = local(m.resolverVersao(mc, '1.21.4', buscarDasFixtures({ [URL_1_21_4]: adulterado })));
+  assert.deepEqual(r, {
+    ok: false,
+    erro: 'sha1-diferente',
+    url: URL_1_21_4,
+    esperado: '64843a304d7747da779448f853323962233f39ff',
+    obtido: crypto.createHash('sha1').update(adulterado, 'utf8').digest('hex'),
+  });
+});
+
+test('um manifesto sem sha1 para a versão não deixa a conferência passar em branco', () => {
+  const manifesto = JSON.parse(fixture('mojang-version_manifest_v2.json'));
+  delete manifesto.versions.find(v => v.id === '1.21.4').sha1;
+  const r = local(m.resolverVersao(mc, '1.21.4', buscarDasFixtures({ [mc.versoes.manifesto]: JSON.stringify(manifesto) })));
+  assert.equal(r.ok, false);
+  assert.equal(r.erro, 'manifesto-sem-sha1');
+  assert.equal(r.url, URL_1_21_4);
 });
