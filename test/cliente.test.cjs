@@ -62,7 +62,7 @@ test('criar abre a configuração, na aba GERAL, com Vanilla e Com mods no topo'
   // Com mods existe na parte 6: a opção liga, e diz o que o modpack define.
   assert.equal(j.no('variante:com-mods').desligado, false);
   assert.match(j.texto('variante:com-mods'), /modpack do Modrinth define a versão, o loader e os mods/);
-  assert.match(j.texto('titulo'), /MINECRAFT · SERVIDOR DO SEELE/);
+  assert.match(j.texto('titulo'), /MINECRAFT · VANILLA Servidor do SEELE/);
 });
 
 test('a aba GERAL monta os campos da receita, com as três regras lado a lado', async () => {
@@ -255,8 +255,10 @@ test('o estilo segue o desenho 0.19: as cores do tema, o vidro, os chips e a bar
   const { j } = await aberta();
   await j.apertar('criar:minecraft');
   const raiz = j.pagina().arvore[0];
-  // O painel de vidro de 24 é uma classe; o texto acompanha o tema.
-  assert.equal(raiz.classe, 'painel');
+  // Sem moldura própria (a página do produto já é o painel); o texto acompanha o tema.
+  assert.equal(raiz.classe, undefined);
+  assert.equal(raiz.estilo.borda, undefined);
+  assert.equal(raiz.estilo.fundo, undefined);
   assert.deepEqual(raiz.estilo.cor, { tema: 'texto' });
   // O escolhido em laranja (o acento do tema), o outro em vidro, no cartão de 18.
   const vanilla = j.no('variante:vanilla');
@@ -302,7 +304,7 @@ test('a aba GERAL dá uma amostra de cor a cada palavra do nome, com as cores do
   assert.match(j.texto('amostra:nome:0'), /Ciano/);
   assert.equal(j.no('amostra:nome:2'), null, 'uma amostra por palavra, e só');
   assert.equal(j.no('cfg:nome:cor').opcoes.length, 16, 'as 16 cores');
-  assert.match(j.texto('titulo'), /MINECRAFT · CASA DO ALÊ/);
+  assert.match(j.texto('titulo'), /MINECRAFT · VANILLA Casa do Alê/);
 });
 
 test('escolher uma palavra mostra a cor dela; trocá-la repinta só a amostra dela, e salvar manda a lista', async () => {

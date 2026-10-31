@@ -666,7 +666,6 @@ const CLASSES = Object.freeze({
   // O cartão de vidro (18) e o painel (24); o cartão ligado leva a borda verde.
   cartao: { base: { fundo: COR.vidro, borda: linhaDe(COR.vidroBorda), raio: 18, preenchimento: 18 } },
   aceso: { base: { fundo: COR.vidro, borda: linhaDe(COR.verdeBorda), raio: 18, preenchimento: 18 } },
-  painel: { base: { fundo: COR.vidro, borda: linhaDe(COR.vidroBorda), raio: 24, preenchimento: 24 } },
   // A recusa: a faixa vermelha do canvas (Porta).
   quadro: { base: { fundo: COR.erroFundo, raio: 18, preenchimento: 14, borda: linhaDe(COR.erroBorda) } },
   erro: { base: { familia: 'mono', corpo: 13, cor: COR.erro } },
@@ -1394,7 +1393,12 @@ function vistaConfig() {
   const aberta = conteudo[estado.aba] ? estado.aba : 'aba-geral';
   return [
     linhaH([botao('voltar', '← SERVIDORES DE JOGO', { variante: 'discreta' })]),
-    cl(`${receita.nome} · ${nome}`.toUpperCase(), 'titulo', { chave: 'titulo' }),
+    // O padrão do canvas: o rótulo miúdo (o jogo e a variante) em cima, e o
+    // nome do servidor como título, em caixa de frase.
+    pilha([
+      lb(`${receita.nome} · ${receita.variantes[estado.rascunho?.variante ?? s.variante ?? 'vanilla']?.nome ?? ''}`, 'rotulo'),
+      cl(nome, 'titulo'),
+    ], 6, { chave: 'titulo' }),
     estado.aviso ? avisoDaPagina() : null,
     {
       forma: 'abas', chave: 'aba', valor: aberta,
@@ -1458,7 +1462,7 @@ function vistaSeletor() {
   const servidores = dados?.servidores ?? [];
   const criar = pode('criar-servidor-de-jogo');
   return [
-    cl('MULTIPLAYER', 'titulo', { chave: 'titulo' }),
+    cl('Multiplayer', 'titulo', { chave: 'titulo' }),
     estado.aviso ? avisoDaPagina() : null,
     !dados ? apagado('Lendo os servidores de jogo…') : null,
     servidores.length ? bloco('Servidores de jogo', servidores.map(cartao)) : null,
@@ -1486,7 +1490,9 @@ function montarRaiz() {
   if (estado.enxuta) conteudo.splice(1, 0, apagado('A página passou do tamanho que o SEELE monta de uma vez: este é o resumo, sem as linhas e os dados das falhas.', { chave: 'resumo' }));
   return {
     forma: 'caixa', chave: 'raiz',
-    classe: 'painel', estilo: { cor: COR.texto, familia: 'sans', corpo: 16, preenchimento: 32 },
+    // Sem moldura própria: a página do produto já é o painel, e o canvas tem
+    // um nível de painel só.
+    estilo: { cor: COR.texto, familia: 'sans', corpo: 16, preenchimento: 8 },
     dentro: [pilha(conteudo, 32)],
   };
 }
