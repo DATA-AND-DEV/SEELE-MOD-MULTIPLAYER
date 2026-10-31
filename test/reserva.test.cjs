@@ -49,6 +49,10 @@ function maquinaFalsa(a, pessoa, id, opcoes = {}) {
     rodar: async pedido => { f.rodados.push(local(pedido)); const p = processoFalso(); f.processos.push(p); return p.api; },
     servirPorta: async pedido => {
       f.portas.push(local(pedido));
+      if (opcoes.tunelFalha > 0 && pedido.nome === id) {
+        opcoes.tunelFalha--;
+        throw Object.assign(new Error('porta-ocupada'), { erro: 'porta-ocupada' });
+      }
       // Só a dona serve: o produto recusa a outra (fora-do-aceite).
       if (a.dona(id) !== f.papel()) throw Object.assign(new Error('fora-do-aceite'), { erro: 'fora-do-aceite' });
       return { fechar: () => f.fechadas.push(pedido.nome) };
@@ -332,4 +336,49 @@ test('a principal religada que perdeu a posse enquanto estava fora desliga o jog
   assert.equal(s.falhas.at(-1).erro, 'voltou-rodando-sem-a-posse');
   assert.equal(s.dona, 'reserva');
   assert.equal(s.religada, null, 'quem não é a dona contou-se religada');
+});
+
+// ---- revisão final (31/10, M12) ----
+
+test('a metade da dona que falha (metade-falhou) com reserva não desliga: depois do prazo a reserva assume', async () => {
+  const { a, id, principal, reserva, entregar } = await comReserva();
+  principal.relogio.find(r => r.ms === 5 * 60000).resolve();
+  await assentarTudo();
+  await entregar();
+  a.parar(id, 'metade-falhou', 'principal');
+  assert.equal(doServidor(a, id).ligar, true, 'a metade que falhou desligou o servidor de jogo com reserva');
+  a.sumir(id, 'principal', 2, 60);
+  await entregar();
+  const s = doServidor(a, id);
+  assert.equal(s.dona, 'reserva');
+  assert.equal(reserva.rodados.length, 1, 'a reserva não ligou');
+});
+
+test('uma parada da pessoa (pelo-dono) segue desligando, com ou sem reserva', async () => {
+  const { a, id, principal, reserva, entregar } = await comReserva();
+  principal.relogio.find(r => r.ms === 5 * 60000).resolve();
+  await assentarTudo();
+  await entregar();
+  a.parar(id, 'pelo-dono', 'principal');
+  assert.equal(doServidor(a, id).ligar, false);
+  a.sumir(id, 'principal', 2, 60);
+  await entregar();
+  assert.equal(doServidor(a, id).dona, 'principal');
+  assert.equal(reserva.rodados.length, 0);
+});
+
+test('religada, a dona serve de novo o túnel que tinha falhado, e não só o que estava de pé', async () => {
+  const { a, id, principal, entregar } = await comReserva({ principal: { tunelFalha: 1 } });
+  assert.equal(principal.portas.filter(t => t.nome === id).length, 1);
+  assert.equal(doServidor(a, id).falhas.at(-1)?.etapa, 'tunel', 'o túnel de prova não falhou');
+  a.parar(id, 'saiu', 'principal');
+  await entregar();
+  a.voltar(id, 'principal', 2);
+  await principal.reconectar(30);
+  a.aceitar(id, 'principal');
+  await entregar();
+  assert.equal(principal.portas.filter(t => t.nome === id).length, 2, 'a religada não tentou de novo o túnel que falhou');
+  const s = doServidor(a, id);
+  assert.ok(!s.falhas.some(f => f.etapa === 'tunel' && f.dados?.religada), JSON.stringify(s.falhas));
+  assert.equal(s.religada?.fora, 30);
 });

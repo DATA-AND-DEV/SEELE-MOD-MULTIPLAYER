@@ -1783,7 +1783,10 @@ function criarMaquina(ad) {
     }
     i.religarAoAceite = null;
     if (!i.dona || !i.proc) return;
-    if (i.tunel && plano.tunel) {
+    // O jogo pronto (ligado) serve o túnel de novo, e também o que falhou
+    // antes (revisão final, M12): sem isto, um túnel que falhou nunca voltava.
+    // Antes do «Done», quem serve é o «pronto», como sempre.
+    if ((i.tunel || i.estado === 'ligado') && plano.tunel) {
       const t = plano.tunel;
       try {
         i.tunel = await ad.servirPorta({ nome: t.nome, protocolo: t.protocolo, porta: t.porta });

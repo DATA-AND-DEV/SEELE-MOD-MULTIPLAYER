@@ -1763,6 +1763,8 @@ globalThis.aoPedir = (textoDoContexto, textoDoPedido) => {
   return JSON.stringify(resposta);
 };
 
+/** As paradas que não são a pessoa da máquina parando: a reserva pode assumir. */
+const QUEDAS = Object.freeze(['saiu', 'metade-falhou']);
 const MOMENTOS = Object.freeze(['MaquinaAceitou', 'MaquinaRecusou', 'MaquinaParou', 'MaquinaSumiu', 'MaquinaVoltou']);
 
 globalThis.aoAcontecer = (momento, textoDaCarga) => {
@@ -1802,7 +1804,9 @@ globalThis.aoAcontecer = (momento, textoDaCarga) => {
       // de jogo**: o prazo corre, e MaquinaSumiu decide. Uma parada da pessoa
       // da máquina (DESLIGAR, REVOGAR) desliga, como sempre.
       const temReserva = aceiteDe(s, outroPapel(papel)) === 'aceito';
-      if (!(motivo === 'saiu' && temReserva)) s.ligar = false;
+      // A metade que falhou (metade-falhou) também não foi a pessoa parando:
+      // com reserva, o prazo corre do mesmo jeito (revisão final, M12).
+      if (!(QUEDAS.includes(motivo) && temReserva)) s.ligar = false;
       s.estado = 'desligado';
       s.jogadores = [];
     } else if (papel === 'reserva' && s.reserva) {
