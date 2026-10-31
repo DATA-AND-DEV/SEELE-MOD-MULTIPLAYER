@@ -63,7 +63,7 @@ ferramentas/             build, package e o exercício no QuickJS
 test/                    os testes (node --test), o anfitrião e a janela simulados, as fixtures e o contrato
 ```
 
-**O adaptador.** As partes 3 (metade de máquina e aceite) e 4 (o poder `programa`) estão sendo construídas junto com este MOD. Todo nome da API da máquina que a metade de máquina chama mora em `fonte/adaptador.js`, com o que é suposição marcado; trocar um nome é trocar uma linha ali. `test/adaptador.test.cjs` escreve, chamada a chamada, o que ele supõe.
+**O adaptador.** Todo nome da API da máquina que a metade de máquina chama mora em `fonte/adaptador.js`, nos nomes que o SEELE entregou nas partes 3 e 4 (`maquina.servidor`, `.oferta`, `.plataforma`, `.pedir`, `.aoAviso`, `.aoParar`, `maquina.porta.*` e `maquina.programa.baixar/escrever/desempacotar/rodar/recusas`). `test/adaptador.test.cjs` escreve, chamada a chamada, o que cada uma vira, e confere cada nome contra o bloco `metade-de-maquina` de `test/contrato/api-v8.json`.
 
 ## Desenvolvimento e validação
 
@@ -74,9 +74,9 @@ npm test
 SEELE_RAIZ=/caminho/do/SEELE-com-a-API-8 npm run quickjs
 ```
 
-`npm test` roda as três metades: a de servidor num anfitrião simulado pela API 8 (`test/anfitriao.cjs`: o portão das ações, o `dados` transacional, `mundo.maquinas`, os momentos `MaquinaAceitou`, `MaquinaRecusou` e `MaquinaParou`, o `contexto.maquina`), a de máquina contra um adaptador falso com a de servidor de verdade do outro lado, e a de cliente numa janela gerada do contrato (`test/janela.cjs`: só as formas, os pontos e os tipos do `api-v8.json`, o teto de 12 KiB por mensagem, e o bilhete de gesto do `SeeleUI.tunel.entrar`). O `quickjs` sobe as três no QuickJS 0.12.2 com o teto de 8 MiB e o prelúdio do motor de um checkout do SEELE com a API 8.
+`npm test` roda as três metades: a de servidor num anfitrião simulado pela API 8 (`test/anfitriao.cjs`: o portão das ações, o `dados` transacional, `mundo.maquinas`, os momentos `MaquinaAceitou`, `MaquinaRecusou` e `MaquinaParou`, o `contexto.maquina`), a de máquina contra um adaptador falso com a de servidor de verdade do outro lado, e a de cliente numa janela gerada do contrato (`test/janela.cjs`: só as formas, os pontos e os tipos do `api-v8.json`, o teto de 12 KiB por mensagem, e o bilhete de gesto do `SeeleUI.tunel.entrar`). O `quickjs` sobe as três no QuickJS 0.12.2 com o teto de 8 MiB e o prelúdio do motor de um checkout do SEELE com a API 8 (`SEELE_RAIZ`); a de máquina, com `maquina.programa`, como o app a sobe.
 
-Nada disso substitui o Minecraft de verdade entre duas máquinas reais, que o desenho pede e que depende das partes 3 e 4 publicadas.
+`ferramentas/plano-de-verdade.cjs` monta a oferta e o plano de um Minecraft 1.21.4 para as duas provas com rede do SEELE: a metade de máquina deste MOD no executor do app, baixando e rodando o jogo de verdade até o status responder com o motd, e o status pelo túnel de verdade, direto e pela estrela (ver `DECISOES.md`). Nada disso substitui o Minecraft entre duas casas reais, com um cliente entrando no mundo, que não foi medido.
 
 ## Preparar o pacote
 

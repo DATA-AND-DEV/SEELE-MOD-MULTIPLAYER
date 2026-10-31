@@ -131,8 +131,11 @@ test('a oferta tem a forma que mundo.maquinas.pedir valida (OfertaDeMaquina)', (
   assert.equal(o.pack, null);
   assert.ok(Buffer.byteLength(o.titulo) <= 64);
   assert.ok(o.artefatos.length <= 16);
+  const sistemas = ['windows-x64', 'mac-aarch64', 'mac-x64', 'linux-x64', 'linux-aarch64'];
   for (const a of o.artefatos) {
-    assert.deepEqual(Object.keys(a).sort(), ['hash', 'nome', 'tamanho', 'url']);
+    // `plataformas` só nos que não servem em todo sistema (o Java).
+    assert.deepEqual(Object.keys(a).filter(k => k !== 'plataformas').sort(), ['hash', 'nome', 'tamanho', 'url']);
+    for (const p of a.plataformas ?? []) assert.ok(sistemas.includes(p), p);
     assert.match(a.url, /^https:\/\//);
     const host = new URL(a.url).host;
     assert.ok(o.origens.includes(host), host + ' fora das origens');
@@ -308,4 +311,19 @@ test('um manifesto sem sha1 para a versão não deixa a conferência passar em b
   assert.equal(r.ok, false);
   assert.equal(r.erro, 'manifesto-sem-sha1');
   assert.equal(r.url, URL_1_21_4);
+});
+
+test('cada Java da oferta leva os sistemas em que serve, e o server.jar serve em todos', () => {
+  const resolvido = m.resolverVersao(mc, '1.21.4', buscarDasFixtures());
+  const o = local(m.montarOferta(mc, { servidor: 'minecraft-1', versao: '1.21.4', porta: 25565 }, resolvido));
+  const jar = o.artefatos.find(a => a.nome === 'server.jar');
+  assert.equal(jar.plataformas, undefined);
+  const javas = o.artefatos.filter(a => a !== jar);
+  assert.ok(javas.length >= 4, JSON.stringify(javas.map(a => a.nome)));
+  // Cada sistema que tem Java aparece em exatamente um artefato.
+  const marcados = javas.flatMap(a => a.plataformas);
+  assert.deepEqual([...marcados].sort(), Object.keys(resolvido.porPlataforma).sort());
+  for (const [sistema, nome] of Object.entries(resolvido.porPlataforma)) {
+    assert.ok(javas.find(a => a.nome === nome).plataformas.includes(sistema), sistema);
+  }
 });

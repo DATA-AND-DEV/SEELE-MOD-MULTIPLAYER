@@ -4,19 +4,21 @@
 //! - a **metade de servidor** sobe com o que a API 8 dá a ela (`dados`,
 //!   `mundo.buscar` respondido pelas fixtures, `mundo.avisar`,
 //!   `mundo.maquinas.pedir` e `.avisar`) e atende a janela e a máquina;
-//! - a **metade de máquina** sobe com um `maquina` de mentira, com os nomes que
-//!   o adaptador supõe (fonte/adaptador.js), e passa por aceitar, baixar,
-//!   escrever, rodar, ficar pronta, servir o túnel, ver alguém entrar e parar;
-//! - a **metade de cliente** sobe em cima do prelúdio do motor
-//!   (`SEELE_RAIZ/crates/seele-motor/src/preludio.rs`, o da API 8, que tem o
-//!   `SeeleUI.tunel`), sem DOM e sem Node, e o clique de «entrar» leva o
-//!   bilhete de gesto.
+//! - a **metade de máquina** sobe em cima do prelúdio do motor
+//!   (`SEELE_RAIZ/crates/seele-motor/src/preludio.rs`), com as capacidades
+//!   `maquina`, `maquina.porta` e `maquina.programa` do contrato e o aceite em
+//!   `__seeleMaquina`, como o app a sobe; cada mensagem que ela posta é
+//!   respondida como o app responde, e ela passa por aceitar, baixar,
+//!   desempacotar, escrever, rodar, ficar pronta, servir o túnel, ver alguém
+//!   entrar, parar, e parar de novo pelo `aoParar` do produto;
+//! - a **metade de cliente** sobe em cima do mesmo prelúdio, sem DOM e sem
+//!   Node, e o clique de «entrar» leva o bilhete de gesto.
 //!
 //! # O que este exercício não prova
 //!
-//! O executor, a tela de aceite do produto, o download e o processo de
-//! verdade, e se os nomes que o adaptador supõe são os que as partes 3 e 4
-//! entregam. É o motor, o teto de memória e o prelúdio.
+//! O executor do app, a tela de aceite, o download, o pacote e o processo de
+//! verdade (isso é o `programa` do SEELE, medido no SEELE). É o motor, o teto
+//! de memória, o prelúdio e os nomes que o adaptador chama.
 
 use rquickjs::{Context, Function, Runtime};
 use serde_json::{json, Value};
@@ -130,67 +132,91 @@ fn estado_do(srv: &Context, id: &str) -> Result<Value, Erro> {
     e["servidores"].as_array().and_then(|l| l.iter().find(|s| s["id"] == id).cloned()).ok_or_else(|| format!("{id} sumiu").into())
 }
 
-const AMBIENTE_DA_MAQUINA: &str = r#"
-    let n = 0; const espera = new Map();
-    globalThis.__fila = [];
-    globalThis.__responder = (k, t) => { const r = espera.get(k); espera.delete(k); r(JSON.parse(t)); };
-    const reg = (tipo, extra) => new Promise(res => { const k = ++n; espera.set(k, res); __fila.push(JSON.stringify({ k, tipo, ...extra })); });
-    const proc = {
-      aoLinha: fn => { globalThis.__linha = fn; }, aoSair: fn => { globalThis.__sair = fn; },
-      escrever: t => { __fila.push(JSON.stringify({ tipo: 'entrada', t })); }, encerrar: () => { __fila.push(JSON.stringify({ tipo: 'encerrar' })); },
-    };
-    globalThis.maquina = {
-      plataforma: () => ({ sistema: 'macos', arquitetura: 'arm64' }),
-      programa: { baixar: p => reg('baixar', { p }), rodar: p => reg('rodar', { p }).then(() => proc) },
-      porta: { servir: p => reg('servir', { p }) },
-      arquivos: { escrever: p => reg('escrever', { p }), copiar: p => reg('copiar', { p }) },
-      pedir: (servidor, valor) => reg('pedir', { servidor, valor }),
-      aoAviso: fn => { globalThis.__aviso = fn; },
-    };
-    globalThis.setTimeout = () => 1;
-    globalThis.__log = [];
-    globalThis.console = { log: t => __log.push(String(t)), info: () => {}, warn: t => __log.push('warn: ' + t), error: t => __log.push('error: ' + t) };"#;
+/// O que a metade de máquina postou, e o que o anfitrião registrou do console.
+type Falas = Rc<RefCell<Vec<String>>>;
+
+/// O `seele` do anfitrião num contexto: `postar` guarda na fita (e recusa o
+/// que passa dos 12 KiB), `console` guarda no registro.
+fn ponte(ctx: &Context, fita: &Falas, registro: &Falas, grandes: &Rc<RefCell<usize>>) -> Result<(), Erro> {
+    ctx.with(|c| -> Result<(), String> {
+        let eco = Rc::clone(fita);
+        let excesso = Rc::clone(grandes);
+        let postar = Function::new(c.clone(), move |t: String| -> bool {
+            if t.len() > 12 * 1024 { *excesso.borrow_mut() += 1; return false; }
+            eco.borrow_mut().push(t);
+            true
+        }).map_err(|e| e.to_string())?;
+        let anotado = Rc::clone(registro);
+        let console = Function::new(c.clone(), move |nivel: String, t: String| { anotado.borrow_mut().push(format!("{nivel}: {t}")); })
+            .map_err(|e| e.to_string())?;
+        let seele = rquickjs::Object::new(c.clone()).map_err(|e| e.to_string())?;
+        seele.set("postar", postar).map_err(|e| e.to_string())?;
+        seele.set("console", console).map_err(|e| e.to_string())?;
+        c.globals().set("seele", seele).map_err(|e| e.to_string())
+    }).map_err(|e| std::io::Error::other(e).into())
+}
 
 /// O que a máquina fez, até a conversa assentar.
 #[derive(Default)]
 struct Fita {
+    tipos: Vec<String>,
     baixados: Vec<Value>,
+    abertos: Vec<Value>,
     escritos: Vec<Value>,
     rodados: Vec<Value>,
     servidos: Vec<Value>,
+    parados: Vec<Value>,
     entrada: Vec<String>,
+    parada_pronta: bool,
 }
 
-fn assentar_maquina(maq: &Context, srv: &Context, fita: &mut Fita) -> Result<(), Erro> {
-    for _ in 0..200 {
-        avaliar(maq, "0", "jobs")?;
-        let fila: Vec<String> = serde_json::from_str(&texto(maq, "JSON.stringify(__fila.splice(0))")?)?;
+/// **A conversa da metade de máquina, pelo prelúdio de verdade**: cada
+/// mensagem que ela posta é respondida como o app responde
+/// (`apps/seele-app/src/maquina.rs` e `maquina/programa.rs`), e cada aviso da
+/// metade de servidor chega como `aviso-maquina`, com a carga em texto.
+fn assentar_maquina(maq: &Context, falas: &Falas, srv: &Context, id: &str, fita: &mut Fita) -> Result<(), Erro> {
+    for _ in 0..400 {
+        let vindas: Vec<String> = falas.borrow_mut().drain(..).collect();
         let avisos = avisos_a_maquina(srv)?;
-        if fila.is_empty() && avisos.is_empty() {
+        if vindas.is_empty() && avisos.is_empty() {
             return Ok(());
         }
         for aviso in avisos {
-            avaliar(maq, &format!("__aviso({}, {})", aviso["servidor"], aviso["carga"]), "aviso")?;
+            responder(maq, &json!({ "tipo": "aviso-maquina", "carga": aviso["carga"].to_string() }).to_string())?;
         }
-        for item in fila {
-            let m: Value = serde_json::from_str(&item)?;
-            let resposta = match m["tipo"].as_str().unwrap_or_default() {
-                "pedir" => {
+        for t in vindas {
+            let m: Value = serde_json::from_str(&t)?;
+            let tipo = m["tipo"].as_str().unwrap_or_default().to_owned();
+            fita.tipos.push(tipo.clone());
+            let valor = match tipo.as_str() {
+                "maquina-parada-pronta" => { fita.parada_pronta = true; continue; }
+                "maquina-pedir" => {
                     let contexto = json!({ "person": "2", "channel": null, "admin": false, "write": true, "sala": null, "acao": null,
-                                           "permissoes": [], "maquina": { "servidor": m["servidor"] } });
-                    pedir(srv, &contexto, &m["valor"])?
+                                           "permissoes": [], "maquina": { "servidor": id } });
+                    Value::String(pedir(srv, &contexto, &m["valor"])?.to_string())
                 }
-                "baixar" => { fita.baixados.push(m["p"].clone()); json!({ "ok": true }) }
-                "escrever" => { fita.escritos.push(m["p"].clone()); json!({ "ok": true }) }
-                "rodar" => { fita.rodados.push(m["p"].clone()); json!({ "ok": true }) }
-                "servir" => { fita.servidos.push(m["p"].clone()); json!({ "ok": true }) }
-                "entrada" => { fita.entrada.push(m["t"].as_str().unwrap_or_default().to_owned()); continue; }
-                _ => continue,
+                "programa-baixar" => {
+                    fita.baixados.push(m.clone());
+                    let algoritmo = ["sha512", "sha256", "sha1"].into_iter().find(|a| m.get(*a).is_some()).unwrap_or("?");
+                    json!({ "destino": m["destino"], "tamanho": m["tamanho"], "algoritmo": algoritmo, "hash": m[algoritmo] })
+                }
+                "programa-desempacotar" => { fita.abertos.push(m.clone()); json!({ "arquivos": 3, "bytes": 1000, "linksPulados": 0, "foraDaRaiz": 1 }) }
+                "programa-escrever" => { fita.escritos.push(m.clone()); json!({ "destino": m["destino"], "bytes": 1 }) }
+                "programa-rodar" => { fita.rodados.push(m.clone()); json!({ "processo": 1, "pid": 4242 }) }
+                "processo-escrever" => { fita.entrada.push(m["texto"].as_str().unwrap_or_default().to_owned()); Value::Null }
+                "porta-servir" => { fita.servidos.push(m.clone()); Value::Null }
+                "porta-parar" => { fita.parados.push(m.clone()); Value::Null }
+                "programa-recusas" => json!({}),
+                outro => return Err(format!("a metade de máquina pediu «{outro}», que o app não atende: {m}").into()),
             };
-            avaliar(maq, &format!("__responder({}, {})", m["k"], json!(resposta.to_string())), "responder")?;
+            responder(maq, &json!({ "n": m["n"], "ok": true, "valor": valor }).to_string())?;
         }
     }
     Err("a conversa com a máquina não assentou".into())
+}
+
+fn linha_do_jogo(maq: &Context, linha: &str) -> Result<(), Erro> {
+    responder(maq, &json!({ "tipo": "processo-linha", "processo": 1, "fluxo": "saida", "linha": linha }).to_string())
 }
 
 fn maquina_e_servidor(srv: &Context) -> Result<String, Erro> {
@@ -203,53 +229,102 @@ fn maquina_e_servidor(srv: &Context) -> Result<String, Erro> {
     if pedidos.len() != 1 || pedidos[0]["oferta"]["versao_do_jogo"] != "1.21.4" {
         return Err(format!("a oferta não saiu: {pedidos:?}").into());
     }
+    let oferta = pedidos[0]["oferta"].clone();
+    let java_do_mac = oferta["artefatos"].as_array().into_iter().flatten()
+        .find(|a| a["plataformas"].as_array().is_some_and(|p| p.iter().any(|x| x == "mac-aarch64")))
+        .ok_or_else(|| format!("nenhum artefato da oferta é marcado para mac-aarch64: {}", oferta["artefatos"]))?
+        .clone();
 
+    // **A metade de máquina sobe como o app a sobe**: o prelúdio da API 8
+    // (`SEELE_RAIZ`), as capacidades da máquina do contrato para os dois
+    // poderes, e o que foi aceito em `__seeleMaquina`.
     let (_rm, maq) = motor()?;
-    avaliar(&maq, AMBIENTE_DA_MAQUINA, "ambiente da máquina")?;
+    let (falas, registro, grandes): (Falas, Falas, Rc<RefCell<usize>>) = Default::default();
+    ponte(&maq, &falas, &registro, &grandes)?;
+    let contrato: Value = serde_json::from_str(include_str!("../../../test/contrato/api-v8.json"))?;
+    let da_maquina = &contrato["compatibilidade"]["capacidades-da-maquina"];
+    let mut capacidades = da_maquina["base"].as_array().cloned().ok_or("sem capacidades-da-maquina.base")?;
+    for poder in ["porta", "programa"] {
+        capacidades.extend(da_maquina[poder].as_array().cloned().ok_or(format!("sem capacidades-da-maquina.{poder}"))?);
+    }
+    avaliar(&maq, &format!("globalThis.__seeleCapacidades = {};", Value::Array(capacidades)), "capacidades")?;
+    let aceito = json!({ "servidor": id, "oferta": oferta, "plataforma": "mac-aarch64" }).to_string();
+    maq.with(|c| c.globals().set("__seeleMaquina", aceito)).map_err(|e| std::io::Error::other(e.to_string()))?;
+    avaliar(&maq, &preludio()?, "prelúdio")?;
+    if texto(&maq, "[typeof maquina.programa.rodar, typeof maquina.porta.servir, typeof SeeleUI, maquina.plataforma].join(',')")?
+        != "function,function,undefined,mac-aarch64" {
+        return Err("o prelúdio não deu a metade de máquina da API 8".into());
+    }
     avaliar(&maq, include_str!("../../../maquina/main.js"), "maquina/main.js")?;
     let mut fita = Fita::default();
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
+    if !fita.baixados.is_empty() { return Err("baixou antes do aceite".into()); }
 
     momento(srv, "MaquinaAceitou", &json!({ "servidor": id, "pessoa": "2" }))?;
-    assentar_maquina(&maq, srv, &mut fita)?;
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
     let destinos: Vec<String> = fita.baixados.iter().filter_map(|b| b["destino"].as_str().map(str::to_owned)).collect();
-    if destinos != ["server.jar", "java"] || fita.baixados[0]["sha1"].as_str().map(str::len) != Some(40)
-        || fita.baixados[1]["sha256"].as_str().map(str::len) != Some(64)
-        || !fita.baixados[1]["url"].as_str().unwrap_or_default().contains("aarch64_mac") {
+    let pacote = format!("pacotes/{}", java_do_mac["nome"].as_str().unwrap_or_default());
+    if destinos != ["server.jar".to_owned(), pacote.clone()] || fita.baixados[0]["sha1"].as_str().map(str::len) != Some(40)
+        || fita.baixados[1]["sha256"] != java_do_mac["hash"]["hex"]
+        || fita.baixados[1]["url"] != java_do_mac["url"] {
         return Err(format!("baixou errado: {:?}", fita.baixados).into());
+    }
+    if fita.abertos.len() != 1 || fita.abertos[0]["arquivo"] != pacote.as_str() || fita.abertos[0]["destino"] != "java"
+        || !fita.abertos[0]["raiz"].as_str().unwrap_or_default().ends_with("-jre/Contents/Home") {
+        return Err(format!("desempacotou errado: {:?}", fita.abertos).into());
     }
     if !fita.escritos.is_empty() { return Err("escreveu antes de ligar".into()); }
 
     pedir(srv, &de(Some("ligar-desligar-servidor-de-jogo")), &json!({ "op": "ligar", "id": id }))?;
-    assentar_maquina(&maq, srv, &mut fita)?;
-    let caminhos: Vec<String> = fita.escritos.iter().filter_map(|e| e["caminho"].as_str().map(str::to_owned)).collect();
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
+    let caminhos: Vec<String> = fita.escritos.iter().filter_map(|e| e["destino"].as_str().map(str::to_owned)).collect();
     if caminhos != ["eula.txt", "server.properties"] { return Err(format!("escreveu: {caminhos:?}").into()); }
-    if fita.rodados.len() != 1 || fita.rodados[0]["comando"] != "java/bin/java" { return Err(format!("rodou: {:?}", fita.rodados).into()); }
+    if fita.rodados.len() != 1 || fita.rodados[0]["comando"] != "java/bin/java" || fita.rodados[0]["pasta"] != "" {
+        return Err(format!("rodou: {:?}", fita.rodados).into());
+    }
     if !fita.servidos.is_empty() { return Err("serviu o túnel antes do Done".into()); }
 
-    avaliar(&maq, r#"__linha('[12:00:04] [Server thread/INFO]: Done (4.211s)! For help, type "help"')"#, "Done")?;
-    assentar_maquina(&maq, srv, &mut fita)?;
-    avaliar(&maq, "__linha('[12:01:00] [Server thread/INFO]: Bia joined the game')", "entrou")?;
-    assentar_maquina(&maq, srv, &mut fita)?;
-    if fita.servidos.len() != 1 || fita.servidos[0]["porta"] != 25565 { return Err(format!("túnel: {:?}", fita.servidos).into()); }
+    linha_do_jogo(&maq, r#"[12:00:04] [Server thread/INFO]: Done (4.211s)! For help, type "help""#)?;
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
+    linha_do_jogo(&maq, "[12:01:00] [Server thread/INFO]: Bia joined the game")?;
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
+    if fita.servidos.len() != 1 || fita.servidos[0]["porta"] != 25565 || fita.servidos[0]["nome"] != id.as_str() {
+        return Err(format!("túnel: {:?}", fita.servidos).into());
+    }
     let s = estado_do(srv, &id)?;
     if s["estado"] != "ligado" || s["jogadores"] != json!(["Bia"]) { return Err(format!("estado ligado: {s}").into()); }
 
     pedir(srv, &de(Some("ligar-desligar-servidor-de-jogo")), &json!({ "op": "desligar", "id": id }))?;
-    assentar_maquina(&maq, srv, &mut fita)?;
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
     if fita.entrada != ["stop\n"] { return Err(format!("entrada: {:?}", fita.entrada).into()); }
-    avaliar(&maq, "__sair({ codigo: 0 })", "sair")?;
-    assentar_maquina(&maq, srv, &mut fita)?;
+    responder(&maq, &json!({ "tipo": "processo-fim", "processo": 1, "codigo": 0, "mortoAPedido": false, "linhasPerdidas": 0, "linhasCortadas": 0 }).to_string())?;
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
     let s = estado_do(srv, &id)?;
     if s["estado"] != "desligado" || !s["falhas"].as_array().map(Vec::is_empty).unwrap_or(false) {
         return Err(format!("estado desligado: {s}").into());
     }
-    let log: Vec<String> = serde_json::from_str(&texto(&maq, "JSON.stringify(__log.filter(l => /^(warn|error)/.test(l)))")?)?;
-    if !log.is_empty() { return Err(format!("a máquina anotou erros: {log:?}").into()); }
+    if fita.parados.len() != 1 { return Err(format!("o túnel não foi parado: {:?}", fita.parados).into()); }
+
+    // Liga de novo e para pelo produto: o `aoParar` manda `stop` e espera o fim.
+    pedir(srv, &de(Some("ligar-desligar-servidor-de-jogo")), &json!({ "op": "ligar", "id": id }))?;
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
+    responder(&maq, &json!({ "tipo": "parar-maquina", "motivo": "pelo-dono" }).to_string())?;
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
+    if fita.entrada != ["stop\n", "stop\n"] { return Err(format!("o aoParar não mandou stop: {:?}", fita.entrada).into()); }
+    if fita.parada_pronta { return Err("o aoParar acabou antes de o jogo sair".into()); }
+    responder(&maq, &json!({ "tipo": "processo-fim", "processo": 1, "codigo": 0, "mortoAPedido": false, "linhasPerdidas": 0, "linhasCortadas": 0 }).to_string())?;
+    assentar_maquina(&maq, &falas, srv, &id, &mut fita)?;
+    if !fita.parada_pronta { return Err("o aoParar não terminou depois de o jogo sair".into()); }
+
+    let erros: Vec<String> = registro.borrow().iter().filter(|l| l.starts_with("error") || l.starts_with("warn")).cloned().collect();
+    if !erros.is_empty() { return Err(format!("a máquina anotou erros: {erros:?}").into()); }
+    if *grandes.borrow() > 0 { return Err("uma mensagem da máquina passou dos 12 KiB".into()); }
     // Deixa o servidor de jogo ligado para a janela ver o cartão.
     avaliar(srv, &format!("aoPedir({}, {})", json!(json!({"person":"2","maquina":{"servidor":id}}).to_string()),
         json!(json!({"op":"estado","estado":"ligado","jogadores":["Bia"]}).to_string())), "religar")?;
-    println!("máquina: aceitar, baixar {} artefato(s), escrever {}, rodar, Done, túnel na {}, Bia dentro, stop e desligado.",
-        fita.baixados.len(), caminhos.join(" e "), fita.servidos[0]["porta"]);
+    println!("máquina (prelúdio da API 8, maquina.programa): aceitar, baixar {} artefato(s), desempacotar o Java de {}, escrever {}, rodar, Done, túnel na {}, Bia dentro, stop e desligado, e o aoParar que espera o jogo; tipos: {}.",
+        fita.baixados.len(), fita.abertos[0]["raiz"], caminhos.join(" e "), fita.servidos[0]["porta"],
+        { let mut t = fita.tipos.clone(); t.sort(); t.dedup(); t.join(", ") });
     Ok(id)
 }
 

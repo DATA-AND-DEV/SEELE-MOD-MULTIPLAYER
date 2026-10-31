@@ -564,7 +564,19 @@ const DISCO_MAXIMO_DA_OFERTA = 64 * 1024 * 1024 * 1024;
  * servidor não pode pedir aceite novo.
  */
 function montarOferta(receita, { servidor, versao, porta }, resolvido) {
-  const artefatos = resolvido.artefatos.map(a => ({ nome: a.nome, url: a.url, tamanho: a.tamanho, hash: { algoritmo: a.hash.algoritmo, hex: a.hash.hex } }));
+  // **Cada Java leva os sistemas em que serve** (`plataformas`, API 8 parte 4):
+  // a metade de servidor não sabe o sistema da máquina antes do aceite e manda
+  // o de cada um; com a marca, a tela da máquina soma só o dela e o produto
+  // recusa baixar os outros. O Java de Mac Intel que serve no Mac ARM
+  // (`senaoHouver`) leva os dois. Sem marca, serve em todos (o server.jar).
+  const sistemasDe = nome => Object.entries(resolvido.porPlataforma ?? {}).filter(([, n]) => n === nome).map(([p]) => p);
+  const artefatos = resolvido.artefatos.map(a => {
+    const plataformas = sistemasDe(a.nome);
+    return {
+      nome: a.nome, url: a.url, tamanho: a.tamanho, hash: { algoritmo: a.hash.algoritmo, hex: a.hash.hex },
+      ...(plataformas.length ? { plataformas } : {}),
+    };
+  });
   // O disco: o que se baixa, o Java desempacotado (cerca de três vezes o
   // pacote) e o mundo que a receita admite.
   const baixado = resolvido.artefatos.reduce((soma, a) => soma + a.tamanho, 0);

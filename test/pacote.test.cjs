@@ -58,5 +58,5 @@ test('o pacote leva as três metades e o manifesto, e recusa um destino que exis
 test('o contrato copiado é o api/v8.json lido para escrever este MOD', () => {
   const hash = require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(__dirname, 'contrato', 'api-v8.json'))).digest('hex');
   // A v8 ainda emenda até sair (api/README.md): copie de novo e atualize o número.
-  assert.equal(hash, '6c70736878b4ec23d3034fe3b6b3ea043158bb008a1e57e42620c966947e456f');
+  assert.equal(hash, '75bcb578bd10e1c2703749e7e20781f194fc348dbb2ac353c66ce969fd958fbc');
 });

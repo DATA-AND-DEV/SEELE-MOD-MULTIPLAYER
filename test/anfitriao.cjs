@@ -71,6 +71,12 @@ function criarAnfitriao(opcoes = {}) {
           if (!/^https:\/\/\S+$/.test(a.url)) throw new Error('oferta-invalida:artefato_url');
           const tam = { sha1: 40, sha256: 64, sha512: 128 }[a.hash.algoritmo];
           if (!tam || a.hash.hex.length !== tam) throw new Error('oferta-invalida:artefato_hash');
+          // A marca de sistema (API 8 parte 4): lista fechada, sem repetir (PLATAFORMAS_DE_MAQUINA).
+          const sistemas = ['windows-x64', 'mac-aarch64', 'mac-x64', 'linux-x64', 'linux-aarch64'];
+          const marca = a.plataformas ?? [];
+          if (!Array.isArray(marca) || marca.some((p, i) => !sistemas.includes(p) || marca.indexOf(p) !== i)) throw new Error('oferta-invalida:artefato_plataformas');
+          const estranhaNoArtefato = Object.keys(a).find(k => !['nome', 'url', 'tamanho', 'hash', 'plataformas'].includes(k));
+          if (estranhaNoArtefato) throw new Error('oferta-invalida:artefatos');
         }
         if (oferta.disco_maximo > 64 * 1024 ** 3) throw new Error('oferta-invalida:disco_maximo');
         declarado.maquinas = declarado.maquinas.filter(p => p.servidor !== pedido.servidor);

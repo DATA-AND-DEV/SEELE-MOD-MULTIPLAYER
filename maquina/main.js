@@ -564,7 +564,19 @@ const DISCO_MAXIMO_DA_OFERTA = 64 * 1024 * 1024 * 1024;
  * servidor não pode pedir aceite novo.
  */
 function montarOferta(receita, { servidor, versao, porta }, resolvido) {
-  const artefatos = resolvido.artefatos.map(a => ({ nome: a.nome, url: a.url, tamanho: a.tamanho, hash: { algoritmo: a.hash.algoritmo, hex: a.hash.hex } }));
+  // **Cada Java leva os sistemas em que serve** (`plataformas`, API 8 parte 4):
+  // a metade de servidor não sabe o sistema da máquina antes do aceite e manda
+  // o de cada um; com a marca, a tela da máquina soma só o dela e o produto
+  // recusa baixar os outros. O Java de Mac Intel que serve no Mac ARM
+  // (`senaoHouver`) leva os dois. Sem marca, serve em todos (o server.jar).
+  const sistemasDe = nome => Object.entries(resolvido.porPlataforma ?? {}).filter(([, n]) => n === nome).map(([p]) => p);
+  const artefatos = resolvido.artefatos.map(a => {
+    const plataformas = sistemasDe(a.nome);
+    return {
+      nome: a.nome, url: a.url, tamanho: a.tamanho, hash: { algoritmo: a.hash.algoritmo, hex: a.hash.hex },
+      ...(plataformas.length ? { plataformas } : {}),
+    };
+  });
   // O disco: o que se baixa, o Java desempacotado (cerca de três vezes o
   // pacote) e o mundo que a receita admite.
   const baixado = resolvido.artefatos.reduce((soma, a) => soma + a.tamanho, 0);
@@ -745,37 +757,42 @@ function casarSaida(receita) {
 // ---- adaptador.js: a única porta para a API da máquina ----
 //
 // **Todo nome da API 8 que a metade de máquina chama está aqui, e só aqui.**
-// As partes 3 (a metade de máquina e o aceite) e 4 (o poder `programa`) estão
-// sendo construídas enquanto este MOD é escrito, e os nomes delas ainda podem
-// mudar. Os nomes abaixo são os do desenho
-// (docs/superpowers/specs/2026-10-29-api-8-e-mod-multiplayer-design.md, §3 e
-// §5); o que o desenho não diz está marcado SUPOSIÇÃO. Trocar um nome é trocar
-// uma linha deste arquivo, e os testes rodam contra um adaptador falso com a
-// mesma forma (test/maquina.test.cjs).
+// Os nomes são os que o SEELE entregou nas partes 3 e 4 (api/v8.json,
+// «metade-de-maquina», copiado em test/contrato/api-v8.json):
+//
+//   maquina.servidor, maquina.oferta, maquina.plataforma
+//   maquina.pedir(valor) -> Promise<texto>       maquina.aoAviso(fn(carga em texto))
+//   maquina.aoParar(fn(motivo))
+//   maquina.porta.servir({ nome, protocolo, porta }) / parar(nome) / quedas(nome)
+//   maquina.programa.baixar({ url, sha1|sha256|sha512, tamanho, destino, aoProgresso })
+//   maquina.programa.escrever({ destino, texto })
+//   maquina.programa.desempacotar({ arquivo, destino, raiz })
+//   maquina.programa.rodar({ comando, argumentos, pasta }) -> processo
+//     processo.aoLinha(fn(linha, fluxo)) / aoSair(fn(fim)) / fim / escrever(texto) / matar()
+//   maquina.programa.recusas() -> Promise<{ nome: vezes }>
+//
+// **Uma metade de máquina é um servidor de jogo**: o produto sobe uma por
+// (MOD, servidor), já presa à pasta daquele servidor. Nenhuma chamada leva o
+// servidor; quem precisa do nome lê `servidor`.
 //
 // O que o resto da metade de máquina vê:
 //
-//   plataforma()                                   -> 'mac-aarch64' | 'windows-x64' | ...
-//   baixar({ servidor, url, hash, tamanho, destino, desempacotar? })  -> Promise
-//   rodar({ servidor, comando, argumentos, pasta }) -> Promise<{ aoLinha, aoSair, escrever, encerrar }>
-//   servirPorta({ servidor, nome, protocolo, porta }) -> Promise<{ fechar? }>
-//   escrever(servidor, caminho, texto)             -> Promise
-//   copiar(servidor, de, para)                     -> Promise
-//   pedir(servidor, valor)                         -> Promise<resposta da metade de servidor>
-//   aoAviso(fn(servidor, carga))
-//   esperar(ms)                                    -> Promise
+//   servidor                                        -> o servidor de jogo desta metade
+//   plataforma()                                    -> 'mac-aarch64' | 'windows-x64' | ...
+//   baixar({ url, hash, tamanho, destino, aoProgresso })  -> Promise
+//   desempacotar({ arquivo, destino, raiz })        -> Promise
+//   rodar({ comando, argumentos, pasta })           -> Promise<{ aoLinha, aoSair, escrever, encerrar }>
+//   servirPorta({ nome, protocolo, porta })         -> Promise<{ fechar }>
+//   escrever(caminho, texto)                        -> Promise
+//   copiar                                          -> null: a cópia do mundo é da reserva (parte 7)
+//   pedir(valor)                                    -> Promise<resposta da metade de servidor, já lida>
+//   aoAviso(fn(servidor, carga já lida))
+//   aoParar(fn(motivo))
+//   recusas()                                       -> Promise<{ nome: vezes }>
+//   esperar(ms)                                     -> Promise
 //   registrar(texto)
 
-/** O nome de plataforma das receitas, a partir do que a máquina diz de si. */
-function nomeDaPlataforma(dita) {
-  const sistema = String(dita?.sistema ?? '').toLowerCase();
-  const arq = String(dita?.arquitetura ?? '').toLowerCase();
-  const so = { macos: 'mac', darwin: 'mac', mac: 'mac', windows: 'windows', win32: 'windows', linux: 'linux' }[sistema] ?? sistema;
-  const a = { arm64: 'aarch64', aarch64: 'aarch64', x86_64: 'x64', amd64: 'x64', x64: 'x64' }[arq] ?? arq;
-  return `${so}-${a}`;
-}
-
-/** Uma promessa, mesmo de quem devolveu um valor. */
+/** Uma promessa, mesmo de quem devolveu um valor ou lançou. */
 const promessa = fn => {
   try {
     return Promise.resolve(fn());
@@ -784,51 +801,55 @@ const promessa = fn => {
   }
 };
 
+/** JSON.parse que devolve o texto cru quando ele não é JSON. */
+const lido = texto => {
+  if (typeof texto !== 'string') return texto;
+  try { return JSON.parse(texto); } catch { return texto; }
+};
+
 function criarAdaptador(g = globalThis) {
   const m = g.maquina;
   if (!m || !m.programa || !m.porta) {
     throw new Error('a metade de máquina subiu sem «maquina.programa» e «maquina.porta» da API 8');
   }
   return {
-    // SUPOSIÇÃO: o desenho não diz como a máquina conta o sistema dela. A
-    // receita precisa disso para escolher o Java (um por plataforma).
-    plataforma: () => nomeDaPlataforma(typeof m.plataforma === 'function' ? m.plataforma() : m.plataforma),
+    servidor: String(m.servidor ?? ''),
 
-    // §5: `maquina.programa.baixar({ url, sha1|sha256|sha512, tamanho, destino })`.
-    // SUPOSIÇÃO: `servidor` diz em que pasta de servidor de jogo, e
-    // `desempacotar: { raiz }` pede ao produto que abra o .tar.gz/.zip e ponha
-    // em `destino` o que está sob `raiz` (o Java da Adoptium).
-    baixar: ({ servidor, url, hash, tamanho, destino, desempacotar }) => promessa(() => m.programa.baixar({
-      servidor, url, [hash.algoritmo]: hash.hex, tamanho, destino, ...(desempacotar ? { desempacotar } : {}),
+    // O sistema desta máquina, já no nome das receitas.
+    plataforma: () => String(m.plataforma ?? ''),
+
+    baixar: ({ url, hash, tamanho, destino, aoProgresso }) => promessa(() => m.programa.baixar({
+      url, [hash.algoritmo]: hash.hex, tamanho, destino, ...(aoProgresso ? { aoProgresso } : {}),
     })),
 
-    // §5: `maquina.programa.rodar({ comando, argumentos, pasta })`, que lê a
-    // saída, escreve na entrada e sabe do fim. SUPOSIÇÃO: o processo devolvido
-    // tem `aoLinha(fn)`, `aoSair(fn({ codigo, sinal }))`, `escrever(texto)` e
-    // `encerrar()`.
-    rodar: ({ servidor, comando, argumentos, pasta }) => promessa(() => m.programa.rodar({ servidor, comando, argumentos, pasta }))
+    desempacotar: ({ arquivo, destino, raiz }) => promessa(() => m.programa.desempacotar({ arquivo, destino, raiz })),
+
+    rodar: ({ comando, argumentos, pasta }) => promessa(() => m.programa.rodar({ comando, argumentos, pasta }))
       .then(proc => ({
-        aoLinha: fn => proc.aoLinha(fn),
-        aoSair: fn => proc.aoSair(fn),
-        escrever: texto => proc.escrever(texto),
-        encerrar: () => proc.encerrar(),
+        aoLinha: fn => proc.aoLinha(linha => fn(linha)),
+        // O fim do produto, na forma que a metade lê: o código, e se foi
+        // morto a pedido (encerrar, ou a parada da metade).
+        aoSair: fn => proc.aoSair(fim => fn({
+          codigo: fim.codigo, sinal: fim.mortoAPedido ? 'morto-a-pedido' : null,
+          linhasPerdidas: fim.linhasPerdidas, linhasNaoOuvidas: fim.linhasNaoOuvidas,
+        })),
+        escrever: texto => promessa(() => proc.escrever(texto)),
+        encerrar: () => promessa(() => proc.matar()),
       })),
 
-    // §3: `maquina.porta.servir({ nome, protocolo, porta })`.
-    servirPorta: ({ nome, protocolo, porta }) => promessa(() => m.porta.servir({ nome, protocolo, porta })),
+    servirPorta: ({ nome, protocolo, porta }) => promessa(() => m.porta.servir({ nome, protocolo, porta }))
+      .then(() => ({ fechar: () => m.porta.parar(nome) })),
 
-    // SUPOSIÇÃO: os arquivos do servidor de jogo (eula.txt, server.properties)
-    // e a cópia do mundo são `maquina.arquivos.escrever` e `.copiar`, presos à
-    // pasta daquele servidor de jogo como o `arquivos` da metade de servidor.
-    escrever: (servidor, caminho, texto) => promessa(() => m.arquivos.escrever({ servidor, caminho, texto })),
-    copiar: (servidor, de, para) => promessa(() => m.arquivos.copiar({ servidor, de, para })),
+    escrever: (caminho, texto) => promessa(() => m.programa.escrever({ destino: caminho, texto })),
 
-    // §2: a máquina fala com a metade de servidor «pelo mesmo caminho de
-    // pedido e aviso» (PedidoDaMaquina e AvisoParaMaquina, no protocolo 12).
-    // SUPOSIÇÃO: `maquina.pedir(servidor, valor)` resolve com a resposta já
-    // lida, e `maquina.aoAviso(fn(servidor, carga))` recebe a carga já lida.
-    pedir: (servidor, valor) => promessa(() => m.pedir(servidor, valor)),
-    aoAviso: fn => m.aoAviso(fn),
+    // Sem cópia de arquivo no `programa`: copiar o mundo é da reserva (parte
+    // 7), que o leva a outra máquina. A metade diz isso ao salvar.
+    copiar: null,
+
+    pedir: valor => promessa(() => m.pedir(valor)).then(lido),
+    aoAviso: fn => m.aoAviso(carga => fn(String(m.servidor ?? ''), lido(carga))),
+    aoParar: fn => m.aoParar(fn),
+    recusas: () => promessa(() => m.programa.recusas()),
 
     // O relógio do executor (o mesmo `setTimeout` das outras metades).
     esperar: ms => new Promise(resolve => g.setTimeout(resolve, ms)),
@@ -854,6 +875,8 @@ function criarAdaptador(g = globalThis) {
 // Toda a API da máquina passa pelo adaptador (adaptador.js).
 
 const LINHAS_GUARDADAS = 8;
+/** Quanto a parada da metade espera o jogo sair depois do `stop`, abaixo dos 20 s do produto. */
+const PRAZO_DA_PARADA_DA_METADE = 15000;
 
 function criarMaquina(ad) {
   const instancias = new Map();
@@ -876,8 +899,12 @@ function criarMaquina(ad) {
   async function falha(i, etapa, erro, dados = {}) {
     const frase = typeof erro === 'string' ? erro : fraseDoErro(erro);
     ad.registrar(`${i.servidor}: ${etapa}: ${frase} ${JSON.stringify(dados)}`);
+    // As recusas do produto nesta máquina, contadas por nome, vão junto: é o
+    // que diz à tela se a falha é a primeira ou a décima.
+    let recusas = null;
+    try { recusas = ad.recusas ? await ad.recusas() : null; } catch { recusas = null; }
     try {
-      await ad.pedir(i.servidor, { op: 'falha', etapa, erro: frase, dados });
+      await ad.pedir({ op: 'falha', etapa, erro: frase, dados: { ...dados, ...(recusas && Object.keys(recusas).length ? { recusas } : {}) } });
     } catch (e) {
       // Sem a metade de servidor, o log desta máquina é o que sobra.
       ad.registrar(`${i.servidor}: a falha não chegou à metade de servidor: ${fraseDoErro(e)}`);
@@ -888,7 +915,7 @@ function criarMaquina(ad) {
     i.estado = estado;
     let resposta;
     try {
-      resposta = await ad.pedir(i.servidor, {
+      resposta = await ad.pedir({
         op: 'estado', estado, jogadores: i.jogadores, linhas: i.linhas,
         ...(i.progresso ? { progresso: i.progresso } : {}), ...extra,
       });
@@ -901,7 +928,7 @@ function criarMaquina(ad) {
   }
 
   async function lerPlano(i) {
-    const r = await ad.pedir(i.servidor, { op: 'plano' });
+    const r = await ad.pedir({ op: 'plano' });
     if (!r || r.ok !== true || !r.plano) {
       // Sem aceite, a máquina nem é ouvida (o produto a dispensa); com outro
       // motivo, a tela fica sabendo.
@@ -939,15 +966,24 @@ function criarMaquina(ad) {
     i.progresso = { feitos: 0, total: baixar.length };
     await contar(i, 'baixando');
     for (const a of baixar) {
+      // Um pacote (o Java) é baixado ao lado e aberto no destino: o produto
+      // confere o hash do pacote, e abre só o que está sob a raiz dele.
+      const destino = a.desempacotar ? `pacotes/${a.nome}` : a.destino;
       try {
-        await ad.baixar({
-          servidor: i.servidor, url: a.url, hash: a.hash, tamanho: a.tamanho, destino: a.destino,
-          ...(a.desempacotar ? { desempacotar: a.desempacotar } : {}),
-        });
+        await ad.baixar({ url: a.url, hash: a.hash, tamanho: a.tamanho, destino });
       } catch (erro) {
         await falha(i, 'baixar', erro, { arquivo: a.nome, url: a.url, tamanho: a.tamanho, hash: a.hash, ...dadosDoErro(erro) });
         await contar(i, 'desligado');
         return false;
+      }
+      if (a.desempacotar) {
+        try {
+          await ad.desempacotar({ arquivo: destino, destino: a.destino, raiz: a.desempacotar.raiz });
+        } catch (erro) {
+          await falha(i, 'desempacotar', erro, { arquivo: a.nome, raiz: a.desempacotar.raiz, ...dadosDoErro(erro) });
+          await contar(i, 'desligado');
+          return false;
+        }
       }
       i.progresso = { feitos: i.progresso.feitos + 1, total: baixar.length };
     }
@@ -961,8 +997,8 @@ function criarMaquina(ad) {
   async function escreverArquivos(i, plano) {
     // **Os termos só são escritos aqui**, com o plano que só a máquina aceita
     // recebe: o EULA foi aceito por quem é dono desta máquina, na tela do produto.
-    for (const t of plano.termos) await ad.escrever(i.servidor, t.arquivo, t.conteudo);
-    await ad.escrever(i.servidor, plano.arquivoDeConfig, plano.propriedades);
+    for (const t of plano.termos) await ad.escrever(t.arquivo, t.conteudo);
+    await ad.escrever(plano.arquivoDeConfig, plano.propriedades);
   }
 
   function lembrar(i, linha) {
@@ -992,7 +1028,7 @@ function criarMaquina(ad) {
   async function abrirTunel(i) {
     const t = i.plano.tunel;
     try {
-      i.tunel = await ad.servirPorta({ servidor: i.servidor, nome: t.nome, protocolo: t.protocolo, porta: t.porta });
+      i.tunel = await ad.servirPorta({ nome: t.nome, protocolo: t.protocolo, porta: t.porta });
     } catch (erro) {
       await falha(i, 'tunel', erro, { nome: t.nome, protocolo: t.protocolo, porta: t.porta, ...dadosDoErro(erro) });
     }
@@ -1037,7 +1073,8 @@ function criarMaquina(ad) {
     await contar(i, 'ligando');
     let proc;
     try {
-      proc = await ad.rodar({ servidor: i.servidor, comando: plano.rodar.comando, argumentos: plano.rodar.argumentos, pasta: '.' });
+      // `pasta: ''` é a pasta deste servidor de jogo.
+      proc = await ad.rodar({ comando: plano.rodar.comando, argumentos: plano.rodar.argumentos, pasta: '' });
     } catch (erro) {
       await falha(i, 'rodar', erro, { comando: plano.rodar.comando, ...dadosDoErro(erro) });
       await contar(i, 'desligado');
@@ -1099,10 +1136,15 @@ function criarMaquina(ad) {
     const ultimo = passos.at(-1);
     await contar(i, 'salvando');
     let falhou = null;
+    let semCopia = null;
     for (const passo of passos) {
-      if (passo.copiar) {
+      if (passo.copiar && !ad.copiar) {
+        // Sem cópia no produto ainda: o mundo foi salvo com segurança, e a
+        // cópia é da reserva (parte 7). Dito, e não calado.
+        semCopia = passo.copiar;
+      } else if (passo.copiar) {
         try {
-          await ad.copiar(i.servidor, passo.copiar, `copias/${passo.copiar}-${Date.now()}`);
+          await ad.copiar(passo.copiar, `copias/${passo.copiar}-${Date.now()}`);
         } catch (erro) {
           falhou = { erro: fraseDoErro(erro), dados: { passo, ...dadosDoErro(erro) } };
           break;
@@ -1120,6 +1162,8 @@ function criarMaquina(ad) {
       // console (o save-on) vai mesmo assim.
       if (ultimo.console && i.proc) i.proc.escrever(ultimo.console + '\n');
       await falha(i, 'salvar', falhou.erro, falhou.dados);
+    } else if (semCopia) {
+      await falha(i, 'salvar', 'copia-fica-para-a-reserva', { pasta: semCopia });
     }
     if (i.proc) await contar(i, 'ligado');
   }
@@ -1136,7 +1180,7 @@ function criarMaquina(ad) {
     const plano = await lerPlano(i);
     if (!plano) return;
     try {
-      await ad.escrever(i.servidor, plano.arquivoDeConfig, plano.propriedades);
+      await ad.escrever(plano.arquivoDeConfig, plano.propriedades);
     } catch (erro) {
       await falha(i, 'escrever', erro, dadosDoErro(erro));
     }
@@ -1160,6 +1204,7 @@ function criarMaquina(ad) {
 
   ad.aoAviso((servidor, carga) => {
     const i = instancia(String(servidor));
+    i.avisado = true;
     const op = OPERACOES[carga?.op];
     if (!op) {
       falha(i, 'aviso', 'aviso-desconhecido', { op: carga?.op ?? null });
@@ -1169,6 +1214,37 @@ function criarMaquina(ad) {
     if (carga.op === 'console') op(i, carga).catch(erro => falha(i, 'console', erro));
     else enfileirar(i, () => op(i, carga));
   });
+
+  // **A parada da metade** (DESLIGAR, REVOGAR, o app fechando, o MOD
+  // desligado): o jogo recebe `stop` e tem o prazo do produto para salvar
+  // (20 s com um processo vivo); depois disso o produto o encerra. Não passa
+  // pela fila: um download longo não segura a parada.
+  ad.aoParar?.(async motivo => {
+    const parando = [];
+    for (const i of instancias.values()) {
+      if (!i.proc) continue;
+      ad.registrar(`${i.servidor}: parada da metade (${motivo}): stop`);
+      i.parando = true;
+      const saiu = new Promise(resolver => { i.aoTerminar = resolver; });
+      i.proc.escrever(i.receita.saida.parar.console + '\n');
+      parando.push(Promise.race([saiu, ad.esperar(PRAZO_DA_PARADA_DA_METADE)]));
+    }
+    await Promise.all(parando);
+  });
+
+  // **Ao subir, a máquina pergunta o plano**, em vez de esperar um aviso: o
+  // aviso pode ter saído antes de esta metade estar de pé, e a metade de
+  // servidor junta avisos seguidos no mais novo.
+  if (ad.servidor) {
+    const i = instancia(ad.servidor);
+    enfileirar(i, async () => {
+      const plano = await lerPlano(i);
+      // Um aviso chegou enquanto o plano vinha: quem manda é ele.
+      if (!plano || i.avisado) return;
+      if (plano.ligar) await ligar(i);
+      else await preparar(i);
+    });
+  }
 
   return { instancias };
 }

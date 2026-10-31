@@ -34,8 +34,8 @@ function processoFalso() {
 /** O adaptador falso: o que a máquina pediu, e o que cada chamada responde. */
 function adaptadorFalso(a, pessoa, opcoes = {}) {
   const f = {
-    baixados: [], escritos: new Map(), rodados: [], portas: [], copias: [], fechadas: [], processos: [],
-    ouvinte: null, relogio: [],
+    baixados: [], abertos: [], escritos: new Map(), rodados: [], portas: [], copias: [], fechadas: [], processos: [],
+    ouvinte: null, relogio: [], parada: null,
   };
   f.ad = {
     plataforma: () => opcoes.plataforma ?? 'mac-aarch64',
@@ -56,10 +56,17 @@ function adaptadorFalso(a, pessoa, opcoes = {}) {
       if (opcoes.servirPorta) return opcoes.servirPorta(pedido);
       return { fechar: () => f.fechadas.push(pedido.nome) };
     },
-    escrever: async (servidor, caminho, texto) => { f.escritos.set(servidor + ':' + caminho, texto); },
-    copiar: async (servidor, de, para) => { f.copias.push([servidor, de, para]); },
-    pedir: async (servidor, valor) => a.daMaquina(pessoa, servidor, valor),
+    recusas: async () => opcoes.recusas ?? {},
+    desempacotar: async pedido => {
+      f.abertos.push(local(pedido));
+      if (opcoes.desempacotar) return opcoes.desempacotar(pedido);
+      return { arquivos: 1 };
+    },
+    escrever: async (caminho, texto) => { f.escritos.set(f.servidor + ':' + caminho, texto); },
+    copiar: opcoes.semCopia ? null : async (de, para) => { f.copias.push([f.servidor, de, para]); },
+    pedir: async valor => a.daMaquina(pessoa, f.servidor, valor),
     aoAviso: fn => { f.ouvinte = fn; },
+    aoParar: fn => { f.parada = fn; },
     // O relógio do teste: o prazo só vence quando o teste manda.
     esperar: ms => new Promise(resolve => f.relogio.push({ ms, resolve })),
     registrar: () => {},
@@ -85,6 +92,9 @@ async function montado(opcoes = {}) {
   const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
   a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', config: { nome: [{ texto: 'Casa do Alê', cor: 'aqua' }], maximo: 6 } });
   const f = adaptadorFalso(a, 2, opcoes);
+  // Uma metade de máquina é um servidor de jogo: ela sabe qual ao subir.
+  f.servidor = id;
+  f.ad.servidor = id;
   criarMaquina(f.ad);
   if (opcoes.semAceite) return { a, f, id };
   a.aceitar(id);
@@ -119,13 +129,13 @@ test('sem o aceite, nada é baixado, nada é escrito e nada roda', async () => {
 
 test('o aceite baixa o server.jar e só o Java desta máquina, cada um com o hash e o tamanho', async () => {
   const { a, f, id } = await montado();
-  assert.deepEqual(f.baixados.map(b => [b.destino, b.hash.algoritmo]), [['server.jar', 'sha1'], ['java', 'sha256']]);
   const [jar, java] = f.baixados;
-  assert.equal(jar.servidor, id);
+  assert.deepEqual(f.baixados.map(b => [b.destino, b.hash.algoritmo]), [['server.jar', 'sha1'], ['pacotes/' + java.url.split('/').pop(), 'sha256']]);
   assert.equal(jar.tamanho, 56880250);
   assert.equal(jar.hash.hex, '4707d00eb834b446575d89a61a11b5d548d8c001');
   assert.match(java.url, /OpenJDK21U-jre_aarch64_mac_hotspot/);
-  assert.deepEqual(java.desempacotar, { raiz: 'jdk-21.0.13+9-jre/Contents/Home' });
+  // O pacote do Java é aberto no destino, com só o que está sob a raiz.
+  assert.deepEqual(f.abertos, [{ arquivo: java.destino, destino: 'java', raiz: 'jdk-21.0.13+9-jre/Contents/Home' }]);
   assert.equal(doServidor(a, id).estado, 'pronto');
   // Preparar não roda nada nem escreve o eula.
   assert.deepEqual(f.rodados, []);
@@ -178,7 +188,7 @@ test('ligar escreve o eula.txt e o server.properties, e roda o comando aceito', 
   assert.ok(props.includes('max-players=6'), props);
   assert.ok(props.includes('motd=\\u00a7bCasa do Al\\u00ea'), props);
   assert.ok(props.includes('server-port=25565'));
-  assert.deepEqual(f.rodados, [{ servidor: id, comando: 'java/bin/java', argumentos: ['-Xms1G', '-Xmx2G', '-jar', 'server.jar', 'nogui'], pasta: '.' }]);
+  assert.deepEqual(f.rodados, [{ comando: 'java/bin/java', argumentos: ['-Xms1G', '-Xmx2G', '-jar', 'server.jar', 'nogui'], pasta: '' }]);
   assert.equal(doServidor(a, id).estado, 'ligando');
   // Antes do «Done (», nenhum túnel.
   assert.deepEqual(f.portas, []);
@@ -186,7 +196,7 @@ test('ligar escreve o eula.txt e o server.properties, e roda o comando aceito', 
 
 test('o «Done (» serve o túnel e diz ligado; quem entra e sai vai à tela', async () => {
   const { a, f, id, p } = await ligado();
-  assert.deepEqual(f.portas, [{ servidor: id, nome: id, protocolo: 'tcp', porta: 25565 }]);
+  assert.deepEqual(f.portas, [{ nome: id, protocolo: 'tcp', porta: 25565 }]);
   assert.equal(doServidor(a, id).estado, 'ligado');
   p.dizer('[12:01:00] [Server thread/INFO]: Alexandre joined the game');
   p.dizer('[12:01:05] [Server thread/INFO]: Bia joined the game');
@@ -323,4 +333,70 @@ test('um aviso de operação desconhecida é contado', async () => {
   const falha = doServidor(a, id).falhas.at(-1);
   assert.equal(falha.erro, 'aviso-desconhecido');
   assert.equal(falha.dados.op, 'dancar');
+});
+
+test('um pacote que não abre para, e a falha chega à tela com a raiz', async () => {
+  const { a, f, id } = await montado({
+    desempacotar: () => { throw Object.assign(new Error('nada-sob-a-raiz'), { erro: 'nada-sob-a-raiz', frase: 'x' }); },
+  });
+  assert.deepEqual(f.rodados, []);
+  const falha = doServidor(a, id).falhas.at(-1);
+  assert.equal(falha.etapa, 'desempacotar');
+  assert.equal(falha.erro, 'nada-sob-a-raiz');
+  assert.equal(falha.dados.raiz, 'jdk-21.0.13+9-jre/Contents/Home');
+  assert.notEqual(doServidor(a, id).estado, 'pronto');
+});
+
+test('as recusas do produto nesta máquina vão junto da falha, contadas', async () => {
+  const { a, id } = await montado({
+    baixar: () => { throw Object.assign(new Error('diferente-do-aceito'), { erro: 'diferente-do-aceito', campo: 'hash' }); },
+    recusas: { 'diferente-do-aceito': 1 },
+  });
+  const falha = doServidor(a, id).falhas.at(-1);
+  assert.equal(falha.erro, 'diferente-do-aceito');
+  assert.deepEqual(falha.dados.recusas, { 'diferente-do-aceito': 1 });
+});
+
+test('a parada da metade manda stop ao jogo e espera ele sair', async () => {
+  const { f, p } = await ligado();
+  let acabou = false;
+  const parada = f.parada('pelo-dono').then(() => { acabou = true; });
+  await assentarTudo();
+  assert.deepEqual(p.entrada, ['stop\n']);
+  assert.equal(acabou, false, 'a parada não esperou o jogo sair');
+  p.sair({ codigo: 0 });
+  await parada;
+  assert.equal(acabou, true);
+  assert.equal(p.encerrado, false, 'a parada matou o jogo que parou sozinho');
+});
+
+test('sem cópia no produto, o salvamento salva e diz que a cópia é da reserva', async () => {
+  const ctx = await montado({ semCopia: true });
+  const { a, f, id } = ctx;
+  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
+  await entregar(a, f, 2);
+  const p = f.processos[0];
+  p.dizer('[12:00:04] [Server thread/INFO]: Done (4.211s)! For help, type "help"');
+  await assentarTudo();
+  f.ouvinte(id, { op: 'salvar' });
+  await assentarTudo();
+  p.dizer('[12:20:00] [Server thread/INFO]: Saved the game');
+  await assentarTudo();
+  assert.deepEqual(p.entrada, ['save-off\n', 'save-all flush\n', 'save-on\n']);
+  assert.equal(doServidor(a, id).falhas.at(-1).erro, 'copia-fica-para-a-reserva');
+});
+
+test('ao subir já aceita, a máquina pergunta o plano e prepara sem esperar aviso', async () => {
+  const a = criarAnfitriao();
+  const id = a.acao(1, 'criar-servidor-de-jogo', { op: 'criar', receita: 'minecraft' }).servidor.id;
+  a.acao(1, 'configurar-servidor-de-jogo', { op: 'configurar', id, versao: '1.21.4', quem: '2', config: {} });
+  a.aceitar(id);
+  const f = adaptadorFalso(a, 2);
+  f.servidor = id;
+  f.ad.servidor = id;
+  // O aviso do aceite saiu antes de a metade existir: ninguém o entrega.
+  criarMaquina(f.ad);
+  await assentarTudo();
+  assert.equal(f.baixados.length, 2);
+  assert.equal(doServidor(a, id).estado, 'pronto');
 });
