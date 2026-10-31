@@ -176,9 +176,21 @@ function conferirSentido(r, erros) {
     const host = hostDaUrl(inst.url);
     if (!host || !hostNasOrigens(host, [...r.origens, ...l.dominiosDoJogo])) erros.push(`${cl}.instalador.url: ${host} não está nas origens nem nos domínios do loader`);
     if (!l.instalar.some(a => a.includes(inst.destino))) erros.push(`${cl}.instalar: os argumentos não citam o instalador «${inst.destino}»`);
-    for (const v of [...l.instalar, ...l.rodar, inst.url, inst.detalhes ?? ''].flatMap(variaveisDe)) {
+    const dosSistemas = (l.porSistema ?? []).flatMap(e => [...e.rodar, ...(e.instalar ?? [])]);
+    for (const v of [...l.instalar, ...l.rodar, ...dosSistemas, inst.url, inst.detalhes ?? ''].flatMap(variaveisDe)) {
       if (v !== 'mc' && v !== 'loader') erros.push(`${cl}: {${v}} não é {mc} nem {loader}`);
     }
+    // **Um sistema numa entrada só** (a regra da oferta, `por_sistema`): a
+    // máquina dele teria dois pares, e o produto recusa a oferta inteira.
+    const vistos = new Set();
+    (l.porSistema ?? []).forEach((e, k) => {
+      for (const p of e.plataformas) {
+        if (vistos.has(p)) erros.push(`${cl}.porSistema[${k}].plataformas: «${p}» já tem comandos noutra entrada`);
+        vistos.add(p);
+        if (l.sistemas && !l.sistemas.includes(p)) erros.push(`${cl}.porSistema[${k}].plataformas: «${p}» não está em «sistemas»`);
+      }
+      if (e.instalar && !e.instalar.some(a => a.includes(inst.destino))) erros.push(`${cl}.porSistema[${k}].instalar: os argumentos não citam o instalador «${inst.destino}»`);
+    });
   }
 
   const ids = new Set();

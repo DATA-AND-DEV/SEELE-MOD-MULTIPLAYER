@@ -160,7 +160,10 @@ const TERMO_DO_PACK = Object.freeze({
 function caminhosProtegidosDoPack(plano) {
   const caminhos = ['.seele-loader', 'fabric-server-launcher.properties'];
   for (const a of plano.artefatos ?? []) if (!a.desempacotar && a.destino) caminhos.push(a.destino);
-  for (const c of [plano.rodar, plano.modpack?.instalar]) {
+  // Os de **todo** sistema (decisão W1): o `win_args.txt` que o pack trouxesse
+  // seria o que a máquina Windows roda, mesmo lido num Mac.
+  const dosSistemas = (plano.porSistema ?? []).flatMap(e => [e.rodar, e.instalar]);
+  for (const c of [plano.rodar, plano.modpack?.instalar, ...dosSistemas]) {
     if (!c) continue;
     caminhos.push(c.comando, c.comando + '.exe');
     (c.argumentos ?? []).forEach((arg, k, todos) => {
@@ -205,13 +208,37 @@ function instaladorDoLoader(receita, loader, mc, buscar) {
   return { ok: true, artefato: { id: 'instalador', nome, url, tamanho, hash: { algoritmo: inst.algoritmo, hex }, destino: inst.destino } };
 }
 
-/** Os dois comandos do loader, com as versões do pack: `{ instalar, rodar }`. */
+/**
+ * Os dois comandos do loader, com as versões do pack: `{ instalar, rodar,
+ * porSistema }`. `porSistema` são as entradas de `por_sistema` da oferta
+ * (decisão W1): o Forge e o NeoForge no Windows rodam pelo `win_args.txt`, com
+ * o `java.exe`; o instalador é o mesmo jar, com os argumentos de cima se a
+ * entrada não traz os seus.
+ */
 function comandosDoLoader(receita, loader, mc) {
   const l = receita.modpack.loaders[loader.id];
+  const v = args => args.map(a => comVersoes(a, mc, loader.versao));
   return {
-    instalar: { comando: receita.rodar.comando, argumentos: l.instalar.map(a => comVersoes(a, mc, loader.versao)) },
-    rodar: { comando: receita.rodar.comando, argumentos: l.rodar.map(a => comVersoes(a, mc, loader.versao)) },
+    instalar: { comando: receita.rodar.comando, argumentos: v(l.instalar) },
+    rodar: { comando: receita.rodar.comando, argumentos: v(l.rodar) },
+    porSistema: (l.porSistema ?? []).map(e => ({
+      plataformas: [...e.plataformas],
+      rodar: { comando: e.comando, argumentos: v(e.rodar) },
+      instalar: { comando: e.comando, argumentos: v(e.instalar ?? l.instalar) },
+    })),
   };
+}
+
+/**
+ * **O par que esta máquina roda** (decisão W1), pela regra do produto
+ * (`seele_proto::maquina::comandos_para`): a entrada de `por_sistema` que
+ * nomeia `plataforma` substitui o `rodar` e o `instalar` de cima inteiros; sem
+ * entrada, valem os de cima. A metade de máquina pede ao `programa` só este
+ * par — o de outro sistema é `comando-fora-do-aceito`.
+ */
+function comandosDaMaquina({ rodar = null, instalar = null, porSistema = [] }, plataforma) {
+  const e = (porSistema ?? []).find(x => x.plataformas.includes(plataforma));
+  return e ? { rodar: e.rodar ?? null, instalar: e.instalar ?? null } : { rodar, instalar };
 }
 
 /**
@@ -237,6 +264,7 @@ function montarOfertaComMods(receita, args, resolvido, pack) {
     const c = comandosDoLoader(receita, pack.loader, pack.mc);
     oferta.instalar = c.instalar;
     oferta.rodar = c.rodar;
+    if (c.porSistema.length) oferta.por_sistema = c.porSistema;
   }
   // O pack, o pack aberto (os overrides, cerca de três vezes o pack), os
   // arquivos do índice, o instalador e o que o loader instala sozinho.

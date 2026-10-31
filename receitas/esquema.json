@@ -139,7 +139,7 @@
   },
   "$defs": {
     "loader": {
-      "description": "Um loader de servidor: o instalador (baixado com o hash: fixo, ou lido de um Maven Reposilite), os argumentos do passo de instalar e os de rodar ({mc} e {loader} são as versões que o pack pede; o comando é o de rodar da receita), os sistemas em que ele roda (ausente: todos), os domínios de onde ele baixa sozinho e o disco que ele ocupa.",
+      "description": "Um loader de servidor: o instalador (baixado com o hash: fixo, ou lido de um Maven Reposilite), os argumentos do passo de instalar e os de rodar ({mc} e {loader} são as versões que o pack pede; o comando é o de rodar da receita), os sistemas em que ele roda (ausente: todos), os comandos de alguns sistemas (porSistema: o comando e os argumentos de rodar e, se diferem, de instalar, que viram uma entrada de por_sistema na oferta — o win_args.txt do Forge e do NeoForge no Windows), os domínios de onde ele baixa sozinho e o disco que ele ocupa.",
       "type": "object",
       "additionalProperties": false,
       "required": ["nome", "medido", "instalador", "instalar", "rodar", "dominiosDoJogo", "disco"],
@@ -163,6 +163,22 @@
         },
         "instalar": { "type": "array", "maxItems": 32, "items": { "type": "string", "maxLength": 256 } },
         "rodar": { "type": "array", "maxItems": 32, "items": { "type": "string", "maxLength": 256 } },
+        "porSistema": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["plataformas", "comando", "rodar"],
+            "properties": {
+              "plataformas": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["windows-x64", "mac-aarch64", "mac-x64", "linux-x64", "linux-aarch64"] } },
+              "comando": { "$ref": "#/$defs/caminho" },
+              "instalar": { "type": "array", "maxItems": 32, "items": { "type": "string", "maxLength": 256 } },
+              "rodar": { "type": "array", "maxItems": 32, "items": { "type": "string", "maxLength": 256 } }
+            }
+          }
+        },
         "dominiosDoJogo": { "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/host" } },
         "disco": { "type": "integer", "minimum": 0 }
       }

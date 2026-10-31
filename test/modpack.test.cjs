@@ -9,8 +9,8 @@ const { carregar, fixture, receitaDoDisco, buscarDasFixtures } = require('./carr
 const { packDeProva } = require('../ferramentas/pack-de-prova.cjs');
 const { lerZip } = require('./zip.cjs');
 
-const { lerIndice, lerLinkDoModrinth, escolherVersaoDoModrinth, instaladorDoLoader, montarOfertaComMods, resolverVersao, comandosDoLoader } =
-  carregar('servidor', ['lerIndice', 'lerLinkDoModrinth', 'escolherVersaoDoModrinth', 'instaladorDoLoader', 'montarOfertaComMods', 'resolverVersao', 'comandosDoLoader'], { mundo: {}, dados: {} });
+const { lerIndice, lerLinkDoModrinth, escolherVersaoDoModrinth, instaladorDoLoader, montarOfertaComMods, resolverVersao, comandosDoLoader, comandosDaMaquina, caminhosProtegidosDoPack } =
+  carregar('servidor', ['lerIndice', 'lerLinkDoModrinth', 'escolherVersaoDoModrinth', 'instaladorDoLoader', 'montarOfertaComMods', 'resolverVersao', 'comandosDoLoader', 'comandosDaMaquina', 'caminhosProtegidosDoPack'], { mundo: {}, dados: {} });
 const receita = receitaDoDisco('minecraft');
 const local = v => JSON.parse(JSON.stringify(v));
 const indiceDaProva = () => JSON.parse(lerZip(packDeProva()).find(e => e.nome === 'modrinth.index.json').dados.toString());
@@ -138,6 +138,34 @@ test('a oferta com mods: o instalador, o pack pelo hash, os dois comandos, os do
   const pelo = local(montarOfertaComMods(receita, { servidor: 'minecraft-1', versao: '1.21.4', porta: 25565 }, resolvido, { ...pack, origem: 'link', url: 'https://cdn.modrinth.com/data/x/p.mrpack' }));
   assert.deepEqual(pelo.artefatos.at(-1), { nome: 'pack.mrpack', url: 'https://cdn.modrinth.com/data/x/p.mrpack', tamanho: 1434, hash: { algoritmo: 'sha512', hex: 'a'.repeat(128) } });
   assert.deepEqual(local(comandosDoLoader(receita, { id: 'forge', versao: '54.1.0' }, '1.21.4')).rodar.argumentos, ['-Xms1G', '-Xmx2G', '@libraries/net/minecraftforge/forge/1.21.4-54.1.0/unix_args.txt', 'nogui']);
+});
+
+// Decisão W1: o Forge e o NeoForge no Windows rodam pelo win_args.txt.
+test('o Forge e o NeoForge levam o par do Windows na oferta; o Fabric não leva nenhum', () => {
+  const forge = local(comandosDoLoader(receita, { id: 'forge', versao: '47.4.28' }, '1.20.1'));
+  assert.deepEqual(forge.porSistema, [{
+    plataformas: ['windows-x64'],
+    rodar: { comando: 'java/bin/java.exe', argumentos: ['-Xms1G', '-Xmx2G', '@libraries/net/minecraftforge/forge/1.20.1-47.4.28/win_args.txt', 'nogui'] },
+    instalar: { comando: 'java/bin/java.exe', argumentos: ['-jar', 'forge-installer.jar', '--installServer'] },
+  }]);
+  const neo = local(comandosDoLoader(receita, { id: 'neoforge', versao: '21.1.265' }, '1.21.1'));
+  assert.deepEqual(neo.porSistema[0].rodar.argumentos[2], '@libraries/net/neoforged/neoforge/21.1.265/win_args.txt');
+  assert.deepEqual(local(comandosDoLoader(receita, { id: 'fabric-loader', versao: '0.16.14' }, '1.21.4')).porSistema, []);
+  // Nenhum loader da receita fica fora de um sistema.
+  for (const [id, l] of Object.entries(receita.modpack.loaders)) assert.equal(l.sistemas, undefined, id);
+  // A máquina escolhe o par dela, pela regra do produto.
+  const plano = { rodar: forge.rodar, instalar: forge.instalar, porSistema: forge.porSistema };
+  assert.equal(local(comandosDaMaquina(plano, 'windows-x64')).rodar.comando, 'java/bin/java.exe');
+  assert.deepEqual(local(comandosDaMaquina(plano, 'mac-aarch64')), { rodar: forge.rodar, instalar: forge.instalar });
+  assert.deepEqual(local(comandosDaMaquina({ rodar: forge.rodar, instalar: null, porSistema: [] }, 'windows-x64')), { rodar: forge.rodar, instalar: null });
+});
+
+test('o pack não troca o win_args.txt nem o java.exe, mesmo lido numa máquina que não é Windows', () => {
+  const forge = local(comandosDoLoader(receita, { id: 'forge', versao: '47.4.28' }, '1.20.1'));
+  const protegidos = local(caminhosProtegidosDoPack({ rodar: forge.rodar, porSistema: forge.porSistema, modpack: { instalar: forge.instalar }, artefatos: [] }));
+  for (const p of ['libraries/net/minecraftforge/forge/1.20.1-47.4.28/win_args.txt', 'libraries/net/minecraftforge/forge/1.20.1-47.4.28/unix_args.txt', 'java/bin/java.exe']) {
+    assert.ok(protegidos.includes(p), `${p} não está em ${protegidos.join(', ')}`);
+  }
 });
 
 // Revisão final (I2): o que o pack traz roda aqui, e a tela do aceite tem de dizer.

@@ -561,6 +561,9 @@ function planoDe(s, papel = 'principal') {
     propriedades: escreverPropriedades(receita, s.config, porta),
     termos: receita.termos.filter(t => t.arquivo).map(t => ({ id: t.id, arquivo: t.arquivo, conteudo: t.conteudo })),
     rodar: oferta.rodar,
+    // Os comandos de alguns sistemas (decisão W1): a máquina escolhe o par
+    // dela (`comandosDaMaquina`), como o produto escolhe o que aceita.
+    porSistema: oferta.por_sistema ?? [],
     tunel: oferta.tuneis[0],
     ligar: s.ligar && dona,
     // A reserva (parte 7): quem esta máquina é, se é a dona, e a cópia.

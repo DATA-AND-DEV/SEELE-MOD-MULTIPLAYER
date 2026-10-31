@@ -20,7 +20,7 @@ const { montar } = require('../ferramentas/montar.cjs');
 const RAIZ = path.resolve(__dirname, '..');
 const manifesto = JSON.parse(fs.readFileSync(path.join(RAIZ, 'mod.json'), 'utf8'));
 const DECLARADAS = manifesto.permissoes.map(p => p.acao);
-const CHAVES_DA_OFERTA = ['titulo', 'receita', 'versao_da_receita', 'versao_do_jogo', 'tuneis', 'artefatos', 'pack', 'origens', 'dominios_do_jogo', 'rodar', 'disco_maximo', 'termos', 'instalar'];
+const CHAVES_DA_OFERTA = ['titulo', 'receita', 'versao_da_receita', 'versao_do_jogo', 'tuneis', 'artefatos', 'pack', 'origens', 'dominios_do_jogo', 'rodar', 'disco_maximo', 'termos', 'instalar', 'por_sistema'];
 
 /**
  * O que o produto devolve de um `.mrpack` (seele-server `mods::pack`):
@@ -105,7 +105,22 @@ function criarAnfitriao(opcoes = {}) {
         }
         if (oferta.disco_maximo > 64 * 1024 ** 3) throw new Error('oferta-invalida:disco_maximo');
         if (oferta.pack !== null && oferta.pack !== undefined && (oferta.pack.algoritmo !== 'sha512' || !/^[0-9a-f]{128}$/.test(oferta.pack.hex))) throw new Error('oferta-invalida:pack');
-        for (const c of [oferta.rodar, oferta.instalar]) {
+        // Os comandos de cada sistema (decisão W1), pela régua do fio
+        // (`OfertaDeMaquina::validate`): uma entrada com sistemas da lista, um
+        // sistema numa entrada só, só as três chaves.
+        const sistemasDoFio = ['windows-x64', 'mac-aarch64', 'mac-x64', 'linux-x64', 'linux-aarch64'];
+        const porSistema = oferta.por_sistema ?? [];
+        if (!Array.isArray(porSistema) || porSistema.length > 5) throw new Error('oferta-invalida:por_sistema');
+        const jaVistos = [];
+        for (const e of porSistema) {
+          if (Object.keys(e).some(k => !['plataformas', 'rodar', 'instalar'].includes(k))) throw new Error('oferta-invalida:por_sistema');
+          if (!Array.isArray(e.plataformas) || !e.plataformas.length) throw new Error('oferta-invalida:por_sistema_plataformas');
+          for (const p of e.plataformas) {
+            if (!sistemasDoFio.includes(p) || jaVistos.includes(p)) throw new Error('oferta-invalida:por_sistema_plataformas');
+            jaVistos.push(p);
+          }
+        }
+        for (const c of [oferta.rodar, oferta.instalar, ...porSistema.flatMap(e => [e.rodar, e.instalar])]) {
           if (c && (typeof c.comando !== 'string' || !Array.isArray(c.argumentos) || Object.keys(c).some(k => !['comando', 'argumentos'].includes(k)))) throw new Error('oferta-invalida:comando');
         }
         const papel = papelDoPedido(pedido.papel);

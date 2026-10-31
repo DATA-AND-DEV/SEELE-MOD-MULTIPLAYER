@@ -13,7 +13,7 @@ const { criarAnfitriao } = require('./anfitriao.cjs');
 const { packDeProva } = require('../ferramentas/pack-de-prova.cjs');
 const { lerZip, escreverZip } = require('./zip.cjs');
 
-const { criarMaquina } = carregar('maquina', ['criarMaquina'], { __testeSemPartida: true });
+const { criarMaquina, receitaPorId: receitaDaMaquina } = carregar('maquina', ['criarMaquina', 'receitaPorId'], { __testeSemPartida: true });
 const local = v => JSON.parse(JSON.stringify(v));
 const assentar = () => new Promise(r => setImmediate(r));
 async function assentarTudo() { for (let i = 0; i < 40; i++) await assentar(); }
@@ -72,6 +72,17 @@ function adaptadorComDisco(a, pessoa, opcoes = {}) {
     },
     escrever: async (caminho, texto) => { f.disco.set(caminho, Buffer.from(texto)); },
     rodar: async pedido => {
+      // **Como o produto** (`politica_do_aceite` + `rodar`): só o par desta
+      // máquina na oferta aceita — o da entrada de `por_sistema` do sistema
+      // dela, ou o de cima —, cada comando com os argumentos dele.
+      const aceita = a.livro.get(f.servidor)?.oferta;
+      if (aceita) {
+        const plataforma = opcoes.plataforma ?? 'mac-aarch64';
+        const e = (aceita.por_sistema ?? []).find(x => x.plataformas.includes(plataforma));
+        const par = e ? [e.rodar, e.instalar] : [aceita.rodar, aceita.instalar];
+        const igual = c => c && c.comando === pedido.comando && JSON.stringify(c.argumentos) === JSON.stringify(pedido.argumentos);
+        if (!par.some(igual)) throw erro('comando-fora-do-aceito', { pedido: pedido.comando, argumentos: pedido.argumentos });
+      }
       f.rodados.push(local(pedido));
       const p = processoFalso();
       f.processos.push(p);
@@ -280,13 +291,60 @@ test('o pack de prova do NeoForge: --install-server, o Java 21 e o unix_args.txt
   assert.deepEqual(f.rodados[1].argumentos, ['-Xms1G', '-Xmx2G', '@libraries/net/neoforged/neoforge/21.1.265/unix_args.txt', 'nogui']);
 });
 
-test('no Windows, o Forge é recusado antes de baixar qualquer coisa (roda pelo unix_args.txt)', async () => {
+test('no Windows, o Forge roda pelo win_args.txt e o java.exe — o par da entrada do Windows, aceito pelo produto (decisão W1)', async () => {
   const { packDeProva: pack } = require('../ferramentas/pack-de-prova.cjs');
   const { a, f, id } = await comMods({ pack: pack('forge'), plataforma: 'windows-x64' });
-  const falha = doServidor(a, id).falhas.at(-1);
-  assert.deepEqual([falha?.etapa, falha?.erro, falha?.dados.plataforma], ['loader', 'loader-sem-este-sistema', 'windows-x64'], JSON.stringify(doServidor(a, id).falhas));
-  assert.deepEqual(f.baixados, [], 'baixou antes de recusar');
-  assert.deepEqual(f.rodados, []);
+  assert.equal(doServidor(a, id).estado, 'pronto', JSON.stringify(doServidor(a, id).falhas));
+  // A oferta leva os dois pares; a máquina Windows roda o dela.
+  const oferta = a.livro.get(id).oferta;
+  assert.deepEqual(oferta.rodar.argumentos[2], '@libraries/net/minecraftforge/forge/1.20.1-47.4.28/unix_args.txt');
+  assert.deepEqual(oferta.por_sistema.map(e => e.plataformas), [['windows-x64']]);
+  assert.deepEqual(f.rodados[0], { comando: 'java/bin/java.exe', argumentos: ['-jar', 'forge-installer.jar', '--installServer'], pasta: '' });
+  assert.ok(f.baixados.some(b => /OpenJDK17U-jre_x64_windows/.test(b.url)), 'o Java do Windows é o da Adoptium windows-x64: ' + f.baixados.map(b => b.url).join(' '));
+  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
+  await entregar(a, f);
+  assert.deepEqual(f.rodados[1], { comando: 'java/bin/java.exe', argumentos: ['-Xms1G', '-Xmx2G', '@libraries/net/minecraftforge/forge/1.20.1-47.4.28/win_args.txt', 'nogui'], pasta: '' });
+});
+
+test('no Windows, o NeoForge roda pelo win_args.txt do 21.1.265', async () => {
+  const { packDeProva: pack } = require('../ferramentas/pack-de-prova.cjs');
+  const { a, f, id } = await comMods({ pack: pack('neoforge'), plataforma: 'windows-x64' });
+  assert.equal(doServidor(a, id).estado, 'pronto', JSON.stringify(doServidor(a, id).falhas));
+  assert.deepEqual(f.rodados[0], { comando: 'java/bin/java.exe', argumentos: ['-jar', 'neoforge-installer.jar', '--install-server'], pasta: '' });
+  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
+  await entregar(a, f);
+  assert.deepEqual(f.rodados[1].argumentos, ['-Xms1G', '-Xmx2G', '@libraries/net/neoforged/neoforge/21.1.265/win_args.txt', 'nogui']);
+});
+
+test('os argumentos dos dois sistemas são os que o instalador real escreve (win_args.txt e unix_args.txt do Forge e do NeoForge, medidos em 31/10)', () => {
+  // Cópias de verdade, do instalador rodado num Mac ARM: ele escreve os dois
+  // arquivos em qualquer sistema, iguais a menos do separador do classpath.
+  for (const [loader, pasta] of [['forge', 'libraries/net/minecraftforge/forge/1.20.1-47.4.28'], ['neoforge', 'libraries/net/neoforged/neoforge/21.1.265']]) {
+    const win = fixture(`${loader}-win_args.txt`).toString();
+    const unix = fixture(`${loader}-unix_args.txt`).toString();
+    assert.equal(win.replace(/;/g, ':'), unix, loader);
+    assert.match(win.split('\n')[0], /^-p libraries\/[^:]+;libraries\//, loader);
+    assert.ok(!win.includes('\\') && !win.includes('\r'), loader);
+    const receita = require('../receitas/minecraft.json').modpack.loaders[loader];
+    const mc = loader === 'forge' ? '1.20.1' : '1.21.1';
+    const versao = loader === 'forge' ? '47.4.28' : '21.1.265';
+    const arq = receita.porSistema[0].rodar.find(x => x.startsWith('@')).slice(1).replace('{mc}', mc).replace('{loader}', versao);
+    assert.equal(arq, `${pasta}/win_args.txt`, loader);
+  }
+});
+
+test('um loader limitado a outros sistemas ainda é recusado antes de baixar (loader-sem-este-sistema)', async () => {
+  const { packDeProva: pack } = require('../ferramentas/pack-de-prova.cjs');
+  const forge = receitaDaMaquina('minecraft').modpack.loaders.forge;
+  forge.sistemas = ['mac-aarch64'];
+  try {
+    const { a, f, id } = await comMods({ pack: pack('forge'), plataforma: 'linux-x64' });
+    const falha = doServidor(a, id).falhas.at(-1);
+    assert.deepEqual([falha?.etapa, falha?.erro, falha?.dados.plataforma], ['loader', 'loader-sem-este-sistema', 'linux-x64'], JSON.stringify(doServidor(a, id).falhas));
+    assert.deepEqual(f.baixados, [], 'baixou antes de recusar');
+  } finally {
+    delete forge.sistemas;
+  }
 });
 
 // O Create Live 5 (Forge 1.20.1, Modrinth) traz o mod Default Server

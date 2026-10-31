@@ -205,3 +205,22 @@ test('só a lista de palavras tem «maximoSegmentos» e «codigo»', () => {
   s.configuracao.campos[2].opcoes[0].codigo = 'f';
   assert.deepEqual(erros(s), ['receita.configuracao.campos[2].opcoes[0]: só a lista de palavras usa «codigo»']);
 });
+
+// Decisão W1: os comandos de alguns sistemas, na receita do loader.
+test('porSistema: um sistema numa entrada só, fora de «sistemas» não, e o instalador citado', () => {
+  const comEntradas = (...entradas) => {
+    const r = receitaDoDisco('minecraft');
+    r.modpack.loaders.forge.porSistema = entradas;
+    return erros(r);
+  };
+  const win = { plataformas: ['windows-x64'], comando: 'java/bin/java.exe', rodar: ['@x/win_args.txt'] };
+  assert.deepEqual(comEntradas(win), []);
+  assert.ok(comEntradas(win, { ...win }).some(e => /porSistema\[1\]\.plataformas: «windows-x64» já tem comandos/.test(e)));
+  assert.ok(comEntradas({ ...win, plataformas: ['windows-arm64'] }).length > 0);
+  assert.ok(comEntradas({ ...win, instalar: ['-jar', 'outro.jar'] }).some(e => /porSistema\[0\]\.instalar: os argumentos não citam/.test(e)));
+  assert.ok(comEntradas({ ...win, rodar: ['{versao}'] }).some(e => /\{versao\} não é/.test(e)));
+  const r = receitaDoDisco('minecraft');
+  r.modpack.loaders.forge.sistemas = ['mac-aarch64'];
+  r.modpack.loaders.forge.porSistema = [win];
+  assert.ok(erros(r).some(e => /não está em «sistemas»/.test(e)));
+});

@@ -240,7 +240,6 @@
       "forge": {
         "nome": "Forge",
         "medido": true,
-        "sistemas": ["mac-aarch64", "mac-x64", "linux-x64", "linux-aarch64"],
         "instalador": {
           "fonte": "reposilite",
           "destino": "forge-installer.jar",
@@ -250,13 +249,15 @@
         },
         "instalar": ["-jar", "forge-installer.jar", "--installServer"],
         "rodar": ["-Xms1G", "-Xmx2G", "@libraries/net/minecraftforge/forge/{mc}-{loader}/unix_args.txt", "nogui"],
+        "porSistema": [
+          { "plataformas": ["windows-x64"], "comando": "java/bin/java.exe", "rodar": ["-Xms1G", "-Xmx2G", "@libraries/net/minecraftforge/forge/{mc}-{loader}/win_args.txt", "nogui"] }
+        ],
         "dominiosDoJogo": ["maven.minecraftforge.net", "libraries.minecraft.net", "piston-data.mojang.com", "piston-meta.mojang.com", "launchermeta.mojang.com"],
         "disco": 536870912
       },
       "neoforge": {
         "nome": "NeoForge",
         "medido": true,
-        "sistemas": ["mac-aarch64", "mac-x64", "linux-x64", "linux-aarch64"],
         "instalador": {
           "fonte": "reposilite",
           "destino": "neoforge-installer.jar",
@@ -266,6 +267,9 @@
         },
         "instalar": ["-jar", "neoforge-installer.jar", "--install-server"],
         "rodar": ["-Xms1G", "-Xmx2G", "@libraries/net/neoforged/neoforge/{loader}/unix_args.txt", "nogui"],
+        "porSistema": [
+          { "plataformas": ["windows-x64"], "comando": "java/bin/java.exe", "rodar": ["-Xms1G", "-Xmx2G", "@libraries/net/neoforged/neoforge/{loader}/win_args.txt", "nogui"] }
+        ],
         "dominiosDoJogo": ["maven.neoforged.net", "libraries.minecraft.net", "piston-data.mojang.com", "piston-meta.mojang.com", "launchermeta.mojang.com"],
         "disco": 536870912
       }

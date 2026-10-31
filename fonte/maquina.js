@@ -111,9 +111,10 @@ function criarMaquina(ad) {
     if (i.preparado === chave) return true;
 
     const plataforma = ad.plataforma();
-    // **O loader que não roda aqui é dito antes de baixar** (Forge e NeoForge
-    // rodam pelo `unix_args.txt`, e não no Windows): antes, a máquina baixava
-    // o servidor e o Java (~90 MB no Forge 1.20.1) para só então recusar.
+    // **O loader que não roda aqui é dito antes de baixar** (um loader cuja
+    // receita limita `sistemas`): antes, a máquina baixava o servidor e o
+    // Java (~90 MB no Forge 1.20.1) para só então recusar. O Forge e o
+    // NeoForge rodam em todos desde a decisão W1 (o `win_args.txt` no Windows).
     const sistemas = plano.modpack?.loader ? receitaPorId(plano.receita)?.modpack?.loaders?.[plano.modpack.loader.id]?.sistemas : null;
     if (sistemas && !sistemas.includes(plataforma)) {
       await falha(i, 'loader', 'loader-sem-este-sistema', { loader: plano.modpack.loader.id, plataforma, sistemas });
@@ -238,7 +239,10 @@ function criarMaquina(ad) {
         return falhaDoPack(i, 'aplicar-' + raiz, erro, { raiz });
       }
     }
-    if (mp.loader && mp.instalar && !(await instalarLoader(i, mp))) return false;
+    // O passo de instalar **desta máquina** (decisão W1): o da entrada de
+    // `por_sistema` do sistema dela, ou o de cima.
+    const { instalar } = comandosDaMaquina({ rodar: plano.rodar, instalar: mp.instalar, porSistema: plano.porSistema }, ad.plataforma());
+    if (mp.loader && instalar && !(await instalarLoader(i, { ...mp, instalar }))) return false;
     return true;
   }
 
@@ -419,11 +423,15 @@ function criarMaquina(ad) {
     i.jogadores = [];
     await contar(i, 'ligando');
     let proc;
+    let comandoRodado = null;
     try {
-      // `pasta: ''` é a pasta deste servidor de jogo.
-      proc = await ad.rodar({ comando: plano.rodar.comando, argumentos: plano.rodar.argumentos, pasta: '' });
+      // `pasta: ''` é a pasta deste servidor de jogo. O par **desta máquina**
+      // (decisão W1): o `win_args.txt` do Forge no Windows, o de cima no resto.
+      const { rodar } = comandosDaMaquina({ rodar: plano.rodar, instalar: plano.modpack?.instalar ?? null, porSistema: plano.porSistema }, ad.plataforma());
+      comandoRodado = rodar;
+      proc = await ad.rodar({ comando: rodar.comando, argumentos: rodar.argumentos, pasta: '' });
     } catch (erro) {
-      await falha(i, 'rodar', erro, { comando: plano.rodar.comando, ...dadosDoErro(erro) });
+      await falha(i, 'rodar', erro, { comando: comandoRodado?.comando ?? null, ...dadosDoErro(erro) });
       await contar(i, 'desligado');
       return;
     }
