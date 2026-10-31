@@ -283,7 +283,7 @@ test('o chat não imita nenhuma linha que a receita lê (pronto, entrou, saiu, s
   assert.deepEqual(local(casar('[04:06:14] [Server thread/INFO]: Done (3.137s)! For help, type "help"')), { tipo: 'pronto' });
   assert.ok(salvou.test('[12:20:00] [Server thread/INFO]: Saved the game'));
   assert.ok(parou.test('[12:10:00] [Server thread/INFO]: Stopping the server'));
-  // O Forge e o NeoForge põem o nome de quem registra entre colchetes (não medido).
+  // O Forge e o NeoForge põem o nome de quem registra entre colchetes (medido em 31/10: ver abaixo).
   assert.deepEqual(local(casar('[12:00:04] [Server thread/INFO] [minecraft/DedicatedServer]: Done (5.2s)! For help, type "help"')), { tipo: 'pronto' });
   assert.deepEqual(local(casar('[12:00:09] [Server thread/INFO] [minecraft/MinecraftServer]: Bia joined the game')), { tipo: 'entrou', jogador: 'Bia' });
   // O chat, com e sem o «]: » de mentira, e com o «[Not Secure]» da 1.21.4, não casa nada.
