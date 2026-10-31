@@ -934,6 +934,41 @@ function escolherVersaoDoModrinth(lista, versao, receita) {
   };
 }
 
+/**
+ * **O termo do pack** (revisão final, I2): o pack é aceito pelo hash, e o que
+ * vem nele — os mods do índice e todo arquivo de `overrides/` e
+ * `server-overrides/`, jars inclusive — roda neste computador. A tela do
+ * aceite lista de onde se baixa, e um «pode baixar de cdn.modrinth.com» lido
+ * sozinho dizia menos do que roda. Como termo, a pessoa marca que leu.
+ */
+const TERMO_DO_PACK = Object.freeze({
+  titulo: 'o modpack: os mods dele e todo arquivo que ele traz (overrides, jars inclusive) rodam neste computador, com a sua conta',
+  url: 'https://support.modrinth.com/en/articles/8802351-modrinth-modpack-format-mrpack',
+});
+
+/**
+ * **O que o pack não troca** (revisão final, I2): o que o aceite mostra como
+ * «vai rodar» — o comando, o jar de `-jar`, o arquivo de `@argumentos` —, cada
+ * artefato aceito que não é um pacote, a marca do instalador (`.seele-loader`,
+ * que pularia o instalador) e o arquivo que diz ao lançador do Fabric qual é o
+ * jar do servidor. Um pack que traz um deles (no índice ou nos overrides) é
+ * recusado: os mods rodam (é o termo), mas o programa que a tela nomeia é o
+ * aceito.
+ */
+function caminhosProtegidosDoPack(plano) {
+  const caminhos = ['.seele-loader', 'fabric-server-launcher.properties'];
+  for (const a of plano.artefatos ?? []) if (!a.desempacotar && a.destino) caminhos.push(a.destino);
+  for (const c of [plano.rodar, plano.modpack?.instalar]) {
+    if (!c) continue;
+    caminhos.push(c.comando, c.comando + '.exe');
+    (c.argumentos ?? []).forEach((arg, k, todos) => {
+      if (arg === '-jar' && todos[k + 1]) caminhos.push(todos[k + 1]);
+      if (arg.startsWith('@') && arg.length > 1) caminhos.push(arg.slice(1));
+    });
+  }
+  return [...new Set(caminhos)].filter(caminhoDoPackServe);
+}
+
 /** `{mc}` e `{loader}` num modelo. */
 const comVersoes = (modelo, mc, loader) => String(modelo).replace(/\{mc\}/g, mc).replace(/\{loader\}/g, loader);
 
@@ -992,6 +1027,8 @@ function montarOfertaComMods(receita, args, resolvido, pack) {
   for (const a of extras) oferta.artefatos.push({ nome: a.nome, url: a.url, tamanho: a.tamanho, hash: { algoritmo: a.hash.algoritmo, hex: a.hash.hex } });
   oferta.pack = { algoritmo: 'sha512', hex: pack.sha512 };
   for (const d of receita.modpack.dominios) if (!oferta.origens.includes(d)) oferta.origens.push(d);
+  // O que o pack traz roda aqui: a pessoa lê e marca (pela página do pack, se veio pelo link).
+  oferta.termos.push({ titulo: TERMO_DO_PACK.titulo, url: pack.pagina ?? TERMO_DO_PACK.url });
   if (pack.loader) {
     const l = receita.modpack.loaders[pack.loader.id];
     for (const d of l.dominiosDoJogo) if (!oferta.dominios_do_jogo.includes(d)) oferta.dominios_do_jogo.push(d);
@@ -1329,6 +1366,17 @@ function criarMaquina(ad) {
     const lido = lerIndice(texto, i.receita);
     if (!lido.ok) return falhaDoPack(i, 'indice', lido.erro, lido);
     const indice = lido.indice;
+    // Revisão final (I2): nem o índice nem os overrides trocam o que o aceite diz que roda.
+    const protegidos = caminhosProtegidosDoPack(plano);
+    const noIndice = indice.arquivos.find(a => protegidos.includes(a.path));
+    if (noIndice) return falhaDoPack(i, 'indice', 'pack-troca-o-que-roda', { path: noIndice.path, protegidos });
+    for (const raiz of ['overrides', 'server-overrides']) {
+      for (const p of protegidos) {
+        if (await existeNoPack(`pack/${raiz}/${p}`)) {
+          return falhaDoPack(i, 'aplicar-' + raiz, 'pack-troca-o-que-roda', { raiz, path: p, protegidos });
+        }
+      }
+    }
     const loaderIgual = JSON.stringify(indice.loader) === JSON.stringify(mp.loader);
     if (indice.mc !== mp.mc || !loaderIgual) {
       return falhaDoPack(i, 'indice', 'pack-nao-confere', { mc: indice.mc, mcDoPlano: mp.mc, loader: indice.loader, loaderDoPlano: mp.loader });
@@ -1359,6 +1407,20 @@ function criarMaquina(ad) {
     }
     if (mp.loader && mp.instalar && !(await instalarLoader(i, mp))) return false;
     return true;
+  }
+
+  /**
+   * Um arquivo do pack aberto existe? `ler` diz: lido, ou grande ou binário
+   * demais para ler, é que está lá; a recusa `disco` (não achou, ou é pasta) é
+   * que não está.
+   */
+  async function existeNoPack(caminho) {
+    try {
+      await ad.ler(caminho);
+      return true;
+    } catch (erro) {
+      return erro?.erro === 'nao-e-texto' || erro?.erro === 'texto-grande-demais';
+    }
   }
 
   /**

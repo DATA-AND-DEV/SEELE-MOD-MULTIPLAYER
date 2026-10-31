@@ -66,6 +66,8 @@ function adaptadorComDisco(a, pessoa, opcoes = {}) {
     },
     ler: async arquivo => {
       if (!f.disco.has(arquivo)) throw erro('disco', { caminho: arquivo });
+      // Como o produto: um arquivo que não é UTF-8 (um jar) é recusado, e não lido.
+      if (!require('node:buffer').isUtf8(f.disco.get(arquivo))) throw erro('nao-e-texto', { arquivo });
       return f.disco.get(arquivo).toString('utf8');
     },
     escrever: async (caminho, texto) => { f.disco.set(caminho, Buffer.from(texto)); },
@@ -205,6 +207,50 @@ test('o índice dos bytes aceitos é conferido de novo na máquina, e um que nã
   const falha = doServidor(a, id).falhas.at(-1);
   assert.deepEqual([falha.etapa, falha.erro, falha.dados.path], ['indice', 'caminho-recusado', '../fora.jar']);
   assert.ok(!f.baixados.some(b => b.destino.includes('fora')));
+});
+
+// ---- revisão final (I2): o pack não troca o que o aceite diz que roda ----
+
+const { indiceDeProva } = require('../ferramentas/pack-de-prova.cjs');
+const packCom = (extras, indice = indiceDeProva()) => escreverZip([
+  ['modrinth.index.json', JSON.stringify(indice), true],
+  ['overrides/config/seele-prova.txt', 'de overrides\n', false],
+  ...extras,
+]);
+
+for (const [raiz, caminho] of [
+  ['overrides', 'server.jar'],
+  ['server-overrides', 'fabric-server-launch.jar'],
+  ['overrides', 'fabric-installer.jar'],
+  ['overrides', '.seele-loader'],
+  ['server-overrides', 'java/bin/java'],
+  ['overrides', 'fabric-server-launcher.properties'],
+]) {
+  test(`um pack com ${raiz}/${caminho} é recusado antes de aplicar qualquer override`, async () => {
+    // Um jar de verdade não é texto: o `ler` do produto o recusa com `nao-e-texto`, e isso é «está lá».
+    const conteudo = /\.jar$|java$/.test(caminho) ? Buffer.from([0x50, 0x4b, 0x03, 0x04, 0xff, 0xfe, 0x00]) : 'outro programa';
+    const { a, f, id } = await comMods({ pack: packCom([[`${raiz}/${caminho}`, conteudo, false]]) });
+    const falha = doServidor(a, id).falhas.at(-1);
+    assert.deepEqual([falha?.etapa, falha?.erro, falha?.dados.path], ['aplicar-' + raiz, 'pack-troca-o-que-roda', caminho], JSON.stringify(doServidor(a, id).falhas));
+    assert.deepEqual(f.abertos.filter(x => x.mesclar), [], 'um override foi aplicado');
+    assert.deepEqual(f.rodados, [], 'o instalador rodou');
+    assert.notEqual(doServidor(a, id).estado, 'pronto');
+  });
+}
+
+test('um arquivo do índice que cai num caminho do aceite (server.jar) é recusado, e nada do pack é baixado', async () => {
+  const indice = indiceDeProva();
+  indice.files[0] = { ...indice.files[0], path: 'server.jar' };
+  const { a, f, id } = await comMods({ pack: packCom([], indice) });
+  const falha = doServidor(a, id).falhas.at(-1);
+  assert.deepEqual([falha?.etapa, falha?.erro, falha?.dados.path], ['indice', 'pack-troca-o-que-roda', 'server.jar'], JSON.stringify(doServidor(a, id).falhas));
+  assert.ok(!f.baixados.some(b => /cdn\.modrinth\.com/.test(b.url)), 'um arquivo do pack foi baixado');
+});
+
+test('um jar em overrides/mods entra (é o que o termo do pack diz que roda)', async () => {
+  const { a, f, id } = await comMods({ pack: packCom([['overrides/mods/proprio.jar', 'um mod do pack', false]]) });
+  assert.equal(f.disco.get('mods/proprio.jar')?.toString(), 'um mod do pack');
+  assert.equal(doServidor(a, id).estado, 'pronto', JSON.stringify(doServidor(a, id).falhas));
 });
 
 // O adaptador do teste acima precisa do disco antes de existir: um atalho.

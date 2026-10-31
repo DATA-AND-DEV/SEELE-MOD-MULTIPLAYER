@@ -190,6 +190,17 @@ function criarMaquina(ad) {
     const lido = lerIndice(texto, i.receita);
     if (!lido.ok) return falhaDoPack(i, 'indice', lido.erro, lido);
     const indice = lido.indice;
+    // Revisão final (I2): nem o índice nem os overrides trocam o que o aceite diz que roda.
+    const protegidos = caminhosProtegidosDoPack(plano);
+    const noIndice = indice.arquivos.find(a => protegidos.includes(a.path));
+    if (noIndice) return falhaDoPack(i, 'indice', 'pack-troca-o-que-roda', { path: noIndice.path, protegidos });
+    for (const raiz of ['overrides', 'server-overrides']) {
+      for (const p of protegidos) {
+        if (await existeNoPack(`pack/${raiz}/${p}`)) {
+          return falhaDoPack(i, 'aplicar-' + raiz, 'pack-troca-o-que-roda', { raiz, path: p, protegidos });
+        }
+      }
+    }
     const loaderIgual = JSON.stringify(indice.loader) === JSON.stringify(mp.loader);
     if (indice.mc !== mp.mc || !loaderIgual) {
       return falhaDoPack(i, 'indice', 'pack-nao-confere', { mc: indice.mc, mcDoPlano: mp.mc, loader: indice.loader, loaderDoPlano: mp.loader });
@@ -220,6 +231,20 @@ function criarMaquina(ad) {
     }
     if (mp.loader && mp.instalar && !(await instalarLoader(i, mp))) return false;
     return true;
+  }
+
+  /**
+   * Um arquivo do pack aberto existe? `ler` diz: lido, ou grande ou binário
+   * demais para ler, é que está lá; a recusa `disco` (não achou, ou é pasta) é
+   * que não está.
+   */
+  async function existeNoPack(caminho) {
+    try {
+      await ad.ler(caminho);
+      return true;
+    } catch (erro) {
+      return erro?.erro === 'nao-e-texto' || erro?.erro === 'texto-grande-demais';
+    }
   }
 
   /**

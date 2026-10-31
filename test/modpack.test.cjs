@@ -139,3 +139,21 @@ test('a oferta com mods: o instalador, o pack pelo hash, os dois comandos, os do
   assert.deepEqual(pelo.artefatos.at(-1), { nome: 'pack.mrpack', url: 'https://cdn.modrinth.com/data/x/p.mrpack', tamanho: 1434, hash: { algoritmo: 'sha512', hex: 'a'.repeat(128) } });
   assert.deepEqual(local(comandosDoLoader(receita, { id: 'forge', versao: '54.1.0' }, '1.21.4')).rodar.argumentos, ['-Xms1G', '-Xmx2G', '@libraries/net/minecraftforge/forge/1.21.4-54.1.0/unix_args.txt', 'nogui']);
 });
+
+// Revisão final (I2): o que o pack traz roda aqui, e a tela do aceite tem de dizer.
+test('a oferta com mods traz o termo do pack: o que ele traz roda neste computador', () => {
+  const resolvido = local(resolverVersao(receita, '1.21.4', buscarDasFixtures()));
+  const indice = local(lerIndice(JSON.stringify(indiceDaProva()), receita)).indice;
+  const pack = { origem: 'enviado', sha512: 'a'.repeat(128), bytes: 1434, mc: indice.mc, loader: indice.loader, instalador: null, resumo: { bytesDosArquivos: indice.bytes } };
+  const args = { servidor: 'minecraft-1', versao: '1.21.4', porta: 25565 };
+  const o = local(montarOfertaComMods(receita, args, resolvido, pack));
+  const termo = o.termos.find(t => /modpack/.test(t.titulo));
+  assert.ok(termo, JSON.stringify(o.termos));
+  assert.match(termo.titulo, /jars inclusive\) rodam neste computador/);
+  assert.equal(termo.url, 'https://support.modrinth.com/en/articles/8802351-modrinth-modpack-format-mrpack');
+  assert.ok(Buffer.byteLength(termo.titulo) <= 256, 'o produto recusa um título de termo com mais de 256 bytes');
+  assert.ok(o.termos.some(t => /EULA/.test(t.titulo)), 'o EULA continua');
+  // Pelo link, o termo leva à página da versão do pack.
+  const pagina = 'https://modrinth.com/modpack/prova/version/abc';
+  assert.equal(local(montarOfertaComMods(receita, args, resolvido, { ...pack, origem: 'link', url: 'https://cdn.modrinth.com/x.mrpack', pagina })).termos.find(t => /modpack/.test(t.titulo)).url, pagina);
+});

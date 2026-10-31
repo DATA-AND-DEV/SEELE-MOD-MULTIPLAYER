@@ -136,6 +136,41 @@ function escolherVersaoDoModrinth(lista, versao, receita) {
   };
 }
 
+/**
+ * **O termo do pack** (revisão final, I2): o pack é aceito pelo hash, e o que
+ * vem nele — os mods do índice e todo arquivo de `overrides/` e
+ * `server-overrides/`, jars inclusive — roda neste computador. A tela do
+ * aceite lista de onde se baixa, e um «pode baixar de cdn.modrinth.com» lido
+ * sozinho dizia menos do que roda. Como termo, a pessoa marca que leu.
+ */
+const TERMO_DO_PACK = Object.freeze({
+  titulo: 'o modpack: os mods dele e todo arquivo que ele traz (overrides, jars inclusive) rodam neste computador, com a sua conta',
+  url: 'https://support.modrinth.com/en/articles/8802351-modrinth-modpack-format-mrpack',
+});
+
+/**
+ * **O que o pack não troca** (revisão final, I2): o que o aceite mostra como
+ * «vai rodar» — o comando, o jar de `-jar`, o arquivo de `@argumentos` —, cada
+ * artefato aceito que não é um pacote, a marca do instalador (`.seele-loader`,
+ * que pularia o instalador) e o arquivo que diz ao lançador do Fabric qual é o
+ * jar do servidor. Um pack que traz um deles (no índice ou nos overrides) é
+ * recusado: os mods rodam (é o termo), mas o programa que a tela nomeia é o
+ * aceito.
+ */
+function caminhosProtegidosDoPack(plano) {
+  const caminhos = ['.seele-loader', 'fabric-server-launcher.properties'];
+  for (const a of plano.artefatos ?? []) if (!a.desempacotar && a.destino) caminhos.push(a.destino);
+  for (const c of [plano.rodar, plano.modpack?.instalar]) {
+    if (!c) continue;
+    caminhos.push(c.comando, c.comando + '.exe');
+    (c.argumentos ?? []).forEach((arg, k, todos) => {
+      if (arg === '-jar' && todos[k + 1]) caminhos.push(todos[k + 1]);
+      if (arg.startsWith('@') && arg.length > 1) caminhos.push(arg.slice(1));
+    });
+  }
+  return [...new Set(caminhos)].filter(caminhoDoPackServe);
+}
+
 /** `{mc}` e `{loader}` num modelo. */
 const comVersoes = (modelo, mc, loader) => String(modelo).replace(/\{mc\}/g, mc).replace(/\{loader\}/g, loader);
 
@@ -194,6 +229,8 @@ function montarOfertaComMods(receita, args, resolvido, pack) {
   for (const a of extras) oferta.artefatos.push({ nome: a.nome, url: a.url, tamanho: a.tamanho, hash: { algoritmo: a.hash.algoritmo, hex: a.hash.hex } });
   oferta.pack = { algoritmo: 'sha512', hex: pack.sha512 };
   for (const d of receita.modpack.dominios) if (!oferta.origens.includes(d)) oferta.origens.push(d);
+  // O que o pack traz roda aqui: a pessoa lê e marca (pela página do pack, se veio pelo link).
+  oferta.termos.push({ titulo: TERMO_DO_PACK.titulo, url: pack.pagina ?? TERMO_DO_PACK.url });
   if (pack.loader) {
     const l = receita.modpack.loaders[pack.loader.id];
     for (const d of l.dominiosDoJogo) if (!oferta.dominios_do_jogo.includes(d)) oferta.dominios_do_jogo.push(d);
