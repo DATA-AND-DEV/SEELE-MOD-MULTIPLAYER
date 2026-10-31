@@ -251,15 +251,28 @@ test('nenhuma montagem passa de 12 KiB, nem com oito servidores cheios de falhas
   assert.deepEqual(j.erros, []);
 });
 
-test('o estilo segue o desenho: fundo preto, laranja #F47732 no que está escolhido', async () => {
+test('o estilo segue o desenho 0.19: as cores do tema, o vidro, os chips e a barra de salvar', async () => {
   const { j } = await aberta();
   await j.apertar('criar:minecraft');
   const raiz = j.pagina().arvore[0];
-  assert.equal(raiz.estilo.fundo, '#000000');
+  // O painel de vidro de 24 é uma classe; o texto acompanha o tema.
+  assert.equal(raiz.classe, 'painel');
+  assert.deepEqual(raiz.estilo.cor, { tema: 'texto' });
+  // O escolhido em laranja (o acento do tema), o outro em vidro, no cartão de 18.
   const vanilla = j.no('variante:vanilla');
-  assert.equal(vanilla.estilo.borda.cor, '#F47732');
-  assert.equal(vanilla.estilo.fundo, '#331704');
-  assert.equal(j.no('variante:com-mods').estilo.borda.cor, '#626262');
+  assert.deepEqual(vanilla.estilo.borda.cor, { tema: 'acento' });
+  assert.equal(vanilla.estilo.raio, 18);
+  assert.equal(j.no('variante:com-mods').estilo.borda.cor, '#ffffff12');
+  // SALVAR é o primário do produto, na barra laranja, por último.
+  const barra = j.no('barra');
+  assert.equal(barra.classe, 'barra');
+  const acoes = j.no('botoes').dentro.map(b => b.chave);
+  assert.equal(acoes.at(-1), 'salvar');
+  assert.equal(j.no('salvar').variante, 'primaria');
+  assert.equal(j.no('salvar').classe, undefined, 'o botão do produto não é pintado pelo MOD');
+  // Nenhuma cor do desenho velho sobrou.
+  const texto = JSON.stringify(j.pagina().arvore);
+  for (const velha of ['#000000', '#EAEAEA', '#8A8A8A', '#252525', '#626262']) assert.ok(!texto.includes(velha), velha);
 });
 
 test('a página que passaria do teto monta o resumo, e diz que é resumo', async () => {

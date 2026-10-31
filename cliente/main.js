@@ -506,10 +506,20 @@ function casarSaida(receita) {
 // na página com o nome e os dados (`estado.aviso`), ou no cartão a que ela
 // pertence. Uma página que não monta é dita num aviso do produto e no log.
 
+// As cores do desenho 0.19. As seis que o tema tem nome vão pelo tema
+// (`{ tema }`), e acompanham o tema em vigor; as que ele não tem — os chips, o
+// vidro, o vermelho da recusa — são os valores do canvas, em hexadecimal.
 const COR = Object.freeze({
-  fundo: '#000000', texto: '#EAEAEA', acento: '#F47732', apagado: '#8A8A8A', linha: '#252525',
-  borda: '#626262', escolhido: '#331704', chip: '#2B0F05', erro: '#FF7A7A',
+  fundo: { tema: 'fundo' }, texto: { tema: 'texto' }, acento: { tema: 'acento' }, apagado: { tema: 'apagado' },
+  linha: { tema: 'borda' }, painel: { tema: 'painel' },
+  vidro: '#ffffff08', vidroBorda: '#ffffff12', controle: '#ffffff1f',
+  // chips: verde = ativo, laranja = pendente, azul = oficial (Config-mods)
+  verde: '#6BFFB6', verdeFundo: '#06220FB3', verdeBorda: '#6BFFB673',
+  laranja: '#FFB48A', laranjaFundo: '#331704B3', laranjaBorda: '#F4773280', icone: '#F477321F',
+  azul: '#9CCBF5', azulFundo: '#04182BCC', azulBorda: '#2F8FE08C',
+  erro: '#FF6262', erroFundo: '#2F1413CC', erroBorda: '#FF626280',
 });
+const linhaDe = cor => ({ largura: 1, estilo: 'solida', cor });
 
 const ABAS = Object.freeze([
   { chave: 'aba-geral', rotulo: 'GERAL' },
@@ -645,17 +655,27 @@ const fraseDe = erro => FRASES[erro] ?? '';
  */
 const CLASSES = Object.freeze({
   lb: { base: { familia: 'mono', corpo: 11, cor: COR.apagado, espacamento: 1, transformar: 'maiuscula' } },
-  ap: { base: { cor: COR.apagado, corpo: 14, entrelinha: 1.4 } },
+  ap: { base: { familia: 'sans', cor: COR.apagado, corpo: 14, entrelinha: 1.5 } },
   mono: { base: { familia: 'mono', corpo: 12, cor: COR.apagado } },
-  chip: { base: { familia: 'mono', corpo: 11, fundo: COR.chip, cor: COR.acento, raio: 4, preenchimento: 4 } },
-  cheio: { base: { fundo: COR.acento, cor: COR.fundo, raio: 6, preenchimento: 10, borda: { largura: 1, estilo: 'solida', cor: COR.acento } } },
-  vazado: { base: { cor: COR.acento, raio: 6, preenchimento: 10, borda: { largura: 1, estilo: 'solida', cor: COR.acento } } },
-  cartao: { base: { borda: { largura: 1, estilo: 'solida', cor: COR.linha }, raio: 6, preenchimento: 16 } },
-  aceso: { base: { borda: { largura: 1, estilo: 'solida', cor: COR.acento }, raio: 6, preenchimento: 16 } },
-  quadro: { base: { fundo: COR.chip, raio: 6, preenchimento: 12, borda: { largura: 1, estilo: 'solida', cor: COR.acento } } },
-  erro: { base: { familia: 'mono', corpo: 13, cor: COR.acento } },
-  grande: { base: { corpo: 20 } },
-  acento: { base: { corpo: 22, espacamento: 1, cor: COR.acento } },
+  // Os chips do canvas: pílula de mono 11, a cor diz o estado.
+  chip: { base: { familia: 'mono', corpo: 11, espacamento: 1, raio: 999, preenchimento: 4, cor: COR.apagado, borda: linhaDe(COR.controle) } },
+  chipV: { base: { familia: 'mono', corpo: 11, espacamento: 1, raio: 999, preenchimento: 4, cor: COR.verde, fundo: COR.verdeFundo, borda: linhaDe(COR.verdeBorda) } },
+  chipL: { base: { familia: 'mono', corpo: 11, espacamento: 1, raio: 999, preenchimento: 4, cor: COR.laranja, fundo: COR.laranjaFundo, borda: linhaDe(COR.laranjaBorda) } },
+  chipA: { base: { familia: 'mono', corpo: 11, espacamento: 1, raio: 999, preenchimento: 4, cor: COR.azul, fundo: COR.azulFundo, borda: linhaDe(COR.azulBorda) } },
+  chipE: { base: { familia: 'mono', corpo: 11, espacamento: 1, raio: 999, preenchimento: 4, cor: COR.erro, fundo: COR.erroFundo, borda: linhaDe(COR.erroBorda) } },
+  // O cartão de vidro (18) e o painel (24); o cartão ligado leva a borda verde.
+  cartao: { base: { fundo: COR.vidro, borda: linhaDe(COR.vidroBorda), raio: 18, preenchimento: 18 } },
+  aceso: { base: { fundo: COR.vidro, borda: linhaDe(COR.verdeBorda), raio: 18, preenchimento: 18 } },
+  painel: { base: { fundo: COR.vidro, borda: linhaDe(COR.vidroBorda), raio: 24, preenchimento: 24 } },
+  // A recusa: a faixa vermelha do canvas (Porta).
+  quadro: { base: { fundo: COR.erroFundo, raio: 18, preenchimento: 14, borda: linhaDe(COR.erroBorda) } },
+  erro: { base: { familia: 'mono', corpo: 13, cor: COR.erro } },
+  // A barra de salvar: laranja, com as ações à direita (Config-mods).
+  barra: { base: { fundo: COR.laranjaFundo, raio: 20, preenchimento: 10, borda: linhaDe(COR.laranjaBorda) } },
+  // A marca do jogo, no ladrilho laranja dos cartões de MOD.
+  ic: { base: { familia: 'mono', corpo: 14, peso: 'forte', cor: COR.acento, fundo: COR.icone, raio: 12, preenchimento: 10 } },
+  grande: { base: { familia: 'sans', corpo: 18, peso: 'forte' } },
+  titulo: { base: { familia: 'sans', corpo: 30, peso: 'forte', espacamento: -1, cor: COR.texto, entrelinha: 1.1 } },
 });
 
 const lb = (texto, chave) => ({ forma: 'texto', ...(chave ? { chave } : {}), dentro: String(texto).toUpperCase(), classe: 'lb' });
@@ -667,7 +687,7 @@ const pilha = (dentro, intervalo = 8, extra) => ({ forma: 'pilha', dentro: dentr
 const linhaH = (dentro, extra) => ({ forma: 'linha', dentro: dentro.filter(Boolean), estilo: { intervalo: 10, alinhar: 'centro', quebra: 'sim' }, ...extra });
 const bloco = (rotulo, dentro, extra) => pilha([lb(rotulo), ...dentro], 8, extra);
 const separador = () => ({ forma: 'separador', estilo: { cor: COR.linha } });
-const chip = (texto, chave) => ({ forma: 'distintivo', ...(chave ? { chave } : {}), dentro: String(texto).toUpperCase(), classe: 'chip' });
+const chip = (texto, chave, classe = 'chip') => ({ forma: 'distintivo', ...(chave ? { chave } : {}), dentro: String(texto).toUpperCase(), classe });
 const botao = (chave, dentro, extra = {}) => ({ forma: 'botao', chave, dentro, ...extra });
 
 /** O quadro de recusa, com o nome, a frase e os dados. */
@@ -1085,7 +1105,7 @@ function controleSegmentos(campo, s) {
       { forma: 'campo', chave: 'cfg:' + campo.chave + ':' + i + ':texto', rotulo: 'Palavra ' + (i + 1), valor: String(p.texto), inicial: String(gravada[i]?.texto ?? ''), tamanhoMaximo: campo.tamanhoMaximo, desligado: !livre },
       botao('amostra:' + campo.chave + ':' + i, '■ ' + (cor?.rotulo ?? p.cor), {
         variante: 'discreta',
-        estilo: { cor: cor?.amostra ?? COR.apagado, borda: { largura: 1, estilo: 'solida', cor: escolhida ? COR.acento : COR.borda }, raio: 6, preenchimento: 8 },
+        estilo: { cor: cor?.amostra ?? COR.apagado, borda: linhaDe(escolhida ? COR.acento : COR.controle), raio: 999, preenchimento: 12 },
       }),
     ], { chave: 'palavra:' + campo.chave + ':' + i });
   });
@@ -1142,6 +1162,11 @@ function camposDaAba(receita, s, aba) {
   return blocos;
 }
 
+/** A cor do chip do estado: verde de pé, laranja no meio do caminho, vermelho caído. */
+const CHIP_DO_ESTADO = Object.freeze({ ligado: 'chipV', caiu: 'chipE', desligado: 'chip' });
+const chipDoEstado = s => CHIP_DO_ESTADO[s.estado] ?? 'chipL';
+const CHIP_DO_ACEITE = Object.freeze({ aceito: 'chipV', esperando: 'chipL', recusado: 'chipE', parado: 'chipE' });
+
 function rotuloDoEstado(s) {
   if (s.estado === 'baixando' && s.progresso) return `BAIXANDO ${s.progresso.feitos}/${s.progresso.total}`;
   return ROTULO_DO_ESTADO[s.estado] ?? String(s.estado).toUpperCase();
@@ -1162,7 +1187,7 @@ function rodaEm(s) {
   const quem = apelidoDe(s.quem);
   return bloco('Roda em', [linhaH([
     tx(quem ? `Máquina de ${quem}` : 'Nenhuma máquina escolhida'),
-    chip(rotuloDoAceite(s), 'chip-aceite'),
+    chip(rotuloDoAceite(s), 'chip-aceite', CHIP_DO_ACEITE[s.aceite] ?? 'chip'),
   ])], { chave: 'roda-em' });
 }
 
@@ -1173,7 +1198,7 @@ function situacao(s) {
   if (s.precisaReiniciar) linhas.push('A configuração nova vale quando o servidor reiniciar.');
   if (s.falhas.length) linhas.push(`${s.falhas.length} falha(s) registrada(s): veja a aba MÁQUINA.`);
   return pilha([
-    linhaH([lb('Estado'), chip(rotuloDoEstado(s))]),
+    linhaH([lb('Estado'), chip(rotuloDoEstado(s), null, chipDoEstado(s))]),
     ...linhas.map(l => apagado(l)),
   ], 6, { chave: 'situacao' });
 }
@@ -1185,13 +1210,14 @@ function opcaoDeVariante(receita, s, chave) {
   const indisponivel = v.disponivel === false;
   return botao('variante:' + chave, [pilha([
     tx(v.nome, { corpo: 20, peso: 'forte', cor: escolhida ? COR.acento : COR.texto }),
-    tx(v.descricao, { corpo: 14, cor: COR.apagado, entrelinha: 1.4 }),
+    cl(v.descricao, 'ap'),
     indisponivel && v.porque ? tx(v.porque, { familia: 'mono', corpo: 11, cor: COR.acento }) : null,
   ], 6)], {
     desligado: indisponivel || !pode('configurar-servidor-de-jogo'),
+    // O cartão de 18 do canvas: o escolhido em laranja, o outro em vidro.
     estilo: {
-      borda: { largura: 1, estilo: 'solida', cor: escolhida ? COR.acento : COR.borda },
-      fundo: escolhida ? COR.escolhido : COR.fundo, raio: 6, preenchimento: 20, alinhamento: 'esquerda',
+      borda: linhaDe(escolhida ? COR.acento : COR.vidroBorda),
+      fundo: escolhida ? COR.laranjaFundo : COR.vidro, raio: 18, preenchimento: 20, alinhamento: 'esquerda',
     },
   });
 }
@@ -1219,14 +1245,26 @@ function botoesDaConfig(s) {
   return {
     forma: 'acoes', chave: 'botoes',
     dentro: [
-      botao('salvar', 'SALVAR', { variante: 'primaria', desligado: !pode('configurar-servidor-de-jogo'), classe: 'cheio' }),
       rodando
-        ? botao('desligar', 'DESLIGAR SERVIDOR', { variante: 'secundaria', desligado: !pode('ligar-desligar-servidor-de-jogo'), classe: 'vazado' })
-        : botao('ligar', 'LIGAR SERVIDOR', { variante: 'secundaria', desligado: !pode('ligar-desligar-servidor-de-jogo'), classe: 'vazado' }),
+        ? botao('desligar', 'DESLIGAR SERVIDOR', { variante: 'secundaria', desligado: !pode('ligar-desligar-servidor-de-jogo') })
+        : botao('ligar', 'LIGAR SERVIDOR', { variante: 'secundaria', desligado: !pode('ligar-desligar-servidor-de-jogo') }),
       pode('criar-servidor-de-jogo')
         ? botao('apagar', 'APAGAR', { variante: 'perigo', desligado: rodando, confirmar: 'Apagar este servidor de jogo? A configuração some; os arquivos na máquina ficam.' })
         : null,
+      botao('salvar', 'SALVAR', { variante: 'primaria', desligado: !pode('configurar-servidor-de-jogo') }),
     ].filter(Boolean),
+  };
+}
+
+/**
+ * A barra de salvar do canvas (Config-mods): a caixa laranja de 20, com as
+ * ações à direita e SALVAR por último, cheio. O estado fica no bloco dele,
+ * acima, e não se repete aqui.
+ */
+function barraDeSalvar(s) {
+  return {
+    forma: 'caixa', chave: 'barra', classe: 'barra',
+    dentro: [{ ...botoesDaConfig(s), estilo: { distribuir: 'fim', quebra: 'sim', intervalo: 8 } }],
   };
 }
 
@@ -1243,7 +1281,7 @@ function abaGeral(receita, s) {
     separador(),
     rodaEm(s),
     situacao(s),
-    botoesDaConfig(s),
+    barraDeSalvar(s),
   ], 32);
 }
 
@@ -1268,7 +1306,7 @@ function abaMods(receita, s) {
     bloco('Pelo link do Modrinth', [
       linhaH([
         { forma: 'campo', chave: 'pack:link-texto', rotulo: 'Link do modpack', valor: estado.packLink, inicial: estado.packLink, tamanhoMaximo: 200, desligado: !livre },
-        botao('pack:link', 'USAR O LINK', { classe: 'vazado', desligado: !livre || !estado.packLink }),
+        botao('pack:link', 'USAR O LINK', { variante: 'secundaria', desligado: !livre || !estado.packLink }),
       ]),
       apagado('Nada passa pelo envio: a máquina do jogo baixa o .mrpack direto do cdn.modrinth.com, com o hash que a API do Modrinth dá.'),
     ]),
@@ -1291,7 +1329,7 @@ function abaJogadores(receita, s) {
     ], { chave: 'quem-esta' }),
     separador(),
     ...camposDaAba(receita, s, 'jogadores'),
-    botoesDaConfig(s),
+    barraDeSalvar(s),
   ], 32);
 }
 
@@ -1323,7 +1361,7 @@ function abaMaquina(receita, s) {
       ? bloco('Console', [
         linhaH([
           { forma: 'campo', chave: 'console:texto', rotulo: 'Comando', valor: estado.consoleTexto, inicial: estado.consoleTexto, tamanhoMaximo: 256 },
-          botao('console:enviar', 'ENVIAR', { classe: 'vazado' }),
+          botao('console:enviar', 'ENVIAR', { variante: 'secundaria' }),
         ]),
       ])
       : null,
@@ -1334,7 +1372,7 @@ function abaMaquina(receita, s) {
         quadroDeFalha(f, 'falha:' + i),
       ], 4)), { chave: 'falhas' })
       : null,
-    botoesDaConfig(s),
+    barraDeSalvar(s),
   ], 32);
 }
 
@@ -1356,7 +1394,7 @@ function vistaConfig() {
   const aberta = conteudo[estado.aba] ? estado.aba : 'aba-geral';
   return [
     linhaH([botao('voltar', '← SERVIDORES DE JOGO', { variante: 'discreta' })]),
-    cl(`${receita.nome} · ${nome}`.toUpperCase(), 'acento', { chave: 'titulo' }),
+    cl(`${receita.nome} · ${nome}`.toUpperCase(), 'titulo', { chave: 'titulo' }),
     estado.aviso ? avisoDaPagina() : null,
     {
       forma: 'abas', chave: 'aba', valor: aberta,
@@ -1386,9 +1424,9 @@ function cartao(s) {
     classe: ligado ? 'aceso' : 'cartao',
     dentro: [pilha([
       linhaH([
-        cl(receita?.icone ?? '?', 'erro'),
+        cl(receita?.icone ?? '?', 'ic'),
         cl(nomeEmTexto(s.config?.nome) || s.id, 'grande'),
-        chip(rotuloDoEstado(s)),
+        chip(rotuloDoEstado(s), null, chipDoEstado(s)),
       ]),
       apagado(`${receita?.nome ?? s.receita} ${s.versao ?? '(sem versão)'} · ${s.quem ? 'na máquina de ' + apelidoDe(s.quem) : 'sem máquina'}`),
       tx(`${(s.jogadores ?? []).length} de ${s.maximo ?? '?'} jogando`, { corpo: 14 }),
@@ -1404,10 +1442,10 @@ function cartao(s) {
       {
         forma: 'acoes',
         dentro: [
-          botao('entrar:' + s.id, 'ENTRAR', { desligado: !ligado || !pode('entrar-no-jogo'), classe: 'cheio' }),
-          comModsNoCartao(s) && s.pack.origem === 'enviado' ? botao('salvar-pack:' + s.id, 'BAIXAR O PACK', { classe: 'vazado' }) : null,
+          botao('entrar:' + s.id, 'ENTRAR', { variante: 'primaria', desligado: !ligado || !pode('entrar-no-jogo') }),
+          comModsNoCartao(s) && s.pack.origem === 'enviado' ? botao('salvar-pack:' + s.id, 'BAIXAR O PACK', { variante: 'secundaria' }) : null,
           comModsNoCartao(s) && s.pack.origem === 'link' && s.pack.pagina ? { forma: 'link', chave: 'pack-link:' + s.id, endereco: s.pack.pagina, dentro: 'O PACK NO MODRINTH' } : null,
-          configura ? botao('configurar:' + s.id, 'CONFIGURAR', { classe: 'vazado' }) : null,
+          configura ? botao('configurar:' + s.id, 'CONFIGURAR', { variante: 'secundaria' }) : null,
         ].filter(Boolean),
       },
       !pode('entrar-no-jogo') ? apagado(`Só quem tem a permissão «${NOME_DAS_PERMISSOES['entrar-no-jogo']}» entra.`) : null,
@@ -1420,7 +1458,7 @@ function vistaSeletor() {
   const servidores = dados?.servidores ?? [];
   const criar = pode('criar-servidor-de-jogo');
   return [
-    cl('MULTIPLAYER', 'acento', { chave: 'titulo' }),
+    cl('MULTIPLAYER', 'titulo', { chave: 'titulo' }),
     estado.aviso ? avisoDaPagina() : null,
     !dados ? apagado('Lendo os servidores de jogo…') : null,
     servidores.length ? bloco('Servidores de jogo', servidores.map(cartao)) : null,
@@ -1430,11 +1468,10 @@ function vistaSeletor() {
         forma: 'caixa', chave: 'receita:' + r.id,
         classe: 'cartao',
         dentro: [pilha([
-          linhaH([cl(r.icone, 'erro'), tx(r.nome, { corpo: 20, peso: 'forte' })]),
-          r.edicao ? apagado(r.edicao) : null,
+          linhaH([cl(r.icone, 'ic'), tx(r.nome, { corpo: 20, peso: 'forte' }), r.edicao ? chip(r.edicao, null, 'chipA') : null]),
           apagado(r.descricao),
           r.valida ? null : quadroDeFalha({ erro: 'receita-invalida', dados: { erros: r.erros } }),
-          botao('criar:' + r.id, 'CRIAR', { desligado: !criar || !r.valida, classe: 'cheio' }),
+          botao('criar:' + r.id, 'CRIAR', { variante: 'primaria', desligado: !criar || !r.valida }),
           criar ? null : apagado(`Só quem tem a permissão «${NOME_DAS_PERMISSOES['criar-servidor-de-jogo']}» cria um servidor.`),
         ], 8)],
       })),
@@ -1449,7 +1486,7 @@ function montarRaiz() {
   if (estado.enxuta) conteudo.splice(1, 0, apagado('A página passou do tamanho que o SEELE monta de uma vez: este é o resumo, sem as linhas e os dados das falhas.', { chave: 'resumo' }));
   return {
     forma: 'caixa', chave: 'raiz',
-    estilo: { fundo: COR.fundo, cor: COR.texto, familia: 'sans', corpo: 16, borda: { largura: 1, estilo: 'solida', cor: COR.linha }, raio: 6, preenchimento: 32 },
+    classe: 'painel', estilo: { cor: COR.texto, familia: 'sans', corpo: 16, preenchimento: 32 },
     dentro: [pilha(conteudo, 32)],
   };
 }

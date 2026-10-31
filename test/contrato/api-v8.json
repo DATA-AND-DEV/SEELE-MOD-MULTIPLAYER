@@ -745,7 +745,7 @@
     "palco": "o palco escondido pela vista alternada (celular) continua montado, e o som dele continua; a regra «fora da tela» vale para o lugar desmontado"
   },
   "volume": {
-    "cliente": "SeeleUI.enviar(arquivo, token): Promise<void>; arquivo escolhido pelo usuário; resolve depois da gravação. Os tipos, cada um com o seu teto: imagem (png, jpeg, webp, gif) e som (wav, mp3, ogg, flac, m4a) até 10 MiB; application/x-modrinth-modpack+zip (o .mrpack: um zip com modrinth.index.json na raiz, conferido pelos bytes), até 64 MiB (TETO_DO_PACK), só quando o MOD pede o papel pack no seletor (papeis: ['pack'], extensoes: ['mrpack']) e o sufixo mrpack em volume.esperar. Acima do teto, arquivo-grande-demais com tamanho e teto; a tela sugere o link do Modrinth para o pack",
+    "cliente": "SeeleUI.enviar(arquivo, token): Promise<void>; arquivo escolhido pelo usuário; resolve depois da gravação. Os tipos, cada um com o seu teto: imagem (png, jpeg, webp, gif) e som (wav, mp3, ogg, flac, m4a) até 100 MiB (TETO_DE_ARQUIVO, desde a 0.19); application/x-modrinth-modpack+zip (o .mrpack: um zip com modrinth.index.json na raiz, conferido pelos bytes), até 64 MiB (TETO_DO_PACK), só quando o MOD pede o papel pack no seletor (papeis: ['pack'], extensoes: ['mrpack']) e o sufixo mrpack em volume.esperar. Acima do teto, arquivo-grande-demais com tamanho e teto; a tela sugere o link do Modrinth para o pack",
     "servidor": [
       "volume.esperar(token, caminho, tipos, prazo)",
       "volume.tamanho(caminho): number | null",
@@ -757,7 +757,7 @@
     "fundoDeMidia": "propriedade de caixa: {doServidor:{canal,pedido,campo}}, {fonte} ou {daPessoa:'capa', pessoa?}",
     "onde": "toda mídia do servidor aceita transporte: 'volume': midia, fundoDeMidia, retrato, pessoa.capa e o fundo da tela",
     "salvar": "SeeleUI.salvar({ pedido, nome, canal }): Promise<{ bytes } | null> (parte 6; spec §6), só para o MOD com o poder porta (a capacidade salvar de capacidades-por-poder.porta) e dentro de um clique (o bilhete da volta, como SeeleUI.tunel.entrar). pedido vai ao aoPedir da metade de servidor, que autoriza respondendo { ok: true, volume: caminho }; o produto abre o diálogo de salvar do sistema com nome como sugestão (limpo: sem barra, sem começar por ponto, até 80 caracteres), busca os bytes pelo fluxo de volume e os grava de uma vez no caminho que a pessoa escolheu. O caminho nunca volta ao MOD; null quando a pessoa cancela",
-    "tetos": "o fio de volume leva até 64 MiB (TETO_DO_PACK); o servidor confere o teto do tipo: o da espera (64 MiB se ela aceita mrpack, 10 MiB no resto) antes do primeiro byte e no corte, e o da leitura pelos bytes do arquivo servido (64 MiB se é um .mrpack)"
+    "tetos": "o fio de volume leva até o maior dos tetos por tipo (100 MiB, TETO_DO_FIO_DE_VOLUME); o servidor confere o teto do tipo: antes do primeiro byte, o da espera (o do maior tipo que ela aceita: 100 MiB com imagem, 64 MiB só com mrpack); lidos os primeiros bytes, o do tipo que eles são (100 MiB de imagem, 64 MiB de .mrpack), também contra o total declarado e no corte; e o da leitura pelos bytes do arquivo servido (64 MiB se é um .mrpack, 100 MiB no resto)"
   },
   "limites": {
     "mensagem": "12 KiB por mensagem; a superfície se monta por partes (superficie.atualizar), com o teto de nós dela (4096)",
@@ -791,7 +791,7 @@
       "sem-espera",
       "tipo-recusado (com detectado, por exemplo 'heic')",
       "formato-desconhecido",
-      "arquivo-grande-demais (com tamanho e teto: 10 MiB de imagem ou som, 64 MiB de .mrpack)",
+      "arquivo-grande-demais (com tamanho e teto: 100 MiB de imagem ou som, 64 MiB de .mrpack)",
       "nao-gravei",
       "incompleto",
       "sessao-encerrada"
