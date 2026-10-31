@@ -41,6 +41,8 @@ test('a configuração abre num modal, e não no lugar do chat', async () => {
   assert.notEqual(descricao.modal, false);
   // Abaixo de 800 px o produto o desenha como cartão no meio do véu, e não como tela.
   assert.ok(descricao.tamanho.largura < 800, `largura ${descricao.tamanho.largura}`);
+  // A largura dos modais do próprio app (o aceite da máquina, 760).
+  assert.equal(descricao.tamanho.largura, 760);
   // O título é do cabeçalho do modal: o seletor não o repete.
   assert.equal(j.no('titulo'), null);
 });
@@ -73,7 +75,9 @@ test('criar abre a configuração, na aba GERAL, com Vanilla e Com mods no topo'
   // Com mods existe na parte 6: a opção liga, e diz o que o modpack define.
   assert.equal(j.no('variante:com-mods').desligado, false);
   assert.match(j.texto('variante:com-mods'), /modpack do Modrinth define a versão, o loader e os mods/);
-  assert.match(j.texto('titulo'), /MINECRAFT · VANILLA Servidor do SEELE/);
+  // O nome do servidor é o título do modal; no corpo, só o rótulo miúdo.
+  assert.equal(j.texto('titulo'), 'MINECRAFT · VANILLA');
+  assert.equal(j.pagina().titulo, 'Servidor do SEELE');
 });
 
 test('a aba GERAL monta os campos da receita, com as três regras lado a lado', async () => {
@@ -337,7 +341,11 @@ test('a aba GERAL dá uma amostra de cor a cada palavra do nome, com as cores do
   assert.match(j.texto('amostra:nome:0'), /Ciano/);
   assert.equal(j.no('amostra:nome:2'), null, 'uma amostra por palavra, e só');
   assert.equal(j.no('cfg:nome:cor').opcoes.length, 16, 'as 16 cores');
-  assert.match(j.texto('titulo'), /MINECRAFT · VANILLA Casa do Alê/);
+  assert.equal(j.texto('titulo'), 'MINECRAFT · VANILLA');
+  assert.equal(j.pagina().titulo, 'Casa do Alê');
+  // De volta à lista, o modal volta a se chamar Multiplayer.
+  await j.apertar('voltar');
+  assert.equal(j.pagina().titulo, 'Multiplayer');
 });
 
 test('escolher uma palavra mostra a cor dela; trocá-la repinta só a amostra dela, e salvar manda a lista', async () => {

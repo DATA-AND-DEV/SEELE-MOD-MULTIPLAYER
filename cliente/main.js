@@ -1194,13 +1194,15 @@ async function tratar(evento) {
   if (evento.nome === 'acao' && evento.acao === 'abrir-multiplayer') {
     if (!estado.punho) {
       // Um modal sobre a sessão, e não uma página no lugar do chat: a
-      // conversa fica atrás, e fechar volta a ela. 720 px é um cartão no
-      // meio do véu; de 800 px em diante o produto o desenharia como tela.
+      // conversa fica atrás, e fechar volta a ela. 760 px é a largura dos
+      // modais do próprio app (o aceite da máquina); de 800 px em diante o
+      // produto o desenharia como tela.
       try {
-        estado.punho = await SeeleUI.superficies.criar({ id: 'multiplayer', tipo: 'dialogo', titulo: 'Multiplayer', tamanho: { largura: 720 } });
+        estado.punho = await SeeleUI.superficies.criar({ id: 'multiplayer', tipo: 'dialogo', titulo: 'Multiplayer', tamanho: { largura: 760 } });
       } catch (erro) {
         return void (await naoAbriu(erro));
       }
+      estado.titulo = 'Multiplayer';
       estado.suja = false;
       // Recusadas, as classes que serviram valem e a página abre do mesmo
       // jeito, mais crua; a recusa é dita.
@@ -1659,7 +1661,6 @@ function hora(segundos) {
 function vistaConfig() {
   const s = servidorAtual();
   const receita = receitaPorId(s.receita);
-  const nome = nomeEmTexto(estado.rascunho?.config?.nome ?? s.config?.nome) || s.id;
   const conteudo = {
     'aba-geral': () => abaGeral(receita, s),
     'aba-mods': () => abaMods(receita, s),
@@ -1669,12 +1670,9 @@ function vistaConfig() {
   const aberta = conteudo[estado.aba] ? estado.aba : 'aba-geral';
   return [
     linhaH([botao('voltar', '← SERVIDORES DE JOGO', { variante: 'discreta' })]),
-    // O padrão do canvas: o rótulo miúdo (o jogo e a variante) em cima, e o
-    // nome do servidor como título, em caixa de frase.
-    pilha([
-      lb(`${receita.nome} · ${receita.variantes[estado.rascunho?.variante ?? s.variante ?? 'vanilla']?.nome ?? ''}`, 'rotulo'),
-      cl(nome, 'titulo'),
-    ], 6, { chave: 'titulo' }),
+    // O nome do servidor é o título do modal (`tituloDoModal`), como nos
+    // modais do app; no corpo fica só o rótulo miúdo, o jogo e a variante.
+    lb(`${receita.nome} · ${receita.variantes[estado.rascunho?.variante ?? s.variante ?? 'vanilla']?.nome ?? ''}`, 'titulo'),
     estado.aviso ? avisoDaPagina() : null,
     {
       forma: 'abas', chave: 'aba', valor: aberta,
@@ -1774,9 +1772,19 @@ function montarRaiz() {
     forma: 'caixa', chave: 'raiz',
     // Sem moldura própria: o modal do produto já é o painel, e o canvas tem
     // um nível de painel só.
-    estilo: { cor: COR.texto, familia: 'sans', corpo: 16, preenchimento: 8 },
+    estilo: { cor: COR.texto, familia: 'sans', corpo: 16 },
     dentro: [pilha(conteudo, 32)],
   };
+}
+
+/**
+ * O título do modal: o nome do servidor de jogo aberto (o gravado, e não o
+ * que se digita), ou «Multiplayer» na lista.
+ */
+function tituloDoModal() {
+  const s = estado.vista === 'config' ? servidorAtual() : null;
+  if (!s) return 'Multiplayer';
+  return nomeEmTexto(s.config?.nome) || nomeEmTexto(estado.rascunho?.config?.nome) || s.id;
 }
 
 /** Monta a página inteira; uma montagem por vez. */
@@ -1784,6 +1792,16 @@ function pintar() {
   pintando = pintando.then(async () => {
     if (!estado.aberta || !estado.punho) return;
     estado.enxuta = false;
+    const titulo = tituloDoModal();
+    if (titulo !== estado.titulo) {
+      try {
+        await estado.punho.titulo(titulo);
+        estado.titulo = titulo;
+      } catch (erro) {
+        // O título velho fica; a página monta do mesmo jeito.
+        console.error(`multiplayer: o título do modal não mudou: ${erro?.erro ?? fraseDoErro(erro)}`);
+      }
+    }
     try {
       await estado.punho.montar([montarRaiz()]);
     } catch (erro) {
