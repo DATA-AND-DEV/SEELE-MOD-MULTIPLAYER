@@ -61,6 +61,6 @@ test('o contrato copiado é o api/v8.json lido para escrever este MOD', () => {
   // A da fusão com a 0.19 (desenho/api-8-sobre-0.19): imagem e som até 100 MiB.
   // E a da reserva (parte 7) por cima, e a de «sem quem hospeda» (aoReconectar).
   // E a da revisão final (I1): reservado-ao-aceite e pasta-fora-do-aceite.
-  // E a do Windows (decisão W1): oferta.por_sistema.
-  assert.equal(hash, '3be08cca56e3f34ae21d8a8d88cb0a7a2545c0b9e16a3c5d219e67761c4133c5');
+  // E a do Windows (decisões W1 e W7): oferta.por_sistema e os travados do empacotar.
+  assert.equal(hash, '1d78b04f4582dd5c81ad7347e60485d2c0c81fadcc678d0a36e9e126cfe31759');
 });
