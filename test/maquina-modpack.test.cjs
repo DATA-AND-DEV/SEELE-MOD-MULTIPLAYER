@@ -280,6 +280,15 @@ test('o pack de prova do NeoForge: --install-server, o Java 21 e o unix_args.txt
   assert.deepEqual(f.rodados[1].argumentos, ['-Xms1G', '-Xmx2G', '@libraries/net/neoforged/neoforge/21.1.265/unix_args.txt', 'nogui']);
 });
 
+test('no Windows, o Forge é recusado antes de baixar qualquer coisa (roda pelo unix_args.txt)', async () => {
+  const { packDeProva: pack } = require('../ferramentas/pack-de-prova.cjs');
+  const { a, f, id } = await comMods({ pack: pack('forge'), plataforma: 'windows-x64' });
+  const falha = doServidor(a, id).falhas.at(-1);
+  assert.deepEqual([falha?.etapa, falha?.erro, falha?.dados.plataforma], ['loader', 'loader-sem-este-sistema', 'windows-x64'], JSON.stringify(doServidor(a, id).falhas));
+  assert.deepEqual(f.baixados, [], 'baixou antes de recusar');
+  assert.deepEqual(f.rodados, []);
+});
+
 // O Create Live 5 (Forge 1.20.1, Modrinth) traz o mod Default Server
 // Properties e um `default-server.properties`: na primeira subida, o mod troca
 // o `server.properties` inteiro por ele. Medido: o jogo subiu em `*:25565`,

@@ -60,5 +60,6 @@ test('o contrato copiado é o api/v8.json lido para escrever este MOD', () => {
   // A v8 ainda emenda até sair (api/README.md): copie de novo e atualize o número.
   // A da fusão com a 0.19 (desenho/api-8-sobre-0.19): imagem e som até 100 MiB.
   // E a da reserva (parte 7) por cima, e a de «sem quem hospeda» (aoReconectar).
-  assert.equal(hash, '812ac6bdf80834e9f0297d7089ccd82ab2accb894f9d091caa40c791df60673f');
+  // E a da revisão final (I1): reservado-ao-aceite e pasta-fora-do-aceite.
+  assert.equal(hash, 'ea14781f19cdcf9fa7e67f2b38a9933ea59da7d69357619656d57aa8426e9b10');
 });

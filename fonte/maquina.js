@@ -111,6 +111,15 @@ function criarMaquina(ad) {
     if (i.preparado === chave) return true;
 
     const plataforma = ad.plataforma();
+    // **O loader que não roda aqui é dito antes de baixar** (Forge e NeoForge
+    // rodam pelo `unix_args.txt`, e não no Windows): antes, a máquina baixava
+    // o servidor e o Java (~90 MB no Forge 1.20.1) para só então recusar.
+    const sistemas = plano.modpack?.loader ? receitaPorId(plano.receita)?.modpack?.loaders?.[plano.modpack.loader.id]?.sistemas : null;
+    if (sistemas && !sistemas.includes(plataforma)) {
+      await falha(i, 'loader', 'loader-sem-este-sistema', { loader: plano.modpack.loader.id, plataforma, sistemas });
+      await contar(i, 'desligado');
+      return false;
+    }
     const java = new Set(Object.values(plano.porPlataforma));
     const meuJava = plano.porPlataforma[plataforma];
     if (java.size && !meuJava) {
