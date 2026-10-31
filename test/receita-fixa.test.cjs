@@ -33,6 +33,7 @@ test('uma receita fixa passa no validador, resolve sem rede e vira oferta', () =
   assert.equal(resolvido.ok, true);
   const o = local(m.montarOferta(r, { servidor: 'jogo-fixo-1', versao: '1.0', porta: 7777 }, resolvido));
   assert.deepEqual(o.artefatos, [{ nome: 'servidor', url: 'https://cdn.jogo.net/1.0/servidor', tamanho: 1000, hash: { algoritmo: 'sha512', hex: 'a'.repeat(128) } }]);
-  assert.deepEqual(o.tuneis, [{ nome: 'jogo-fixo-1', protocolo: 'udp', porta: 7777 }]);
+  // O jogo, e a cópia do mundo para a reserva (parte 7), sempre TCP.
+  assert.deepEqual(o.tuneis, [{ nome: 'jogo-fixo-1', protocolo: 'udp', porta: 7777 }, { nome: 'jogo-fixo-1-copia', protocolo: 'tcp', porta: 17777 }]);
   assert.deepEqual(local(m.resolverVersao(r, '3.0', nada)), { ok: false, erro: 'versao-desconhecida', versao: '3.0' });
 });

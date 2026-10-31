@@ -34,7 +34,8 @@ function processoFalso() {
 /** O adaptador falso: o que a máquina pediu, e o que cada chamada responde. */
 function adaptadorFalso(a, pessoa, opcoes = {}) {
   const f = {
-    baixados: [], abertos: [], escritos: new Map(), rodados: [], portas: [], copias: [], fechadas: [], processos: [],
+    baixados: [], abertos: [], escritos: new Map(), rodados: [], portas: [], fechadas: [], processos: [],
+    empacotados: [], ofertas: [], recebidas: [],
     ouvinte: null, relogio: [], parada: null,
   };
   f.ad = {
@@ -63,7 +64,26 @@ function adaptadorFalso(a, pessoa, opcoes = {}) {
       return { arquivos: 1 };
     },
     escrever: async (caminho, texto) => { f.escritos.set(f.servidor + ':' + caminho, texto); },
-    copiar: opcoes.semCopia ? null : async (de, para) => { f.copias.push([f.servidor, de, para]); },
+    // A cópia do mundo (parte 7).
+    empacotar: async (origem, arquivo) => {
+      f.empacotados.push([origem, arquivo]);
+      if (opcoes.empacotar) return opcoes.empacotar(origem, arquivo);
+      return { arquivo, tamanho: 100, sha256: 'c'.repeat(64), arquivos: 3, bytes: 300, linksPulados: 0 };
+    },
+    oferecerCopia: async (arquivo, porta) => {
+      f.ofertas.push([arquivo, porta]);
+      if (opcoes.oferecerCopia) return opcoes.oferecerCopia(arquivo, porta);
+      return { codigo: 'k'.repeat(32), tamanho: 100, sha256: 'c'.repeat(64), porta };
+    },
+    receberCopia: async pedido => {
+      f.recebidas.push(local(pedido));
+      if (opcoes.receberCopia) return opcoes.receberCopia(pedido);
+      return { destino: pedido.destino, tamanho: pedido.tamanho, sha256: pedido.sha256, retomadas: 0, jaEstavam: 0, caminho: 'direto' };
+    },
+    ler: async arquivo => {
+      if (f.escritos.has(f.servidor + ':' + arquivo)) return f.escritos.get(f.servidor + ':' + arquivo);
+      throw Object.assign(new Error('disco'), { erro: 'disco' });
+    },
     pedir: async valor => a.daMaquina(pessoa, f.servidor, valor),
     aoAviso: fn => { f.ouvinte = fn; },
     aoParar: fn => { f.parada = fn; },
@@ -269,18 +289,17 @@ test('o jogo que cai sozinho é dito, com o código e as últimas linhas', async
   assert.ok(falha.dados.linhas.some(l => l.includes('unexpected exception')));
 });
 
-test('o salvamento seguro segue a receita: save-off, save-all flush, copiar, save-on', async () => {
+test('o salvamento seguro segue a receita: save-off, save-all flush e save-on, e sem reserva não empacota', async () => {
   const { a, f, id, p } = await ligado();
   f.ouvinte(id, { op: 'salvar' });
   await assentarTudo();
   assert.deepEqual(p.entrada, ['save-off\n', 'save-all flush\n']);
-  assert.deepEqual(f.copias, [], 'copiou antes de o jogo dizer que salvou');
   p.dizer('[12:20:00] [Server thread/INFO]: Saved the game');
   await assentarTudo();
-  assert.deepEqual(f.copias.map(c => c.slice(0, 2)), [[id, 'world']]);
-  assert.match(f.copias[0][2], /^copias\/world-/);
+  assert.deepEqual(f.empacotados, [], 'empacotou sem ninguém para receber');
   assert.deepEqual(p.entrada, ['save-off\n', 'save-all flush\n', 'save-on\n']);
   assert.equal(doServidor(a, id).estado, 'ligado');
+  assert.equal(doServidor(a, id).falhas.at(-1).erro, 'sem-reserva-para-a-copia');
 });
 
 test('o salvamento que não ouve o jogo no prazo devolve o save-on e conta a falha', async () => {
@@ -289,7 +308,7 @@ test('o salvamento que não ouve o jogo no prazo devolve o save-on e conta a fal
   await assentarTudo();
   f.vencerPrazos();
   await assentarTudo();
-  assert.deepEqual(f.copias, []);
+  assert.deepEqual(f.empacotados, []);
   assert.equal(p.entrada.at(-1), 'save-on\n', 'o mundo ficou sem salvar automático');
   const falha = doServidor(a, id).falhas.at(-1);
   assert.equal(falha.etapa, 'salvar');
@@ -368,22 +387,6 @@ test('a parada da metade manda stop ao jogo e espera ele sair', async () => {
   await parada;
   assert.equal(acabou, true);
   assert.equal(p.encerrado, false, 'a parada matou o jogo que parou sozinho');
-});
-
-test('sem cópia no produto, o salvamento salva e diz que a cópia é da reserva', async () => {
-  const ctx = await montado({ semCopia: true });
-  const { a, f, id } = ctx;
-  a.acao(1, 'ligar-desligar-servidor-de-jogo', { op: 'ligar', id });
-  await entregar(a, f, 2);
-  const p = f.processos[0];
-  p.dizer('[12:00:04] [Server thread/INFO]: Done (4.211s)! For help, type "help"');
-  await assentarTudo();
-  f.ouvinte(id, { op: 'salvar' });
-  await assentarTudo();
-  p.dizer('[12:20:00] [Server thread/INFO]: Saved the game');
-  await assentarTudo();
-  assert.deepEqual(p.entrada, ['save-off\n', 'save-all flush\n', 'save-on\n']);
-  assert.equal(doServidor(a, id).falhas.at(-1).erro, 'copia-fica-para-a-reserva');
 });
 
 test('ao subir já aceita, a máquina pergunta o plano e prepara sem esperar aviso', async () => {

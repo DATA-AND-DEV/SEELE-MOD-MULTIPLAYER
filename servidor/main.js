@@ -574,6 +574,21 @@ function resolverVersao(receita, versao, buscar) {
 /** O teto de uma oferta: 64 GiB (`MAX_DISCO`, seele-proto/src/maquina.rs). */
 const DISCO_MAXIMO_DA_OFERTA = 64 * 1024 * 1024 * 1024;
 
+// ---------------------------------------------------------------- a cópia do mundo (parte 7)
+
+/** Quanto a porta da cópia fica acima da do jogo: longe das portas que dois servidores de jogo na mesma máquina tomam. */
+const DESVIO_DA_PORTA_DA_COPIA = 10000;
+
+/** A porta em que a dona oferece a cópia do mundo, na máquina dela. */
+function portaDaCopia(porta) {
+  return porta + DESVIO_DA_PORTA_DA_COPIA;
+}
+
+/** O túnel da cópia: o nome do servidor de jogo com `-copia`, ou `-c` quando não cabe nos 32 de um túnel. */
+function tunelDaCopia(servidor) {
+  return servidor.length + 6 <= 32 ? `${servidor}-copia` : `${servidor}-c`;
+}
+
 /**
  * A oferta que a pessoa da máquina vê e aceita, com os nomes de campo de
  * `OfertaDeMaquina` (seele-proto/src/maquina.rs).
@@ -598,16 +613,23 @@ function montarOferta(receita, { servidor, versao, porta }, resolvido) {
     };
   });
   // O disco: o que se baixa, o Java desempacotado (cerca de três vezes o
-  // pacote) e o mundo que a receita admite.
+  // pacote), o mundo que a receita admite e, para a reserva (parte 7), mais
+  // duas vezes ele: o pacote da cópia e o parcial que chega.
   const baixado = resolvido.artefatos.reduce((soma, a) => soma + a.tamanho, 0);
   const maiorPacote = resolvido.artefatos.reduce((maior, a) => (a.desempacotar ? Math.max(maior, a.tamanho) : maior), 0);
-  const disco = Math.min(DISCO_MAXIMO_DA_OFERTA, baixado + 3 * maiorPacote + receita.disco.mundoMaximo);
+  const disco = Math.min(DISCO_MAXIMO_DA_OFERTA, baixado + 3 * maiorPacote + 3 * receita.disco.mundoMaximo);
   return {
     titulo: cortar(`${receita.nome} ${versao} · ${servidor}`, 64),
     receita: receita.id,
     versao_da_receita: receita.versao,
     versao_do_jogo: versao,
-    tuneis: [{ nome: servidor, protocolo: receita.rede.protocolo, porta }],
+    // O jogo, e a cópia do mundo para a reserva (parte 7): a cópia anda pelo
+    // túnel, e só a dona o serve. Sempre na oferta, para escolher uma reserva
+    // depois não pedir à principal um aceite novo.
+    tuneis: [
+      { nome: servidor, protocolo: receita.rede.protocolo, porta },
+      { nome: tunelDaCopia(servidor), protocolo: 'tcp', porta: portaDaCopia(porta) },
+    ],
     artefatos,
     pack: null,
     origens: [...receita.origens],
@@ -1015,6 +1037,12 @@ const VALIDADE_DAS_VERSOES = 3600;
 const TETO_DO_PACK_PELO_LINK = 4 * 1024 * 1024;
 /** Quanto uma espera de envio do pack vale, em segundos (o teto do produto é 600). */
 const PRAZO_DO_ENVIO = 600;
+/** De quantos em quantos minutos a dona copia o mundo para a outra máquina (parte 7; o padrão da spec). */
+const INTERVALO_DA_COPIA = 5;
+const INTERVALO_DA_COPIA_MINIMO = 1;
+const INTERVALO_DA_COPIA_MAXIMO = 60;
+const PAPEIS = Object.freeze(['principal', 'reserva']);
+const outroPapel = papel => (papel === 'reserva' ? 'principal' : 'reserva');
 
 /** A ação que cada operação de mudança pede. As outras são leitura. */
 const ACAO_DA_OP = Object.freeze({
@@ -1028,6 +1056,8 @@ const ACAO_DA_OP = Object.freeze({
   'pack-chegou': 'configurar-servidor-de-jogo',
   ligar: 'ligar-desligar-servidor-de-jogo',
   desligar: 'ligar-desligar-servidor-de-jogo',
+  // A passagem avisada à outra máquina (parte 7) é ligar numa e desligar na outra.
+  passar: 'ligar-desligar-servidor-de-jogo',
 });
 
 /** Os estados em que o processo do jogo está de pé, ou a caminho. */
@@ -1080,7 +1110,74 @@ function publico(s) {
     disco: s.oferta ? s.oferta.disco_maximo : null,
     protocolo: receita?.rede.protocolo ?? 'tcp',
     pack: s.pack ? publicoDoPack(s.pack) : null,
+    // A reserva (parte 7): quem é, o aceite dela, quem é a dona agora, a
+    // última cópia, o que a outra máquina tem, e o tempo de jogo perdido.
+    reserva: s.reserva ? { quem: s.reserva.quem, aceite: s.reserva.aceite, motivo: s.reserva.motivo ?? null, estado: s.reserva.estado ?? null } : null,
+    dona: donaDe(s),
+    quemEADona: quemOpera(s, donaDe(s)),
+    intervaloDaCopia: s.intervaloDaCopia ?? INTERVALO_DA_COPIA,
+    copia: s.copia ? { quando: s.copia.quando, tamanho: s.copia.tamanho, de: s.copia.de, sha256: s.copia.sha256 } : null,
+    copiaRecebida: s.copiaRecebida ? { quando: s.copiaRecebida.quando, sha256: s.copiaRecebida.sha256, por: s.copiaRecebida.por } : null,
+    perdido: s.perdido ?? null,
+    passando: s.passando ?? null,
+    voltouRodando: s.voltouRodando ?? 0,
   };
+}
+
+// ---------------------------------------------------------------- a reserva (parte 7)
+
+/** Quem é a dona agora: o papel. Sem reserva, sempre a principal. */
+function donaDe(s) {
+  return s.dona === 'reserva' && s.reserva ? 'reserva' : 'principal';
+}
+
+/** Quem opera um papel: a pessoa, ou null. */
+function quemOpera(s, papel) {
+  return papel === 'reserva' ? (s.reserva?.quem ?? null) : s.quem;
+}
+
+/** O aceite de um papel. */
+function aceiteDe(s, papel) {
+  return papel === 'reserva' ? (s.reserva?.aceite ?? 'sem-maquina') : s.aceite;
+}
+
+function marcarAceite(s, papel, aceite, motivo = null) {
+  if (papel === 'reserva') {
+    if (!s.reserva) return;
+    s.reserva.aceite = aceite;
+    s.reserva.motivo = motivo;
+  } else {
+    s.aceite = aceite;
+    s.motivo = motivo;
+  }
+}
+
+/** O papel de quem fala, pelo contexto que o produto escreve, conferido contra quem opera. */
+function papelDe(s, contexto) {
+  const dito = contexto.maquina?.papel;
+  const papel = PAPEIS.includes(dito) ? dito : (contexto.person === s.quem ? 'principal' : contexto.person === s.reserva?.quem ? 'reserva' : null);
+  return papel && quemOpera(s, papel) === contexto.person ? papel : null;
+}
+
+/** **A posse no produto**: só a dona serve o túnel. Dita a cada mudança, e a cada pedido (um servidor que reinicia volta à principal). */
+function declararADona(s) {
+  mundo.maquinas.dona({ servidor: s.id, papel: donaDe(s) });
+}
+
+/**
+ * **A posse passa** a `papel`: o produto para os túneis da dona de antes, a
+ * nova ouve «assuma» e a de antes ouve «desligue». `perdido` é o tempo de
+ * jogo que se perdeu (a queda de surpresa), ou null (a passagem avisada).
+ */
+function passarAPosse(s, papel, perdido) {
+  const antes = donaDe(s);
+  s.dona = papel;
+  s.passando = null;
+  declararADona(s);
+  mundo.maquinas.avisar({ servidor: s.id, papel, carga: { op: 'assumir', perdido: perdido?.segundos ?? null } });
+  mundo.maquinas.avisar({ servidor: s.id, papel: antes, carga: { op: 'desligar' } });
+  if (perdido) s.perdido = perdido;
+  mundo.registrar(`${s.id}: a posse passou de ${antes} para ${papel}${perdido ? `; perderam-se ${perdido.segundos} s de jogo` : ''}`);
 }
 
 /** O que a tela mostra do pack: o resumo, de onde veio, o hash e o tamanho. */
@@ -1096,14 +1193,19 @@ function publicoDoPack(p) {
 /** A porta do jogo na máquina de `quem`: a padrão, ou a primeira livre depois dela. */
 function portaPara(servidores, s, quem) {
   const receita = receitaPorId(s.receita);
-  const tomadas = new Set(Object.values(servidores).filter(o => o.id !== s.id && o.quem === quem && o.porta).map(o => o.porta));
+  // As portas que os outros servidores de jogo já tomam nesta máquina, como
+  // principal ou como reserva (parte 7).
+  const tomadas = new Set(Object.values(servidores).flatMap(o => (o.id === s.id ? [] : [
+    o.quem === quem ? o.porta : null,
+    o.reserva?.quem === quem ? o.reserva.porta : null,
+  ])).filter(Boolean));
   let porta = receita.rede.portaPadrao;
   while (tomadas.has(porta)) porta++;
   return porta;
 }
 
-/** Monta a oferta da versão e da máquina escolhidas, e chama a pessoa. */
-function pedirAMaquina(servidores, s) {
+/** Monta a oferta da versão e da máquina escolhidas, e chama a pessoa (a principal, ou a reserva). */
+function pedirAMaquina(servidores, s, papel = 'principal') {
   const receita = receitaPorId(s.receita);
   const comMods = s.variante === 'com-mods';
   if (comMods && !s.pack) {
@@ -1115,17 +1217,33 @@ function pedirAMaquina(servidores, s) {
     if (!resolvido.ok) return resolvido;
     s.resolvido = resolvido;
   }
-  s.porta = portaPara(servidores, s, s.quem);
-  const args = { servidor: s.id, versao: s.versao, porta: s.porta };
-  s.oferta = comMods ? montarOfertaComMods(receita, args, s.resolvido, s.pack) : montarOferta(receita, args, s.resolvido);
+  const quem = quemOpera(s, papel);
+  if (!quem) return { ok: true };
+  const porta = portaPara(servidores, s, quem);
+  const args = { servidor: s.id, versao: s.versao, porta };
+  const oferta = comMods ? montarOfertaComMods(receita, args, s.resolvido, s.pack) : montarOferta(receita, args, s.resolvido);
   try {
-    mundo.maquinas.pedir({ quem: s.quem, servidor: s.id, oferta: s.oferta });
+    mundo.maquinas.pedir({ quem, servidor: s.id, papel, oferta });
+    declararADona(s);
   } catch (erro) {
     return { ok: false, erro: 'oferta-recusada', porque: fraseDoErro(erro) };
   }
-  s.aceite = 'esperando';
-  s.motivo = null;
+  if (papel === 'reserva') {
+    s.reserva.porta = porta;
+    s.reserva.oferta = oferta;
+  } else {
+    s.porta = porta;
+    s.oferta = oferta;
+  }
+  marcarAceite(s, papel, 'esperando');
   return { ok: true };
+}
+
+/** Pede de novo as duas máquinas (a versão, o pack ou a configuração do que roda mudaram). */
+function pedirAsDuas(servidores, s) {
+  const r = pedirAMaquina(servidores, s, 'principal');
+  if (!r.ok) return r;
+  return s.reserva ? pedirAMaquina(servidores, s, 'reserva') : r;
 }
 
 // ---------------------------------------------------------------- as operações
@@ -1206,49 +1324,77 @@ function opConfigurar(s, servidores, pedido) {
     : pedido.versao !== undefined ? (pedido.versao === null ? null : String(pedido.versao)) : (s.variante === 'com-mods' ? null : s.versao);
   const quem = pedido.quem !== undefined ? (pedido.quem === null ? null : String(pedido.quem)) : s.quem;
   if (quem !== null && !/^[1-9][0-9]*$/.test(quem)) return { ok: false, erro: 'quem-invalido', quem };
+  // A reserva (parte 7): outra pessoa, que aceita na máquina dela.
+  const reserva = pedido.reserva !== undefined ? (pedido.reserva === null ? null : String(pedido.reserva)) : (s.reserva?.quem ?? null);
+  if (reserva !== null && !/^[1-9][0-9]*$/.test(reserva)) return { ok: false, erro: 'quem-invalido', quem: reserva };
+  if (reserva !== null && reserva === quem) return { ok: false, erro: 'mesma-pessoa-nas-duas', quem };
+  let intervalo = s.intervaloDaCopia ?? INTERVALO_DA_COPIA;
+  if (pedido.intervaloDaCopia !== undefined) {
+    const n = Number(pedido.intervaloDaCopia);
+    if (!Number.isInteger(n) || n < INTERVALO_DA_COPIA_MINIMO || n > INTERVALO_DA_COPIA_MAXIMO) {
+      return { ok: false, erro: 'intervalo-invalido', minimo: INTERVALO_DA_COPIA_MINIMO, maximo: INTERVALO_DA_COPIA_MAXIMO };
+    }
+    intervalo = n;
+  }
   const mudaOQueRoda = versao !== s.versao || quem !== s.quem || variante !== (s.variante ?? 'vanilla');
   if (mudaOQueRoda && RODANDO.has(s.estado)) return { ok: false, erro: 'desligue-antes', estado: s.estado };
+  const mudaAReserva = reserva !== (s.reserva?.quem ?? null);
+  // A dona não sai de baixo de si mesma: trocar a reserva que é a dona pede passar antes.
+  if (mudaAReserva && donaDe(s) === 'reserva') return { ok: false, erro: 'passe-antes', dona: 'reserva' };
+  if (mudaOQueRoda && donaDe(s) === 'reserva' && quem !== s.quem) return { ok: false, erro: 'passe-antes', dona: 'reserva' };
 
   const configMudou = JSON.stringify(config) !== JSON.stringify(s.config);
   s.config = config;
   s.versao = versao;
   s.quem = quem;
   s.variante = variante;
-  if (mudaOQueRoda) {
-    if (quem === null) {
-      s.aceite = 'sem-maquina';
-      s.porta = null;
-      s.oferta = null;
+  s.intervaloDaCopia = intervalo;
+  if (mudaAReserva) {
+    s.reserva = reserva === null ? null : { quem: reserva, aceite: 'sem-maquina', motivo: null, porta: null, oferta: null, estado: null };
+    s.copiaRecebida = null;
+  }
+  const papeis = [...(mudaOQueRoda ? ['principal'] : []), ...((mudaOQueRoda || mudaAReserva) && s.reserva ? ['reserva'] : [])];
+  for (const papel of papeis) {
+    if (quemOpera(s, papel) === null) {
+      marcarAceite(s, papel, 'sem-maquina');
+      if (papel === 'principal') { s.porta = null; s.oferta = null; }
     } else if (variante === 'com-mods' && !s.pack) {
-      s.aceite = 'sem-pack';
+      marcarAceite(s, papel, 'sem-pack');
     } else if (versao === null) {
-      s.aceite = 'sem-versao';
+      marcarAceite(s, papel, 'sem-versao');
     } else {
-      const r = pedirAMaquina(servidores, s);
+      const r = pedirAMaquina(servidores, s, papel);
       if (!r.ok) return r;
     }
   }
-  if (configMudou && !mudaOQueRoda && s.aceite === 'aceito') {
+  if (configMudou && !mudaOQueRoda && aceiteDe(s, donaDe(s)) === 'aceito') {
     if (RODANDO.has(s.estado)) s.precisaReiniciar = true;
-    mundo.maquinas.avisar({ servidor: s.id, carga: { op: 'configurar' } });
+    avisarADona(s, { op: 'configurar' });
   }
   gravarServidores(servidores);
   return { ok: true, servidor: publico(s) };
 }
 
+/** Um aviso à máquina que é a dona agora (a principal, sem reserva). */
+function avisarADona(s, carga) {
+  mundo.maquinas.avisar({ servidor: s.id, papel: donaDe(s), carga });
+}
+
 function opLigar(s, servidores) {
   if (s.variante === 'com-mods' && !s.pack) return { ok: false, erro: 'sem-pack' };
   if (!s.versao) return { ok: false, erro: 'sem-versao' };
-  if (!s.quem) return { ok: false, erro: 'sem-maquina' };
+  const dona = donaDe(s);
+  if (!quemOpera(s, dona)) return { ok: false, erro: 'sem-maquina' };
   s.ligar = true;
   let esperando = null;
-  if (s.aceite === 'aceito') {
-    mundo.maquinas.avisar({ servidor: s.id, carga: { op: 'ligar' } });
-  } else if (s.aceite === 'esperando') {
+  const aceite = aceiteDe(s, dona);
+  if (aceite === 'aceito') {
+    avisarADona(s, { op: 'ligar' });
+  } else if (aceite === 'esperando') {
     esperando = 'aceite';
   } else {
     // Parada, revogada ou recusada: ligar de novo é perguntar de novo.
-    const r = pedirAMaquina(servidores, s);
+    const r = pedirAMaquina(servidores, s, dona);
     if (!r.ok) return r;
     esperando = 'aceite';
   }
@@ -1258,7 +1404,33 @@ function opLigar(s, servidores) {
 
 function opDesligar(s, servidores) {
   s.ligar = false;
-  if (s.aceite === 'aceito') mundo.maquinas.avisar({ servidor: s.id, carga: { op: 'desligar' } });
+  if (aceiteDe(s, donaDe(s)) === 'aceito') avisarADona(s, { op: 'desligar' });
+  gravarServidores(servidores);
+  return { ok: true, servidor: publico(s) };
+}
+
+/**
+ * **A passagem avisada** (parte 7): a dona para o jogo (que salva o mundo
+ * inteiro), empacota e manda a cópia final; quando a outra máquina diz que a
+ * recebeu igual, a posse passa — ela liga, e a de antes desliga. Nada se
+ * perde; quem joga reconecta no mesmo `localhost:<porta>`.
+ */
+function opPassar(s, servidores) {
+  const de = donaDe(s);
+  const para = outroPapel(de);
+  if (!s.reserva) return { ok: false, erro: 'sem-reserva' };
+  if (aceiteDe(s, para) !== 'aceito') return { ok: false, erro: 'outra-sem-aceite', papel: para, aceite: aceiteDe(s, para) };
+  if (s.passando) return { ok: false, erro: 'ja-passando', para: s.passando.para };
+  s.passando = { para, desde: mundo.agora() };
+  if (aceiteDe(s, de) === 'aceito') {
+    avisarADona(s, { op: 'passar' });
+  } else if (s.copia && s.copiaRecebida?.sha256 === s.copia.sha256) {
+    // A dona não está aí, e a outra já tem a última cópia: passa agora.
+    passarAPosse(s, para, null);
+  } else {
+    s.passando = null;
+    return { ok: false, erro: 'dona-fora-e-sem-copia', papel: de };
+  }
   gravarServidores(servidores);
   return { ok: true, servidor: publico(s) };
 }
@@ -1269,7 +1441,7 @@ function opConsole(s, pedido) {
     return { ok: false, erro: 'comando-invalido' };
   }
   if (s.estado !== 'ligado') return { ok: false, erro: 'servidor-desligado', estado: s.estado };
-  mundo.maquinas.avisar({ servidor: s.id, carga: { op: 'console', comando } });
+  avisarADona(s, { op: 'console', comando });
   return { ok: true };
 }
 
@@ -1299,7 +1471,7 @@ function usarPack(s, servidores, pack, texto) {
   s.versao = indice.mc;
   s.resolvido = s.resolvido?.versao === indice.mc ? s.resolvido : null;
   if (s.quem) {
-    const r = pedirAMaquina(servidores, s);
+    const r = pedirAsDuas(servidores, s);
     if (!r.ok) return r;
   }
   gravarServidores(servidores);
@@ -1371,9 +1543,21 @@ function opPackLer(pedido) {
 
 // ---------------------------------------------------------------- a máquina
 
-/** O que a máquina aceita precisa para baixar, configurar e rodar. */
-function planoDe(s) {
+/** A oferta e a porta de um papel. */
+function daOfertaDe(s, papel) {
+  return papel === 'reserva' ? { oferta: s.reserva?.oferta ?? null, porta: s.reserva?.porta ?? null } : { oferta: s.oferta, porta: s.porta };
+}
+
+/**
+ * O que a máquina aceita precisa para baixar, configurar e rodar — **as duas**
+ * (parte 7): a que não é a dona baixa e prepara também, para assumir rápido,
+ * e não liga (`dona: false`, `ligar: false`).
+ */
+function planoDe(s, papel = 'principal') {
   const receita = receitaPorId(s.receita);
+  const { oferta, porta } = daOfertaDe(s, papel);
+  const dona = donaDe(s) === papel;
+  const tunelDeCopia = oferta.tuneis.find(t => t.nome === tunelDaCopia(s.id)) ?? null;
   return {
     servidor: s.id,
     receita: receita.id,
@@ -1382,17 +1566,29 @@ function planoDe(s) {
     porPlataforma: s.resolvido.porPlataforma,
     semJava: s.resolvido.semJava,
     arquivoDeConfig: receita.configuracao.arquivo,
-    propriedades: escreverPropriedades(receita, s.config, s.porta),
+    propriedades: escreverPropriedades(receita, s.config, porta),
     termos: receita.termos.filter(t => t.arquivo).map(t => ({ id: t.id, arquivo: t.arquivo, conteudo: t.conteudo })),
-    rodar: s.oferta.rodar,
-    tunel: s.oferta.tuneis[0],
-    ligar: s.ligar,
-    ...(s.variante === 'com-mods' && s.pack ? planoDoPack(s) : {}),
+    rodar: oferta.rodar,
+    tunel: oferta.tuneis[0],
+    ligar: s.ligar && dona,
+    // A reserva (parte 7): quem esta máquina é, se é a dona, e a cópia.
+    papel,
+    dona,
+    copia: {
+      tunel: tunelDeCopia,
+      intervalo: s.intervaloDaCopia ?? INTERVALO_DA_COPIA,
+      // A dona só copia quando há outra máquina aceita para receber.
+      comOutra: aceiteDe(s, outroPapel(papel)) === 'aceito',
+      pasta: receita.mundo.pasta,
+      // A última cópia que esta máquina recebeu e disse que chegou.
+      recebida: s.copiaRecebida?.por === papel ? s.copiaRecebida.sha256 : null,
+    },
+    ...(s.variante === 'com-mods' && s.pack ? planoDoPack(s, oferta) : {}),
   };
 }
 
 /** O que a máquina precisa do pack: de onde ele vem, o hash, o loader e o passo de instalar. */
-function planoDoPack(s) {
+function planoDoPack(s, oferta) {
   const p = s.pack;
   const extras = [];
   if (p.instalador) extras.push(p.instalador);
@@ -1401,7 +1597,7 @@ function planoDoPack(s) {
     artefatos: [...s.resolvido.artefatos, ...extras],
     modpack: {
       origem: p.origem, destino: 'pack.mrpack', pedido: { op: 'pack-ler', id: s.id },
-      sha512: p.sha512, bytes: p.bytes, mc: p.mc, loader: p.loader, instalar: s.oferta.instalar ?? null,
+      sha512: p.sha512, bytes: p.bytes, mc: p.mc, loader: p.loader, instalar: oferta.instalar ?? null,
     },
   };
 }
@@ -1410,19 +1606,30 @@ function daMaquina(contexto, pedido) {
   const servidores = lerServidores();
   const s = servidores[contexto.maquina.servidor];
   if (!s) return { ok: false, erro: 'servidor-desconhecido', servidor: contexto.maquina.servidor, ordem: 'desligar' };
-  // **Uma dona por vez.** O anfitrião só deixa a máquina aceita falar, mas a
-  // posse é desta metade: quem não é a dona agora desliga.
-  if (s.quem !== contexto.person) {
-    anotarFalha(s, 'maquina', 'nao-e-a-dona', { dados: { pessoa: contexto.person } });
+  // **Uma dona por vez.** O anfitrião só deixa uma máquina aceita falar, e
+  // diz o papel dela; a posse é desta metade.
+  const papel = papelDe(s, contexto);
+  if (!papel) {
+    anotarFalha(s, 'maquina', 'nao-e-desta-maquina', { dados: { pessoa: contexto.person, papel: contexto.maquina.papel ?? null } });
     gravarServidores(servidores);
     return { ok: false, erro: 'nao-e-a-dona', ordem: 'desligar' };
   }
+  const dona = donaDe(s) === papel;
   if (pedido.op === 'plano') {
-    if (s.aceite !== 'aceito' || !s.resolvido || !s.oferta) return { ok: false, erro: 'sem-aceite' };
-    return { ok: true, plano: planoDe(s) };
+    if (aceiteDe(s, papel) !== 'aceito' || !s.resolvido || !daOfertaDe(s, papel).oferta) return { ok: false, erro: 'sem-aceite' };
+    return { ok: true, plano: planoDe(s, papel) };
   }
   if (pedido.op === 'estado') {
     if (!ESTADOS_DA_MAQUINA.has(pedido.estado)) return { ok: false, erro: 'estado-desconhecido', estado: pedido.estado ?? null };
+    if (!dona) {
+      // A outra máquina conta o dela à parte; um jogo de pé nela é a
+      // principal que voltou com o processo vivo: desliga, e conta.
+      if (s.reserva && papel === 'reserva') s.reserva.estado = pedido.estado;
+      else s.estadoDaPrincipal = pedido.estado;
+      const rodando = RODANDO.has(pedido.estado) && pedido.estado !== 'parando';
+      gravarServidores(servidores);
+      return rodando ? { ok: true, ordem: 'desligar', dona: false } : { ok: true, dona: false };
+    }
     const antes = s.estado;
     s.estado = pedido.estado;
     if (Array.isArray(pedido.jogadores)) s.jogadores = pedido.jogadores.map(j => cortar(j, 32)).slice(0, 200);
@@ -1433,11 +1640,46 @@ function daMaquina(contexto, pedido) {
     if (s.estado === 'caiu' && antes !== 'caiu') anotarFalha(s, 'jogo', 'o-jogo-caiu', { dados: pedido.saida ?? {} });
     gravarServidores(servidores);
     // O jogo de pé quando ninguém o quer de pé desliga.
-    if (RODANDO.has(s.estado) && !s.ligar && s.estado !== 'parando') return { ok: true, ordem: 'desligar' };
+    if (RODANDO.has(s.estado) && !s.ligar && s.estado !== 'parando' && !s.passando) return { ok: true, ordem: 'desligar' };
+    return { ok: true };
+  }
+  if (pedido.op === 'copia-pronta') {
+    // Só a dona copia: a cópia de quem não é a dona seria um mundo velho por cima do novo.
+    if (!dona) return { ok: false, erro: 'nao-e-a-dona', ordem: 'desligar' };
+    s.copia = {
+      quando: mundo.agora(), de: papel, codigo: String(pedido.codigo ?? ''), sha256: String(pedido.sha256 ?? ''),
+      tamanho: Number(pedido.tamanho) || 0, final: pedido.final === true,
+    };
+    const para = outroPapel(papel);
+    if (aceiteDe(s, para) === 'aceito') {
+      mundo.maquinas.avisar({
+        servidor: s.id, papel: para,
+        carga: { op: 'copia', tunel: tunelDaCopia(s.id), codigo: s.copia.codigo, sha256: s.copia.sha256, tamanho: s.copia.tamanho, final: s.copia.final },
+      });
+    }
+    gravarServidores(servidores);
+    return { ok: true };
+  }
+  if (pedido.op === 'copia-recebida') {
+    if (dona) return { ok: false, erro: 'e-a-dona' };
+    s.copiaRecebida = { quando: mundo.agora(), sha256: String(pedido.sha256 ?? ''), por: papel, daCopiaDe: s.copia?.quando ?? null };
+    // A passagem avisada fecha quando a outra tem a cópia final, igual.
+    if (s.passando && s.passando.para === papel && s.copia?.final && s.copiaRecebida.sha256 === s.copia.sha256) {
+      passarAPosse(s, papel, null);
+    }
+    gravarServidores(servidores);
+    return { ok: true };
+  }
+  if (pedido.op === 'perdeu-a-posse') {
+    // **A principal que voltou com o processo vivo** e o encerrou: contado, nunca calado.
+    s.voltouRodando = (s.voltouRodando ?? 0) + 1;
+    anotarFalha(s, 'reserva', 'voltou-rodando-sem-a-posse', { dados: { papel, pessoa: contexto.person, processoVivo: pedido.processoVivo === true } });
+    gravarServidores(servidores);
     return { ok: true };
   }
   if (pedido.op === 'falha') {
-    anotarFalha(s, 'maquina', cortar(pedido.erro ?? 'falhou', 64), { etapa: cortar(pedido.etapa ?? '', 32), dados: pedido.dados ?? {} });
+    anotarFalha(s, 'maquina', cortar(pedido.erro ?? 'falhou', 64), { etapa: cortar(pedido.etapa ?? '', 32), papel, dados: pedido.dados ?? {} });
+    if (s.passando && (pedido.etapa === 'copia' || pedido.etapa === 'receber-copia')) s.passando = null;
     gravarServidores(servidores);
     return { ok: true };
   }
@@ -1470,6 +1712,7 @@ globalThis.aoPedir = (textoDoContexto, textoDoPedido) => {
     else if (op === 'configurar') resposta = opConfigurar(s, servidores, pedido);
     else if (op === 'ligar') resposta = opLigar(s, servidores);
     else if (op === 'desligar') resposta = opDesligar(s, servidores);
+    else if (op === 'passar') resposta = opPassar(s, servidores);
     else if (op === 'pack-link') resposta = opPackLink(s, servidores, pedido);
     else if (op === 'pack-enviar') resposta = opPackEnviar(s);
     else if (op === 'pack-chegou') resposta = opPackChegou(s, servidores, pedido);
@@ -1478,8 +1721,10 @@ globalThis.aoPedir = (textoDoContexto, textoDoPedido) => {
   return JSON.stringify(resposta);
 };
 
+const MOMENTOS = Object.freeze(['MaquinaAceitou', 'MaquinaRecusou', 'MaquinaParou', 'MaquinaSumiu', 'MaquinaVoltou']);
+
 globalThis.aoAcontecer = (momento, textoDaCarga) => {
-  if (!['MaquinaAceitou', 'MaquinaRecusou', 'MaquinaParou'].includes(momento)) return;
+  if (!MOMENTOS.includes(momento)) return;
   const carga = lerJson(textoDaCarga) ?? {};
   const servidores = lerServidores();
   const s = servidores[carga.servidor];
@@ -1487,31 +1732,75 @@ globalThis.aoAcontecer = (momento, textoDaCarga) => {
     mundo.registrar(`${momento} de um servidor de jogo que não existe mais: ${JSON.stringify(carga)}`);
     return;
   }
+  const papel = PAPEIS.includes(carga.papel) ? carga.papel : 'principal';
   const pessoa = String(carga.pessoa ?? '');
-  if (pessoa !== s.quem) {
+  if (pessoa !== quemOpera(s, papel)) {
     // A máquina de antes, dispensada por um pedido a outra pessoa: conta, e não mexe na de agora.
-    anotarFalha(s, 'aceite', carga.motivo ?? momento, { dados: { pessoa, momento } });
+    anotarFalha(s, 'aceite', carga.motivo ?? momento, { papel, dados: { pessoa, momento } });
     gravarServidores(servidores);
     return;
   }
+  const dona = donaDe(s) === papel;
   if (momento === 'MaquinaAceitou') {
-    s.aceite = 'aceito';
-    s.motivo = null;
-    mundo.maquinas.avisar({ servidor: s.id, carga: { op: s.ligar ? 'ligar' : 'preparar' } });
+    marcarAceite(s, papel, 'aceito');
+    if (dona) avisarADona(s, { op: s.ligar ? 'ligar' : 'preparar' });
+    else mundo.maquinas.avisar({ servidor: s.id, papel, carga: { op: 'preparar' } });
+    // A dona não precisa de aviso: a cópia agendada relê o plano a cada vez
+    // (e um aviso aqui tomaria o lugar de um «ligar» ainda na fila da taxa).
   } else if (momento === 'MaquinaRecusou') {
-    s.aceite = 'recusado';
-    s.motivo = String(carga.motivo ?? '');
-    s.ligar = false;
-    anotarFalha(s, 'aceite', s.motivo, { dados: { pessoa } });
-  } else {
-    s.aceite = 'parado';
-    s.motivo = String(carga.motivo ?? '');
-    s.ligar = false;
-    s.estado = 'desligado';
-    s.jogadores = [];
-    anotarFalha(s, 'aceite', s.motivo, { dados: { pessoa } });
+    marcarAceite(s, papel, 'recusado', String(carga.motivo ?? ''));
+    if (dona) s.ligar = false;
+    anotarFalha(s, 'aceite', String(carga.motivo ?? ''), { papel, dados: { pessoa } });
+  } else if (momento === 'MaquinaParou') {
+    const motivo = String(carga.motivo ?? '');
+    marcarAceite(s, papel, 'parado', motivo);
+    anotarFalha(s, 'aceite', motivo, { papel, dados: { pessoa } });
+    if (dona) {
+      // **A dona que caiu (saiu) com uma reserva de pé não desliga o servidor
+      // de jogo**: o prazo corre, e MaquinaSumiu decide. Uma parada da pessoa
+      // da máquina (DESLIGAR, REVOGAR) desliga, como sempre.
+      const temReserva = aceiteDe(s, outroPapel(papel)) === 'aceito';
+      if (!(motivo === 'saiu' && temReserva)) s.ligar = false;
+      s.estado = 'desligado';
+      s.jogadores = [];
+    } else if (papel === 'reserva' && s.reserva) {
+      s.reserva.estado = null;
+    }
+  } else if (momento === 'MaquinaSumiu') {
+    sumiu(s, papel, Number(carga.segundos) || 0);
+  } else if (momento === 'MaquinaVoltou') {
+    // **A que volta não liga sozinha**: é chamada de novo, e o plano diz a ela
+    // quem é a dona. Se não é ela, ela desliga o que tiver de pé.
+    const r = pedirAMaquina(servidores, s, papel);
+    if (!r.ok) anotarFalha(s, 'reserva', r.erro, { papel, dados: r });
   }
   gravarServidores(servidores);
 };
+
+/**
+ * **A dona sumiu além do prazo** (MaquinaSumiu): com a outra máquina aceita
+ * e com uma cópia, a posse passa a ela, que liga com a última cópia; o tempo
+ * de jogo perdido é o que passou entre essa cópia e a queda, e todos veem.
+ * Sem cópia, não passa — ligar um mundo vazio seria um segundo mundo — e a
+ * tela diz por quê.
+ */
+function sumiu(s, papel, segundos) {
+  if (donaDe(s) !== papel) return;
+  const outra = outroPapel(papel);
+  if (!s.ligar) return;
+  if (aceiteDe(s, outra) !== 'aceito') {
+    if (s.reserva) anotarFalha(s, 'reserva', 'outra-sem-aceite', { papel: outra, dados: { aceite: aceiteDe(s, outra) } });
+    return;
+  }
+  if (!s.copiaRecebida || s.copiaRecebida.por !== outra) {
+    anotarFalha(s, 'reserva', 'reserva-sem-copia', { papel: outra, dados: {} });
+    return;
+  }
+  const caiuEm = mundo.agora() - segundos;
+  const daCopia = s.copiaRecebida.daCopiaDe ?? s.copiaRecebida.quando;
+  const perdido = { segundos: Math.max(0, caiuEm - daCopia), quando: mundo.agora(), de: papel, para: outra, copiaDe: daCopia };
+  passarAPosse(s, outra, perdido);
+  anotarFalha(s, 'reserva', 'a-reserva-assumiu', { papel: outra, dados: { perdidoSegundos: perdido.segundos } });
+}
 
 })();

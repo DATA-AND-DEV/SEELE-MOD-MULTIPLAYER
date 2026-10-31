@@ -16,6 +16,10 @@
 //   maquina.programa.rodar({ comando, argumentos, pasta }) -> processo
 //     processo.aoLinha(fn(linha, fluxo)) / aoSair(fn(fim)) / fim / escrever(texto) / matar()
 //   maquina.programa.recusas() -> Promise<{ nome: vezes }>
+//   maquina.programa.empacotar({ origem, arquivo }) -> { arquivo, tamanho, sha256, arquivos, bytes, linksPulados }
+//   maquina.programa.oferecerCopia({ arquivo, porta }) -> { codigo, tamanho, sha256, porta }
+//   maquina.programa.receberCopia({ tunel, codigo, sha256, tamanho, destino, aoProgresso })
+//     -> { destino, tamanho, sha256, retomadas, jaEstavam, caminho }
 //
 // **Uma metade de máquina é um servidor de jogo**: o produto sobe uma por
 // (MOD, servidor), já presa à pasta daquele servidor. Nenhuma chamada leva o
@@ -32,7 +36,9 @@
 //   rodar({ comando, argumentos, pasta })           -> Promise<{ aoLinha, aoSair, escrever, encerrar }>
 //   servirPorta({ nome, protocolo, porta })         -> Promise<{ fechar }>
 //   escrever(caminho, texto)                        -> Promise
-//   copiar                                          -> null: a cópia do mundo é da reserva (parte 7)
+//   empacotar(origem, arquivo)                      -> Promise: a pasta do mundo num .tar.gz (parte 7)
+//   oferecerCopia(arquivo, porta)                   -> Promise<{ codigo, tamanho, sha256 }>
+//   receberCopia({ tunel, codigo, sha256, tamanho, destino }) -> Promise<{ sha256, caminho, ... }>
 //   pedir(valor)                                    -> Promise<resposta da metade de servidor, já lida>
 //   aoAviso(fn(servidor, carga já lida))
 //   aoParar(fn(motivo))
@@ -97,9 +103,13 @@ function criarAdaptador(g = globalThis) {
 
     escrever: (caminho, texto) => promessa(() => m.programa.escrever({ destino: caminho, texto })),
 
-    // Sem cópia de arquivo no `programa`: copiar o mundo é da reserva (parte
-    // 7), que o leva a outra máquina. A metade diz isso ao salvar.
-    copiar: null,
+    // **A cópia do mundo** (parte 7): empacotar depois do salvamento seguro,
+    // oferecer na porta do túnel da cópia, e receber na outra máquina.
+    empacotar: (origem, arquivo) => promessa(() => m.programa.empacotar({ origem, arquivo })),
+    oferecerCopia: (arquivo, porta) => promessa(() => m.programa.oferecerCopia({ arquivo, porta })),
+    receberCopia: ({ tunel, codigo, sha256, tamanho, destino }) => promessa(() => m.programa.receberCopia({
+      tunel, codigo, sha256, tamanho, destino,
+    })),
 
     pedir: valor => promessa(() => m.pedir(valor)).then(lido),
     aoAviso: fn => m.aoAviso(carga => fn(String(m.servidor ?? ''), lido(carga))),

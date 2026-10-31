@@ -92,6 +92,8 @@ const AMBIENTE_DO_SERVIDOR: &str = r#"globalThis.dados = {};
       maquinas: {
         pedir: p => { __pedidosDeMaquina.push(JSON.parse(JSON.stringify(p))); },
         avisar: a => { __avisosAMaquina.push(JSON.parse(JSON.stringify(a))); },
+        // A posse (API 8 parte 7): o produto só guarda quem é a dona.
+        dona: d => { if (!['principal', 'reserva'].includes(d.papel)) throw new Error('papel-invalido'); },
       },
       // O pack pelo link (seele-server `mods::pack::buscar`): o índice do pack
       // de prova, com o sha512 e o tamanho que a API do Modrinth deu.

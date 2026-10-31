@@ -16,6 +16,11 @@
 // Toda a API da máquina passa pelo adaptador (adaptador.js).
 
 const LINHAS_GUARDADAS = 8;
+/** Onde a dona empacota o mundo, e onde a outra máquina guarda o que recebe (parte 7). */
+const PACOTE_DA_COPIA = 'copias/mundo.tar.gz';
+const COPIA_RECEBIDA = 'copias/recebida.tar.gz';
+/** A marca do último mundo que esta máquina tem: o sha256 da cópia que ela abriu ou fez. */
+const MARCA_DO_MUNDO = '.seele-mundo';
 /** Quanto a parada da metade espera o jogo sair depois do `stop`, abaixo dos 20 s do produto. */
 const PRAZO_DA_PARADA_DA_METADE = 15000;
 
@@ -28,7 +33,7 @@ function criarMaquina(ad) {
       i = {
         servidor, fila: Promise.resolve(), plano: null, preparado: null, proc: null, tunel: null,
         estado: 'desligado', jogadores: [], linhas: [], parando: false, esperas: [], progresso: null,
-        casar: null,
+        casar: null, dona: true, vezDaCopia: 0, tunelDaCopia: null, recebida: null,
       };
       instancias.set(servidor, i);
     }
@@ -65,7 +70,12 @@ function criarMaquina(ad) {
       return;
     }
     // A metade de servidor é quem decide quem roda: se ela manda parar, para.
-    if (resposta?.ordem === 'desligar' && i.proc && !i.parando) enfileirar(i, () => desligar(i));
+    // Sem a posse (parte 7), é a principal que voltou com o jogo de pé: o
+    // desligar é contado, e não calado.
+    if (resposta?.ordem === 'desligar' && i.proc && !i.parando) {
+      if (resposta.dona === false) enfileirar(i, () => perdeuAPosse(i));
+      else enfileirar(i, () => desligar(i));
+    }
   }
 
   async function lerPlano(i) {
@@ -85,6 +95,10 @@ function criarMaquina(ad) {
     }
     i.receita = receita;
     i.casar = casarSaida(receita);
+    i.dona = r.plano.dona !== false;
+    // **A que não é a dona não roda** (parte 7): um jogo de pé aqui é o de
+    // antes da queda, e sai — contado.
+    if (!i.dona && i.proc && !i.parando) await perdeuAPosse(i);
     return r.plano;
   }
 
@@ -283,6 +297,8 @@ function criarMaquina(ad) {
       await falha(i, 'tunel', erro, { nome: t.nome, protocolo: t.protocolo, porta: t.porta, ...dadosDoErro(erro) });
     }
     await contar(i, 'ligado');
+    // A dona começa a copiar o mundo para a outra máquina (parte 7).
+    if (i.dona) agendarCopia(i);
   }
 
   function fecharTunel(i) {
@@ -292,6 +308,9 @@ function criarMaquina(ad) {
       falha(i, 'tunel', erro, { fechando: true });
     }
     i.tunel = null;
+    // A cópia agendada para com o jogo; o túnel da cópia fica, para a outra
+    // máquina terminar de receber a final (o produto o para quando a posse muda).
+    i.vezDaCopia++;
   }
 
   async function aoSair(i, saida) {
@@ -377,24 +396,27 @@ function criarMaquina(ad) {
     }
   }
 
-  async function salvar(i) {
+  async function salvar(i, opcoes = {}) {
     if (!i.proc) {
       await falha(i, 'salvar', 'servidor-desligado');
-      return;
+      return null;
     }
     const passos = i.receita.mundo.salvar;
     const ultimo = passos.at(-1);
     await contar(i, 'salvando');
     let falhou = null;
     let semCopia = null;
+    let pacote = null;
     for (const passo of passos) {
-      if (passo.copiar && !ad.copiar) {
-        // Sem cópia no produto ainda: o mundo foi salvo com segurança, e a
-        // cópia é da reserva (parte 7). Dito, e não calado.
+      if (passo.copiar && !(opcoes.copiar && ad.empacotar)) {
+        // Sem quem receba (sem reserva), o mundo foi salvo com segurança e
+        // não há o que copiar. Dito, e não calado.
         semCopia = passo.copiar;
       } else if (passo.copiar) {
+        // **A cópia, com o mundo parado de escrever** (parte 7): entre o
+        // save-all flush e o save-on.
         try {
-          await ad.copiar(passo.copiar, `copias/${passo.copiar}-${Date.now()}`);
+          pacote = await ad.empacotar(passo.copiar, PACOTE_DA_COPIA);
         } catch (erro) {
           falhou = { erro: fraseDoErro(erro), dados: { passo, ...dadosDoErro(erro) } };
           break;
@@ -411,11 +433,130 @@ function criarMaquina(ad) {
       // O mundo não pode ficar sem salvar automático: o último passo de
       // console (o save-on) vai mesmo assim.
       if (ultimo.console && i.proc) i.proc.escrever(ultimo.console + '\n');
-      await falha(i, 'salvar', falhou.erro, falhou.dados);
-    } else if (semCopia) {
-      await falha(i, 'salvar', 'copia-fica-para-a-reserva', { pasta: semCopia });
+      await falha(i, opcoes.copiar ? 'copia' : 'salvar', falhou.erro, falhou.dados);
+    } else if (semCopia && !opcoes.copiar) {
+      await falha(i, 'salvar', 'sem-reserva-para-a-copia', { pasta: semCopia });
     }
     if (i.proc) await contar(i, 'ligado');
+    return falhou ? null : pacote;
+  }
+
+  // ---- a cópia do mundo (parte 7) ----
+
+  /** O sha256 do mundo que esta máquina tem (a cópia que abriu ou que fez), ou null. */
+  async function marcaDoMundo() {
+    try { return String(await ad.ler(MARCA_DO_MUNDO)).trim() || null; } catch { return null; }
+  }
+
+  /**
+   * **A dona copia o mundo** para a outra máquina: o salvamento seguro com o
+   * pacote no meio (ou, na passagem avisada, o jogo parado inteiro antes), a
+   * oferta na porta do túnel da cópia, o túnel servido, e a metade de
+   * servidor avisada, que avisa a outra. Toda falha vai à tela.
+   */
+  async function copiar(i, final) {
+    const plano = await lerPlano(i);
+    if (!plano || !plano.dona) return;
+    const c = plano.copia;
+    if (!c?.tunel) return falha(i, 'copia', 'sem-tunel-de-copia', {});
+    if (!final && !c.comOutra) return;
+    let pacote;
+    if (final || !i.proc) {
+      // **A passagem avisada para o jogo antes**: o stop salva o mundo
+      // inteiro, e nada do que se joga depois fica para trás.
+      if (i.proc) await desligar(i);
+      try {
+        pacote = await ad.empacotar(c.pasta, PACOTE_DA_COPIA);
+      } catch (erro) {
+        return falha(i, 'copia', erro, { pasta: c.pasta, final, ...dadosDoErro(erro) });
+      }
+    } else {
+      pacote = await salvar(i, { copiar: true });
+      if (!pacote) return;
+    }
+    let oferta;
+    try {
+      oferta = await ad.oferecerCopia(PACOTE_DA_COPIA, c.tunel.porta);
+    } catch (erro) {
+      return falha(i, 'copia', erro, { porta: c.tunel.porta, ...dadosDoErro(erro) });
+    }
+    if (!i.tunelDaCopia) {
+      try {
+        i.tunelDaCopia = await ad.servirPorta({ nome: c.tunel.nome, protocolo: 'tcp', porta: c.tunel.porta });
+      } catch (erro) {
+        return falha(i, 'copia', erro, { tunel: c.tunel.nome, porta: c.tunel.porta, ...dadosDoErro(erro) });
+      }
+    }
+    try { await ad.escrever(MARCA_DO_MUNDO, oferta.sha256 + '\n'); } catch { /* a marca é um atalho */ }
+    const r = await ad.pedir({
+      op: 'copia-pronta', codigo: oferta.codigo, sha256: oferta.sha256, tamanho: oferta.tamanho, final,
+      arquivos: pacote.arquivos ?? null, bytes: pacote.bytes ?? null,
+    });
+    if (!r || r.ok !== true) await falha(i, 'copia', r?.erro ?? 'copia-recusada', dadosDoErro(r ?? {}));
+  }
+
+  /** **A cópia agendada**: de `intervalo` em `intervalo` minutos, enquanto o jogo roda e esta é a dona. */
+  function agendarCopia(i) {
+    const vez = ++i.vezDaCopia;
+    const minutos = Number(i.plano?.copia?.intervalo) || 5;
+    ad.esperar(minutos * 60000).then(() => {
+      if (i.vezDaCopia !== vez || !i.proc || !i.dona) return;
+      enfileirar(i, () => copiar(i, false));
+      agendarCopia(i);
+    });
+  }
+
+  /** **A outra máquina recebe a cópia** pelo túnel da dona, e diz que chegou. */
+  async function receber(i, carga) {
+    let chegou;
+    try {
+      chegou = await ad.receberCopia({ tunel: String(carga.tunel), codigo: String(carga.codigo), sha256: String(carga.sha256), tamanho: Number(carga.tamanho), destino: COPIA_RECEBIDA });
+    } catch (erro) {
+      return falha(i, 'receber-copia', erro, { tunel: carga.tunel, tamanho: carga.tamanho, sha256: carga.sha256, final: carga.final === true, ...dadosDoErro(erro) });
+    }
+    i.recebida = { sha256: chegou.sha256 };
+    const r = await ad.pedir({ op: 'copia-recebida', sha256: chegou.sha256, final: carga.final === true, caminho: chegou.caminho ?? null, retomadas: chegou.retomadas ?? 0 });
+    if (!r || r.ok !== true) await falha(i, 'receber-copia', r?.erro ?? 'recusada', dadosDoErro(r ?? {}));
+  }
+
+  /**
+   * **Assumir** (a metade de servidor passou a posse a esta máquina): abre a
+   * última cópia recebida no lugar do mundo, se ela é mais nova que o que
+   * está aqui, e liga.
+   */
+  async function assumir(i) {
+    const plano = await lerPlano(i);
+    if (!plano) return;
+    if (!plano.dona) return falha(i, 'assumir', 'nao-e-a-dona', {});
+    const pasta = plano.copia?.pasta ?? 'world';
+    const temAqui = await marcaDoMundo();
+    // A metade que subiu de novo depois de receber (o app reaberto) não
+    // lembra: o que ela recebeu, o plano diz.
+    const recebida = i.recebida?.sha256 ?? plano.copia?.recebida ?? null;
+    if (recebida && recebida !== temAqui) {
+      try {
+        await ad.desempacotar({ arquivo: COPIA_RECEBIDA, destino: pasta, raiz: pasta });
+        await ad.escrever(MARCA_DO_MUNDO, recebida + '\n');
+      } catch (erro) {
+        return falha(i, 'assumir', erro, { arquivo: COPIA_RECEBIDA, pasta, ...dadosDoErro(erro) });
+      }
+    }
+    await ligar(i);
+  }
+
+  /**
+   * **A principal que voltou com o jogo de pé** e não é a dona: desliga, e
+   * diz à metade de servidor, que conta e mostra. Nunca resolvido calado.
+   */
+  async function perdeuAPosse(i) {
+    if (!i.proc) return;
+    ad.registrar(`${i.servidor}: não é a dona, e o jogo estava de pé: desligando`);
+    await desligar(i);
+    try {
+      await ad.pedir({ op: 'perdeu-a-posse', processoVivo: true });
+    } catch (e) {
+      ad.registrar(`${i.servidor}: a volta sem a posse não chegou à metade de servidor: ${fraseDoErro(e)}`);
+    }
   }
 
   async function console_(i, comando) {
@@ -449,6 +590,10 @@ function criarMaquina(ad) {
     desligar: i => desligar(i),
     salvar: i => salvar(i),
     configurar: i => configurar(i),
+    // A reserva (parte 7).
+    copia: (i, carga) => receber(i, carga),
+    assumir: i => assumir(i),
+    passar: i => copiar(i, true),
     console: (i, carga) => console_(i, carga.comando),
   };
 
@@ -464,6 +609,7 @@ function criarMaquina(ad) {
     if (carga.op === 'console') op(i, carga).catch(erro => falha(i, 'console', erro));
     else enfileirar(i, () => op(i, carga));
   });
+
 
   // **A parada da metade** (DESLIGAR, REVOGAR, o app fechando, o MOD
   // desligado): o jogo recebe `stop` e tem o prazo do produto para salvar
