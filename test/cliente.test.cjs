@@ -64,7 +64,8 @@ test('criar abre a configuração, na aba GERAL, com Vanilla e Com mods no topo'
   const abas = j.no('aba');
   assert.equal(abas.forma, 'abas');
   assert.equal(abas.valor, 'aba-geral');
-  assert.deepEqual(abas.dentro.map(x => x.rotulo), ['GERAL', 'MODS', 'JOGADORES', 'MÁQUINA']);
+  // Vanilla é sem mods: a aba MODS só existe com «Com mods» (1.0.1).
+  assert.deepEqual(abas.dentro.map(x => x.rotulo), ['GERAL', 'JOGADORES', 'MÁQUINA']);
   // As duas opções grandes, lado a lado, antes de qualquer campo.
   const geral = nos(abas.dentro[0]);
   const vanilla = geral.findIndex(n => n.chave === 'variante:vanilla');
@@ -134,9 +135,24 @@ test('escolher a máquina na aba MÁQUINA mostra o aceite que se espera', async 
   assert.match(j.texto('chip-aceite'), /ACEITO/);
 });
 
+test('a aba MODS só aparece com «Com mods», e some de novo no Vanilla', async () => {
+  const { j } = await aberta();
+  await j.apertar('criar:minecraft');
+  const rotulos = () => j.no('aba').dentro.map(x => x.rotulo);
+  assert.ok(!rotulos().includes('MODS'), `Vanilla com aba MODS: ${rotulos()}`);
+  await j.apertar('variante:com-mods');
+  assert.deepEqual(rotulos(), ['GERAL', 'MODS', 'JOGADORES', 'MÁQUINA']);
+  // Da aba MODS de volta à GERAL, escolher o Vanilla tira a aba de novo.
+  await j.mudar('aba', 'aba', 'aba-mods');
+  await j.mudar('aba', 'aba', 'aba-geral');
+  await j.apertar('variante:vanilla');
+  assert.ok(!rotulos().includes('MODS'), `voltou ao Vanilla com aba MODS: ${rotulos()}`);
+});
+
 test('a aba MODS oferece o link do Modrinth e o arquivo .mrpack, com o teto do envio', async () => {
   const { j } = await aberta();
   await j.apertar('criar:minecraft');
+  await j.apertar('variante:com-mods');
   await j.mudar('aba', 'aba', 'aba-mods');
   assert.match(j.texto('aba-mods'), /Nenhum modpack ainda/);
   assert.equal(j.no('pack:link-texto').forma, 'campo');

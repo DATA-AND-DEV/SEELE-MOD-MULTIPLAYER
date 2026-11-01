@@ -1,6 +1,6 @@
 {
   "name": "seele-mod-multiplayer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "test": "node --test test/*.test.cjs",

@@ -1203,22 +1203,28 @@ function hora(segundos) {
 function vistaConfig() {
   const s = servidorAtual();
   const receita = receitaPorId(s.receita);
+  const variante = estado.rascunho?.variante ?? s.variante ?? 'vanilla';
+  // **Vanilla é sem mods** (1.0.1): a aba MODS só existe com «Com mods». Ela
+  // aparecia em todo servidor, e num Vanilla oferecia um modpack que ele não
+  // pode ter. Voltar ao Vanilla com ela aberta devolve a GERAL.
+  const comMods = variante === 'com-mods';
+  const abas = ABAS.filter(a => a.chave !== 'aba-mods' || comMods);
   const conteudo = {
     'aba-geral': () => abaGeral(receita, s),
-    'aba-mods': () => abaMods(receita, s),
     'aba-jogadores': () => abaJogadores(receita, s),
     'aba-maquina': () => abaMaquina(receita, s),
   };
+  if (comMods) conteudo['aba-mods'] = () => abaMods(receita, s);
   const aberta = conteudo[estado.aba] ? estado.aba : 'aba-geral';
   return [
     linhaH([botao('voltar', '← SERVIDORES DE JOGO', { variante: 'discreta' })]),
     // O nome do servidor é o título do modal (`tituloDoModal`), como nos
     // modais do app; no corpo fica só o rótulo miúdo, o jogo e a variante.
-    lb(`${receita.nome} · ${receita.variantes[estado.rascunho?.variante ?? s.variante ?? 'vanilla']?.nome ?? ''}`, 'titulo'),
+    lb(`${receita.nome} · ${receita.variantes[variante]?.nome ?? ''}`, 'titulo'),
     estado.aviso ? avisoDaPagina() : null,
     {
       forma: 'abas', chave: 'aba', valor: aberta,
-      dentro: ABAS.map(a => ({ forma: 'aba', chave: a.chave, rotulo: a.rotulo, dentro: a.chave === aberta ? [conteudo[a.chave]()] : [] })),
+      dentro: abas.map(a => ({ forma: 'aba', chave: a.chave, rotulo: a.rotulo, dentro: a.chave === aberta ? [conteudo[a.chave]()] : [] })),
     },
   ];
 }

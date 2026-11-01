@@ -19,6 +19,8 @@ async function naAbaMods() {
   const j = criarJanela(a);
   await j.abrir();
   await j.apertar('criar:minecraft');
+  // A aba MODS só existe com «Com mods» (1.0.1): é a escolha que vem antes.
+  await j.apertar('variante:com-mods');
   await j.mudar('aba', 'aba', 'aba-mods');
   return { a, j, id: a.pedir(1, { op: 'estado' }).servidores[0].id };
 }

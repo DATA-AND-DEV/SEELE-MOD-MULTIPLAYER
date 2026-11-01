@@ -1,4 +1,4 @@
-# SEELE MOD MULTIPLAYER — 1.0.0
+# SEELE MOD MULTIPLAYER — 1.0.1
 
 Servidores de jogo multiplayer nas máquinas de quem está no servidor SEELE, sem VPN, sem servidor pago e sem serviço de fora. Quem hospeda o SEELE escolhe o jogo, escolhe em que máquina ele roda e configura pela tela do SEELE; a pessoa dona da máquina aceita, na máquina dela, antes de qualquer coisa ser baixada, e pode desligar a qualquer momento. Os amigos entram pelo botão **ENTRAR**, que abre `localhost:<porta>` no computador de cada um.
 
