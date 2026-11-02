@@ -195,6 +195,10 @@ test('o server.properties sai do esquema, com a porta e o nome escapados', () =>
   assert.ok(linhas.includes('difficulty=normal'));
   assert.ok(linhas.includes('gamemode=survival'));
   assert.ok(linhas.includes('online-mode=true'));
+  // O Minecraft 26.x liga a lista de convidados quando a chave falta, e ela
+  // nasce vazia: ninguém entrava. Quem entra é decidido pelo túnel do SEELE.
+  assert.ok(linhas.includes('white-list=false'), 'a lista de convidados não barra quem o túnel deixou passar');
+  assert.ok(linhas.includes('enforce-whitelist=false'));
   assert.ok(texto.endsWith('\n'));
 });
 
